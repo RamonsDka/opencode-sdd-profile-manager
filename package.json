@@ -1,15 +1,15 @@
 {
 	"name": "opencode-sdd-engram-manage",
 	"version": "1.7.0",
-	"description": "Interactive SDD model selection and profile management for opencode",
+	"description": "Keyboard-first SDD profile, model, reasoning, fallback, and Engram management for OpenCode",
 	"repository": {
 		"type": "git",
-		"url": "git+https://github.com/j0k3r-dev-rgl/sdd-engram-plugin.git"
+		"url": "git+https://github.com/RamonsDka/opencode-sdd-profile-manager.git"
 	},
 	"bugs": {
-		"url": "https://github.com/j0k3r-dev-rgl/sdd-engram-plugin/issues"
+		"url": "https://github.com/RamonsDka/opencode-sdd-profile-manager/issues"
 	},
-	"homepage": "https://github.com/j0k3r-dev-rgl/sdd-engram-plugin#readme",
+	"homepage": "https://github.com/RamonsDka/opencode-sdd-profile-manager#readme",
 	"license": "MIT",
 	"type": "module",
 	"main": "./dist/tui.js",

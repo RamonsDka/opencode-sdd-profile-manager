@@ -1,8 +1,15 @@
+# Changelog
+
+This derivative repository preserves the upstream release history below. New releases from this repository will be added above the upstream history.
+
+Original project: https://github.com/j0k3r-dev-rgl/sdd-engram-plugin
+
 # [1.7.0](https://github.com/j0k3r-dev-rgl/sdd-engram-plugin/compare/v1.6.8...v1.7.0) (2026-06-29)
 
 
 ### Features
 
+* **catalog:** gentle-ai 2.4.0 parity (40 base agents, model-audit), tiered dialog sizing, wrap >=80, and guarded host compatibility
 * **shortcut:** add configurable plugin keybinding ([b23e6dd](https://github.com/j0k3r-dev-rgl/sdd-engram-plugin/commit/b23e6ddb83d16090c5642f8996c0776cbe15a4ee)), closes [#34](https://github.com/j0k3r-dev-rgl/sdd-engram-plugin/issues/34)
 
 ## [1.6.8](https://github.com/j0k3r-dev-rgl/sdd-engram-plugin/compare/v1.6.7...v1.6.8) (2026-06-29)

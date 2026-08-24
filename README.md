@@ -1,73 +1,142 @@
-# opencode-sdd-engram-manage 🚀
+# OpenCode SDD Profile Manager
 
-Interactive SDD model selection and profile management for [opencode](https://opencode.ai).
+![Node.js 24](https://img.shields.io/badge/Node.js-24-339933?logo=nodedotjs&logoColor=white)
+![OpenCode](https://img.shields.io/badge/OpenCode-%3E%3D%201.17.11-111827)
+![Tests](https://img.shields.io/badge/tests-364%20passing-22c55e)
+![License](https://img.shields.io/badge/license-MIT-blue)
 
-## Features
+A keyboard-first OpenCode TUI plugin for creating, editing, versioning, and activating model profiles across Spec-Driven Development agents.
 
-### 1. SDD Profile Management
+It provides one consistent catalog for SDD, Judgment Day, review, and auxiliary agents; grouped model navigation; per-agent reasoning effort; fallback control; profile history; and project-scoped Engram memory browsing.
 
-Manage [SDD (Spec-Driven Development)](https://github.com/Gentleman-Programming/gentle-ai) profiles from [gentle-ai](https://github.com/Gentleman-Programming/gentle-ai) directly from the opencode TUI.
+> **Project lineage**
+>
+> This repository is an independently maintained derivative of [`j0k3r-dev-rgl/sdd-engram-plugin`](https://github.com/j0k3r-dev-rgl/sdd-engram-plugin). The original MIT copyright and license are preserved in [`LICENSE`](LICENSE). See [Origin and attribution](#origin-and-attribution).
 
-- **Create:** Create an empty SDD profile for manual configuration.
-- **Activate:** Apply a saved profile to the global runtime config instantly — no restart required. Changes are live immediately.
-- **Edit Models:** Pick a different provider/model for any agent or fallback directly from the UI.
-- **Bulk Actions:** Use **Bulk actions...** to assign primary models, fallback models, or both across the whole profile.
-- **Profile Versions:** Use **Profile versions...** to preview and restore saved snapshots before risky changes.
-- **Rename & Delete:** Full lifecycle management for your profiles.
-- **Per-Agent Fallbacks:** Configure a fallback model per managed base agent: `sdd-*` (except `sdd-orchestrator`), `review-*`, and `jd-*`. On activation, the plugin ensures matching `*-fallback` agents exist and stay in sync with their base agent config. Primary models are applied first, so you can define new agents and their fallbacks in a single profile activation.
-- **Active Profile Detection:** The plugin automatically detects and highlights which profile matches the current config.
+## What it solves
 
-#### Profile Format
+OpenCode agent configurations become difficult to manage when every SDD phase uses a different model, reasoning level, or fallback. Editing those values directly in JSON is error-prone and makes it hard to answer simple questions:
 
-Profiles are stored as JSON files under `~/.config/opencode/profiles/`:
+- Which profile is active?
+- Which model does each agent use?
+- Which agents support fallback or reasoning effort?
+- Can a complete configuration be changed without destroying `{file:...}` links?
+- Can previous profile versions be restored?
 
-```json
-{
-  "models": {
-    "sdd-init": "openai/gpt-4o",
-    "sdd-spec": "anthropic/claude-sonnet-4-6",
-    "sdd-apply": "anthropic/claude-sonnet-4-6"
-  },
-  "fallback": {
-    "sdd-init": "google/gemini-flash-2.0",
-    "sdd-apply": "openai/gpt-4o-mini"
-  }
-}
-```
+This plugin turns that configuration into a structured TUI workflow.
 
-- `models`: primary model per managed base agent (`sdd-*`, `review-*`, `jd-*`, plus `gentle-orchestrator` when present in the runtime config).
-- `fallback`: optional fallback model override per managed base agent name. If omitted, the fallback agent inherits the base model.
+## Highlights
 
-Profile versions are stored separately under `~/.config/opencode/profile-versions/`, or `$XDG_CONFIG_HOME/opencode/profile-versions/` when `XDG_CONFIG_HOME` is set. Version metadata is not written into the main profile JSON file, so profile files stay portable and focused on runtime model configuration.
+| Capability | What it provides |
+|---|---|
+| Structured agent catalog | 25 ordered agents grouped as Orchestrator, SDD Core, Judgment Day, Reviewers, and Auxiliaries |
+| Profile management | Create, rename, edit, activate, delete, and restore JSON profiles |
+| Model navigation | Direct model selection with grouped categories and provider/model metadata |
+| Reasoning effort | Per-agent `low`, `medium`, `high`, `xhigh`, or `max` configuration |
+| Fallback management | Explicit fallback assignments with eligibility and synchronization safeguards |
+| Bulk actions | Complete missing assignments or overwrite an entire SDD phase group |
+| Active-profile state | Persistent `✓ Active` marker after activation and restart |
+| Version history | Automatic profile snapshots, previews, and restoration |
+| Engram browser | Read project memories from the same TUI |
+| Host compatibility | Safe dialog sizing and graceful degradation across OpenTUI host capabilities |
 
-Legacy flat format is also supported for backwards compatibility:
+## Screenshots
 
-```json
-{
-  "sdd-init": "openai/gpt-4o",
-  "sdd-apply": "anthropic/claude-sonnet-4-6"
-}
-```
+### Profile overview and grouped model navigation
 
----
+<p align="center">
+  <img src="docs/images/perfil-1.png" alt="Profile manager showing grouped OpenCode agent assignments" width="720">
+</p>
 
-### 2. Engram Project Memories
+### Profile actions and active configuration
 
-Full integration with the [Engram](https://github.com/Gentleman-Programming/gentle-ai) memory system via its HTTP API.
+<p align="center">
+  <img src="docs/images/perfil-2.png" alt="OpenCode SDD profile detail and actions" width="720">
+</p>
 
-- **List:** Browse all stored observations for the current project (resolved across git remote, git root, and cwd aliases). Calls the Engram server on port 7437.
-- **Read:** View full memory content, type, scope, and timestamp.
-- **Delete:** Logically remove a memory via the Engram API to prevent it from affecting the current session context.
+### Bulk profile actions
 
----
+<p align="center">
+  <img src="docs/images/acciones-masivas-del-perfil.png" alt="Bulk profile assignment actions" width="720">
+</p>
+
+### Reasoning effort
+
+<p align="center">
+  <img src="docs/images/Nivel-de-esfuerzo.png" alt="Per-agent reasoning effort selection grouped by category" width="720">
+</p>
+
+## Requirements
+
+| Requirement | Supported version |
+|---|---|
+| Node.js | `>=24 <25` |
+| OpenCode | `>=1.17.11` |
+| OpenTUI | `>=0.4.2 <1` |
+| SolidJS | `1.9.12` |
+| Engram | Optional; required only for memory browsing |
+
+The exact runtime compatibility contract is defined in [`package.json`](package.json).
 
 ## Installation
 
-Add the plugin to your `tui.json`:
+### Option A — local development build
 
-```
-~/.config/opencode/tui.json
-```
+Use this method to run the repository exactly as checked out.
+
+1. Clone the repository:
+
+   ```bash
+   git clone https://github.com/RamonsDka/opencode-sdd-profile-manager.git
+   cd opencode-sdd-profile-manager
+   ```
+
+2. Select Node.js 24 and install dependencies:
+
+   ```bash
+   nvm use
+   npm ci
+   ```
+
+3. Build the TUI bundle:
+
+   ```bash
+   npm run build
+   ```
+
+4. Add the generated plugin to your global OpenCode TUI configuration.
+
+   Linux/macOS: `~/.config/opencode/tui.json`
+
+   Windows: `C:\Users\<user>\.config\opencode\tui.json`
+
+   ```json
+   {
+     "$schema": "https://opencode.ai/tui.json",
+     "plugin": [
+       "/absolute/path/to/opencode-sdd-profile-manager/dist/tui.js"
+     ]
+   }
+   ```
+
+   Windows example:
+
+   ```json
+   {
+     "$schema": "https://opencode.ai/tui.json",
+     "plugin": [
+       "C:\\projects\\opencode-sdd-profile-manager\\dist\\tui.js"
+     ]
+   }
+   ```
+
+5. Fully close and restart OpenCode. TUI plugins are loaded at startup and are not hot-reloaded.
+
+6. Open the manager with `Alt+K`, `Super+K`, `:sdd-model`, or `/sdd-model`.
+
+### Option B — npm package
+
+The inherited package identifier is `opencode-sdd-engram-manage`. Use this option only after a compatible package release is available:
 
 ```json
 {
@@ -76,295 +145,188 @@ Add the plugin to your `tui.json`:
 }
 ```
 
-### Check current version
+OpenCode installs and caches npm plugins automatically. Restart OpenCode after changing the plugin specification.
 
-To check the latest published version on npm:
+## Quick start
 
-```bash
-npm view opencode-sdd-engram-manage version
+1. Open the manager with `Alt+K`.
+2. Choose **Manage SDD profiles**.
+3. Create a profile or open an existing one.
+4. Assign primary models, reasoning effort, and eligible fallback models.
+5. Activate the profile.
+6. Reopen the profile list and confirm the `✓ Active` marker.
+
+Profiles are stored outside the repository:
+
+```text
+~/.config/opencode/profiles/
+~/.config/opencode/profile-versions/
 ```
 
-To check the version currently cached by OpenCode:
+When `XDG_CONFIG_HOME` is configured, the plugin uses its `opencode` directory instead.
 
-```bash
-jq -r .version ~/.cache/opencode/packages/opencode-sdd-engram-manage@latest/node_modules/opencode-sdd-engram-manage/package.json
-```
+## Agent catalog
 
-> Note: the cache path above assumes you installed the plugin as `opencode-sdd-engram-manage@latest` (or without an explicit version). If you pin a version, the cache directory name will use that pinned spec instead.
+The visible catalog is stable and intentionally ordered:
 
-### Update
+| Category | Agents |
+|---|---|
+| Orchestrator | `sdd-ORCHETATOR` |
+| SDD Core | `sdd-propose`, `sdd-design`, `sdd-apply`, `sdd-verify`, `sdd-spec`, `sdd-onboard`, `sdd-explore`, `sdd-init`, `sdd-tasks`, `sdd-archive` |
+| Judgment Day | `jd-judge-a`, `jd-judge-b`, `jd-fix-agent` |
+| Reviewers | `review-readability`, `review-reliability`, `review-resilience`, `review-validator`, `review-refuter`, `review-risk`, `model-audit` |
+| Auxiliaries | `gentle-ai-windows-validator`, `compaction`, `summary`, `title` |
 
-OpenCode installs npm plugins automatically and caches them. To force OpenCode to fetch the latest published version, remove the cached package and restart OpenCode:
+Category headings are visual metadata, not selectable pseudo-options.
 
-```bash
-rm -rf ~/.cache/opencode/packages/opencode-sdd-engram-manage@latest
-```
+## Profile format
 
-You can also pin a specific version in `tui.json`:
+A profile stores model assignments, optional fallback overrides, and compatible per-agent configuration:
 
 ```json
 {
-  "$schema": "https://opencode.ai/tui.json",
-  "plugin": ["opencode-sdd-engram-manage@1.2.0"]
+  "models": {
+    "sdd-ORCHETATOR": "provider/model-id",
+    "sdd-apply": "provider/model-id",
+    "review-risk": "provider/model-id"
+  },
+  "fallback": {
+    "sdd-apply": "provider/fallback-model-id"
+  },
+  "configs": {
+    "sdd-apply": {
+      "reasoningEffort": "high"
+    }
+  }
 }
 ```
 
----
+Profile version metadata is stored separately so profile JSON remains portable.
 
-## Usage
+## Configuration
 
-Open the plugin with:
+### Keyboard shortcuts
 
-- **Shortcut:** `Alt + K` (Linux/Win) or `Cmd + K` (macOS)
-- **Slash command:** `/sdd-model`
-
-To customize the shortcut, create `~/.config/opencode/sdd-model-select.json`:
+Create `~/.config/opencode/sdd-model-select.json`:
 
 ```json
 {
-  "shortcut": "ctrl+j"
+  "shortcuts": ["alt+k", "super+k"]
 }
 ```
 
-Notes:
+### Badge preferences
 
-- `shortcut` accepts one binding string. If it starts with `alt+`, the plugin also registers the matching `super+` binding for macOS compatibility.
-- `shortcuts` accepts an explicit array when you want full control:
+The manager can show the active model or profile in the OpenCode status area. These preferences are stored through OpenCode KV state rather than inside profile JSON.
 
-```json
-{
-  "shortcuts": ["ctrl+j", "super+j"]
-}
-```
+### Engram integration
 
-### Workflow
+Engram memory browsing is optional. When Engram is available, the TUI resolves the current project and displays recent project observations. Profile management remains usable without memory browsing.
 
-1. Open the plugin (`Alt+K` / `Cmd+K` or `/sdd-model`).
-2. **Create a profile** for your project, or **Manage Profiles** to activate/configure one.
-3. From the profile detail, click any agent to change its model (provider → model picker).
-4. Click any fallback entry to override its model.
-5. Use **Bulk actions...** when you want to configure many agents at once.
-6. Use **Profile versions...** to preview or restore previous snapshots.
-7. **Activate** to apply the profile to the live runtime.
-
-### Bulk Profile Actions
-
-From a profile detail screen, **Bulk actions...** lets you apply one model selection to many phase entries:
-
-- **Set all primary phases:** fill missing primary phase models only.
-- **Set all fallback phases:** fill missing fallback phase models only.
-- **Set all phases and fallbacks:** fill missing primary and fallback phase models.
-- **Override all primary phases:** replace every primary phase model after confirmation.
-- **Override all fallback phases:** replace every fallback phase model after confirmation.
-- **Override all phases and fallbacks:** replace every primary and fallback phase model after confirmation.
-
-The difference is intentional:
-
-- **Set** actions are fill-only. They keep existing values and only populate empty entries.
-- **Override** actions are overwrite operations. They can replace existing choices, so the UI asks for confirmation before applying them.
-
-Compact flow example:
+## Architecture
 
 ```text
-Before: profile has mixed primary models and missing fallbacks.
-Bulk action: Set all fallback phases → google/gemini-flash-2.0.
-After: existing primary models stay untouched; empty fallbacks are filled.
-Safety: Profile versions... → preview the saved snapshot → restore if the bulk change was not what you wanted.
+OpenCode TUI
+    │
+    ├── index.tsx              Plugin registration, shortcuts, badge, lifecycle
+    │
+    └── src/dialogs.tsx        TUI workflows and navigation
+            │
+            ├── src/catalog.ts         Ordered agent catalog and eligibility
+            ├── src/profiles.ts        Profile I/O, versions, activation, fallback sync
+            ├── src/profile-reasoning.ts Reasoning-effort compatibility and updates
+            ├── src/orchestrator.ts    Orchestrator aliases and migration policy
+            ├── src/host-compat.ts     OpenTUI capability guards and dialog sizing
+            ├── src/memories.ts        Engram project-memory access
+            ├── src/config.ts          Paths, shortcuts, and project resolution
+            └── src/state.ts           Active profile and badge signals
 ```
 
-Before any bulk operation is applied, the plugin saves a profile version automatically.
+See [`docs/architecture.md`](docs/architecture.md) for responsibilities and data flows.
 
-#### Compact text screenshots
+## Libraries and tooling
 
-These compact mockups show the new profile flows without relying on image assets:
+### Runtime peers
 
-```text
-Profile: team-default                         active
-──────────────────────────────────────────────────
-Primary phases
-  sdd-spec      anthropic/claude-sonnet-4-6
-  sdd-apply     openai/gpt-5.5
+- [`@opencode-ai/plugin`](https://www.npmjs.com/package/@opencode-ai/plugin) — OpenCode plugin contract.
+- [`@opentui/core`](https://www.npmjs.com/package/@opentui/core) — terminal UI primitives.
+- [`@opentui/keymap`](https://www.npmjs.com/package/@opentui/keymap) — keyboard binding support.
+- [`@opentui/solid`](https://www.npmjs.com/package/@opentui/solid) — SolidJS renderer for OpenTUI.
+- [`solid-js`](https://www.npmjs.com/package/solid-js) — reactive state and rendering.
 
-Fallback phases
-  sdd-spec      google/gemini-flash-2.0
-  sdd-apply     inherited from primary
+### Development stack
 
-[Activate]  [Bulk actions...]  [Profile versions...]
-```
+- TypeScript 6
+- Vitest 4
+- tsup 8
+- esbuild Solid plugin
+- semantic-release
 
-```text
-Bulk actions
-──────────────────────────────────────────────────
-Set
-  Set all primary phases
-  Set all fallback phases
-  Set all phases and fallbacks
-
-Override
-  Override all primary phases        requires confirmation
-  Override all fallback phases       requires confirmation
-  Override all phases and fallbacks  requires confirmation
-```
-
-```text
-Profile versions: team-default
-──────────────────────────────────────────────────
-When                  Bulk                         Phase
-2026-04-26 14:08      Set all fallback phases      all fallback phases
-2026-04-26 13:52      Override all primary phases  all primary phases
-2026-04-26 13:10      Manual edit                  sdd-apply
-```
-
-```text
-Preview version 2026-04-26 14:08
-──────────────────────────────────────────────────
-models.sdd-apply      openai/gpt-5.5
-fallback.sdd-apply    google/gemini-flash-2.0
-
-[Restore this version]  [Back]
-Restore? This replaces the current profile file.
-```
-
-### Profile Versions
-
-Use **Profile versions...** from the profile detail screen to review saved profile snapshots.
-
-- Versions are created automatically before bulk profile actions.
-- Versions are also created automatically before individual primary or fallback phase model changes.
-- Profile versions use one unified history for bulk actions and individual phase changes, retaining the latest 60 snapshots per profile.
-- Each version can be previewed before restoring it.
-- Restore writes the selected snapshot back to the profile file.
-
-Version history is stored outside the profile JSON under `~/.config/opencode/profile-versions/`, or `$XDG_CONFIG_HOME/opencode/profile-versions/` when configured. The profile JSON itself only contains model data (`models` and `fallback`); version metadata is kept out of the main profile file.
-
----
-
-## Screenshots
-
-This is what users will see after installing the plugin:
-
-### Main entry and profile management
-
-<p align="center">
-  <img src="docs/images/captura1.png" alt="Main plugin menu" width="720" />
-</p>
-
-<p align="center">
-  <img src="docs/images/captura2.png" alt="Profile management screen" width="720" />
-</p>
-
-<p align="center">
-  <img src="docs/images/captura3.png" alt="Profile detail screen" width="720" />
-</p>
-
-<p align="center">
-  <img src="docs/images/captura4.png" alt="Agent model selection" width="720" />
-</p>
-
-<p align="center">
-  <img src="docs/images/captura5.png" alt="Fallback model configuration" width="720" />
-</p>
-
-### Engram memory browser
-
-<p align="center">
-  <img src="docs/images/captura6.png" alt="Project memories access" width="720" />
-</p>
-
-<p align="center">
-  <img src="docs/images/captura6-memory.png" alt="Project memories list" width="720" />
-</p>
-
-<p align="center">
-  <img src="docs/images/captura6-memory-detail.png" alt="Memory detail view" width="720" />
-</p>
-
-### Profile JSON preview
-
-<p align="center">
-  <img src="docs/images/captura7-json.png" alt="Profile JSON preview" width="720" />
-</p>
-
----
-
-## Orchestrator Fallback Policy Script
-
-This repo includes a script to ensure the `sdd-orchestrator` prompt contains the fallback policy block required for managed `*-fallback` agents to work correctly when a primary sub-agent fails.
-
-- **Script:** `scripts/ensure-orchestrator-fallback-policy.ts`
-- **Supports:** Inline prompt text in `opencode.json` and external `{file:...}` references.
-
-```bash
-# Check mode (no changes)
-npm run orchestrator:fallback:check
-
-# Apply changes
-npm run orchestrator:fallback:apply
-
-# Custom config path
-node ./scripts/ensure-orchestrator-fallback-policy.ts --config /path/to/opencode.json
-```
-
----
-
-## Example Fixtures & Smoke Validation
-
-Under `examples/`:
-
-- `opencode-inline.json` — inline orchestrator prompt config
-- `opencode-external.json` + `sdd-orchestrator-example.md` — external prompt file config
-- `profiles/*.json` — profile payloads in new and legacy formats
-
-Run smoke validation:
-
-```bash
-npm run examples
-```
-
-Validates:
-1. Fallback policy injection for inline and external prompt configs.
-2. Profile fixture readability for new (`models` + `fallback`) and legacy formats.
-
----
+See [`docs/dependencies.md`](docs/dependencies.md) for the dependency roles and version policy.
 
 ## Development
 
-### Contributing
-
-Community PRs are welcome, but they must follow the repository review policy:
-
-- start from a GitHub issue
-- use a focused branch such as `feat/short_description` or `fix/short_description`
-- keep the diff as small as possible
-- justify broader changes clearly in the PR description
-
-See [CONTRIBUTING.md](CONTRIBUTING.md) for the full workflow and review requirements.
-
-### Running Tests
-
 ```bash
+npm ci
+npm run typecheck
 npm test
+npm run build
 ```
 
-**Test coverage:**
-- `src/profiles.test.ts` — profile read/write, fallback sync, validation, activation logic
-- `src/memories.test.ts` — memory listing, deletion, normalization, sqlite query escaping
-- `src/utils.test.ts` — formatting helpers, agent naming predicates, model resolution
-- `src/config.test.ts` — path resolution, XDG support, project name detection
-- `scripts/ensure-orchestrator-fallback-policy.test.ts` — fallback policy injection logic
+Focused commands:
 
-### Automated Releases
+```bash
+npm test -- src/catalog.test.ts
+npm test -- src/dialogs.test.ts
+npm test -- src/profiles.test.ts
+npm test -- src/profile-reasoning.test.ts
+npm test -- src/host-compat.test.ts
+npm run test:coverage
+npm run examples
+```
 
-Uses `semantic-release` on pushes to `main`. See [docs/publish.md](docs/publish.md) for the full publish workflow and commit conventions.
+Current verified baseline at repository creation:
 
----
+```text
+Typecheck: passed
+Test files: 12 passed
+Tests: 364 passed
+Build: dist/tui.js generated successfully
+```
 
-## Technical Details
+## Documentation
 
-- **Package:** `opencode-sdd-engram-manage`
-- **Current version:** see [CHANGELOG.md](CHANGELOG.md) or [npm](https://www.npmjs.com/package/opencode-sdd-engram-manage)
-- **Requires:** `opencode >= 1.3.13`, Engram server running on port 7437.
-- **Peer dependencies:** `@opencode-ai/plugin >= 1.14.29`, `@opentui/core >= 0.2.0 < 1`, `@opentui/solid >= 0.2.0 < 1`, `solid-js 1.9.12`
-- **License:** [MIT](LICENSE)
+| Document | Purpose |
+|---|---|
+| [`docs/installation.md`](docs/installation.md) | Installation, local loading, updates, and removal |
+| [`docs/usage.md`](docs/usage.md) | Profile workflow, agent catalog, effort, fallback, and versions |
+| [`docs/architecture.md`](docs/architecture.md) | Module boundaries and runtime data flow |
+| [`docs/dependencies.md`](docs/dependencies.md) | Runtime peers, development tooling, and version policy |
+| [`docs/testing.md`](docs/testing.md) | Test layers, validation commands, and manual smoke tests |
+| [`docs/troubleshooting.md`](docs/troubleshooting.md) | Plugin loading, shortcuts, paths, and activation issues |
+| [`docs/compatibility.md`](docs/compatibility.md) | Host APIs and graceful degradation |
+| [`docs/dialogs.md`](docs/dialogs.md) | Dialog sizing and UX tiers |
+| [`docs/profile-reasoning-effort.md`](docs/profile-reasoning-effort.md) | Reasoning-effort behavior and compatibility |
 
-Developed by [j0k3r-dev-rgl](https://github.com/j0k3r-dev-rgl).
+## Origin and attribution
+
+This codebase derives from:
+
+- Original repository: [`j0k3r-dev-rgl/sdd-engram-plugin`](https://github.com/j0k3r-dev-rgl/sdd-engram-plugin)
+- Original package: [`opencode-sdd-engram-manage`](https://www.npmjs.com/package/opencode-sdd-engram-manage)
+- Original author/license holder: `j0k3r-dev-rgl`
+- License: MIT
+
+This repository preserves the original MIT notice and documents the derivative work rather than presenting it as an unrelated clean-room implementation.
+
+## Contributing
+
+Read [`CONTRIBUTING.md`](CONTRIBUTING.md). Every pull request must link a GitHub issue, remain focused, and include tests or validation notes.
+
+## Security
+
+Do not include API keys, provider credentials, personal profile files, or global OpenCode configuration in issues or pull requests. See [`SECURITY.md`](SECURITY.md) for reporting guidance.
+
+## License
+
+MIT. See [`LICENSE`](LICENSE).

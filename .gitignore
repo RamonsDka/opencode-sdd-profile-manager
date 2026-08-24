@@ -6,4 +6,13 @@ examples/.tmp-run
 .atl
 .pi 
 .pi-lens
+.codegraph/
+.engram/
+openspec/changes/
+dist-share/
+drop-in-task-manager.html
+.env
+.env.*
+*.local
+*.log
 
