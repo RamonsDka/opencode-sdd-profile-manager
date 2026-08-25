@@ -33,7 +33,6 @@ import {
   showCreateProfile,
   showRenameProfile,
   showDeleteProfile,
-  showConfirmBulkProfileOverride,
   showConfirmRestoreProfileVersion,
   handleActivateProfile,
   showDeleteMemory,
@@ -45,6 +44,8 @@ import {
   createModelPickerDialogProps,
   createReasoningEffortPickerDialogProps,
   createBulkModelSelectionHandler,
+  createBulkReasoningEffortPickerDialogProps,
+  createBulkModelPickerDialogProps,
 } from './dialogs';
 import type { DialogSize } from './types';
 import * as profiles from './profiles';
@@ -171,45 +172,19 @@ describe('dialog pure builders', () => {
     ]);
   });
 
-  it('builds fill-only and override bulk profile action labels mapped to target and mode', () => {
+  it('exposes exactly two Spanish bulk actions without confirmation metadata', () => {
     const options = buildBulkProfileActionOptions();
 
     expect(options).toEqual([
       {
-         title: 'Asignar todas las fases primarias',
-        value: 'bulk:fill-only:primary',
-        operation: { target: BULK_ASSIGNMENT_TARGET.PRIMARY, mode: BULK_ASSIGNMENT_MODE.FILL_ONLY },
-        requiresConfirmation: false,
+        title: 'Asignar un modelo y esfuerzo a todos los agentes',
+        value: 'bulk:assign-model-and-effort',
+        target: BULK_ASSIGNMENT_TARGET.PRIMARY,
       },
       {
-         title: 'Asignar todas las fases fallback',
-        value: 'bulk:fill-only:fallback',
-        operation: { target: BULK_ASSIGNMENT_TARGET.FALLBACK, mode: BULK_ASSIGNMENT_MODE.FILL_ONLY },
-        requiresConfirmation: false,
-      },
-      {
-         title: 'Asignar todas las fases y fallback',
-        value: 'bulk:fill-only:both',
-        operation: { target: BULK_ASSIGNMENT_TARGET.BOTH, mode: BULK_ASSIGNMENT_MODE.FILL_ONLY },
-        requiresConfirmation: false,
-      },
-      {
-         title: 'Sobrescribir todas las fases primarias',
-        value: 'bulk:overwrite:primary',
-        operation: { target: BULK_ASSIGNMENT_TARGET.PRIMARY, mode: BULK_ASSIGNMENT_MODE.OVERWRITE },
-        requiresConfirmation: true,
-      },
-      {
-         title: 'Sobrescribir todas las fases fallback',
-        value: 'bulk:overwrite:fallback',
-        operation: { target: BULK_ASSIGNMENT_TARGET.FALLBACK, mode: BULK_ASSIGNMENT_MODE.OVERWRITE },
-        requiresConfirmation: true,
-      },
-      {
-         title: 'Sobrescribir todas las fases y fallback',
-        value: 'bulk:overwrite:both',
-        operation: { target: BULK_ASSIGNMENT_TARGET.BOTH, mode: BULK_ASSIGNMENT_MODE.OVERWRITE },
-        requiresConfirmation: true,
+        title: 'Asignar un modelo y esfuerzo a todos los agentes fallback',
+        value: 'bulk:assign-model-and-effort:fallback',
+        target: BULK_ASSIGNMENT_TARGET.FALLBACK,
       },
     ]);
   });
@@ -363,11 +338,10 @@ describe('dialog pure builders', () => {
     expect(optionValues.some((value) => String(value).startsWith('reasoning:'))).toBe(false);
     expect(optionValues.some((value) => String(value).startsWith('fallback:'))).toBe(false);
     expect(optionValues).toContain('__rename__');
-    expect(optionValues).toContain('__profile_versions__');
+    expect(optionValues).not.toContain('__profile_versions__');
     expect(optionValues[1]).toBe('__bulk_actions__');
 
-    const profileVersionsOption = options.find((option) => option.value === '__profile_versions__');
-    expect(profileVersionsOption?.category).toBe('Agentes');
+    expect(options.some((option) => option.category === 'Agentes')).toBe(false);
     const bulkActionsOption = options.find((option) => option.value === '__bulk_actions__');
     expect(bulkActionsOption?.category).toBe('Navegación de modelos');
     expect(options.find((option) => option.value === PROFILE_DETAIL_SUBMENU.REASONING)?.category).toBe('Navegación');
@@ -651,7 +625,6 @@ describe('dialog pure builders', () => {
        ['showReasoningEffortPicker', (api) => showReasoningEffortPicker(api, sampleProfileOpt, 'sdd-init'), 'medium'],
       ['showRenameProfile', (api) => showRenameProfile(api, sampleProfileOpt), 'medium'],
       ['showDeleteProfile', (api) => showDeleteProfile(api, sampleProfileOpt), 'medium'],
-      ['showConfirmBulkProfileOverride', (api) => showConfirmBulkProfileOverride(api, sampleProfileOpt, sampleBulkAction), 'medium'],
       ['showConfirmRestoreProfileVersion', (api) => showConfirmRestoreProfileVersion(api, sampleProfileOpt, 'team.json/2026-04-26T10-00-00-000Z-a.json'), 'medium'],
       ['handleActivateProfile', (api) => handleActivateProfile(api, '/mock/team.json', 'team'), 'medium'],
       ['showDeleteMemory', (api) => showDeleteMemory(api, sampleMemory), 'medium'],
@@ -677,11 +650,7 @@ describe('dialog pure builders', () => {
         showProfileDetailSubmenuPrimary(api, sampleProfileOpt, { models: {} });
         expect(api.ui.dialog.setSize).toHaveBeenLastCalledWith('xlarge');
 
-        // medium confirm override
-        showConfirmBulkProfileOverride(api, sampleProfileOpt, sampleBulkAction);
-        expect(api.ui.dialog.setSize).toHaveBeenLastCalledWith('medium');
-
-        // back to xlarge bulk selector
+         // back to xlarge bulk selector
         showBulkProfileActions(api, sampleProfileOpt);
         expect(api.ui.dialog.setSize).toHaveBeenLastCalledWith('xlarge');
 
@@ -880,7 +849,7 @@ describe('dialog pure builders', () => {
       expect(returnToTarget).not.toHaveBeenCalled();
     });
 
-    it('bypasses reasoning for fallback assignments and wires the bulk-compatible context', () => {
+    it('stages fallback selection until reasoning effort is selected', () => {
       const api = createFlowApi();
       const stageModel = vi.fn().mockReturnValue({ pending: { agentName: 'sdd-spec', field: 'fallback', modelId: 'openai/gpt-5' } });
       const commitModel = vi.fn().mockReturnValue({ changed: true });
@@ -895,17 +864,15 @@ describe('dialog pure builders', () => {
       })('openai/gpt-5');
 
       expect(stageModel).toHaveBeenCalled();
-      expect(commitModel).toHaveBeenCalled();
-      expect(showReasoning).not.toHaveBeenCalled();
-      expect(returnToTarget).toHaveBeenCalledWith(api, profileOpt, 'fallback');
-      expect(buildBulkModelMutationContext(api, ['sdd-spec'])).toEqual({
-        providers: api.state.provider,
-        runtimePrimaryNames: ['sdd-spec'],
-        effortPolicy: 'bulk-compatible-prune',
-      });
+      expect(commitModel).not.toHaveBeenCalled();
+      expect(showReasoning).toHaveBeenCalledWith(api, profileOpt, 'sdd-spec', 'fallback', expect.objectContaining({
+        sequential: true,
+        pending: { agentName: 'sdd-spec', field: 'fallback', modelId: 'openai/gpt-5' },
+      }));
+      expect(returnToTarget).not.toHaveBeenCalled();
     });
 
-    it('persists a selected effort without creating a second snapshot and returns to the caller', () => {
+     it('persists a selected effort without creating a second snapshot and returns to the caller', () => {
       const api = createFlowApi();
       const updateEffort = vi.fn().mockReturnValue({ models: { 'sdd-spec': 'openai/gpt-5' }, configs: { 'sdd-spec': { reasoningEffort: 'high' } } });
       const returnToTarget = vi.fn();
@@ -925,8 +892,45 @@ describe('dialog pure builders', () => {
 
       expect(updateEffort).toHaveBeenCalledWith('/mock/profiles/team.json', 'sdd-spec', 'high', expect.anything());
       expect(api.ui.toast).toHaveBeenCalledWith(expect.objectContaining({ title: 'Actualizado', variant: 'success' }));
-      expect(returnToTarget).toHaveBeenCalledWith(api, profileOpt, 'primary');
-    });
+       expect(returnToTarget).toHaveBeenCalledWith(api, profileOpt, 'primary');
+     });
+
+     it('commits an orchestrator selection through the canonical pending mutation path and confirms model plus effort', () => {
+       const api = createFlowApi();
+       const commitModel = vi.fn();
+       const returnToTarget = vi.fn();
+       const props = createReasoningEffortPickerDialogProps(
+         api,
+         profileOpt,
+         'gentle-orchestrator',
+         '/mock/profiles/team.json',
+         { models: { 'gentle-orchestrator': 'openai/gpt-5' } },
+         { kind: 'selectable', options: ['high'] },
+         'hub',
+         {
+           sequential: true,
+           pending: { agentName: 'gentle-orchestrator', field: 'primary', modelId: 'openai/gpt-5' },
+           commitPendingModelSelection: commitModel,
+         },
+         { returnToProfileDetailTarget: returnToTarget },
+       );
+
+       props.onSelect({ value: 'high' });
+
+       expect(commitModel).toHaveBeenCalledWith(
+         '/mock/profiles/team.json',
+         { agentName: 'gentle-orchestrator', field: 'primary', modelId: 'openai/gpt-5' },
+         'high',
+         expect.anything(),
+         buildModelMutationContext(api, 'primary'),
+       );
+       expect(api.ui.toast).toHaveBeenCalledWith({
+         title: 'Actualizado',
+         message: 'gentle-orchestrator: modelo openai/gpt-5 y esfuerzo high actualizados',
+         variant: 'success',
+       });
+       expect(returnToTarget).toHaveBeenCalledWith(api, profileOpt, 'hub');
+     });
 
     it('clears effort on picker back and cancel, then returns to the stable caller target', () => {
       const api = createFlowApi();
@@ -1044,35 +1048,94 @@ describe('dialog pure builders', () => {
       expect(providerTarget).toHaveBeenNthCalledWith(2, api, profileOpt, 'sdd-spec', 'model', 'primary');
     });
 
-    it('applies bulk models with provider metadata and no interactive effort picker', () => {
-      const api = createFlowApi();
-      const updateBulk = vi.fn().mockReturnValue({
-        assignment: { modelsAssigned: 2, fallbackAssigned: 0, changed: true },
-      });
-      const showDetail = vi.fn();
-      const action = {
-        title: 'Asignar todas las fases primarias',
-        value: 'bulk:fill-only:primary',
-        operation: { target: BULK_ASSIGNMENT_TARGET.PRIMARY, mode: BULK_ASSIGNMENT_MODE.FILL_ONLY },
-        requiresConfirmation: false,
-      } as any;
+     it('collects a bulk model selection before any persistence mutation', () => {
+       const api = createFlowApi();
+       const updateBulk = vi.fn();
+       const showEffort = vi.fn();
 
-      const handleSelection = createBulkModelSelectionHandler(api, profileOpt, 'openai/gpt-5', action, {
-        updateProfileWithBulkPhaseAssignment: updateBulk,
-        showProfileDetail: showDetail,
-      });
-      handleSelection();
+       const handleSelection = createBulkModelSelectionHandler(api, profileOpt, 'openai/gpt-5', {
+         updateProfileWithBulkOverwrite: updateBulk,
+         showBulkReasoningEffortPicker: showEffort,
+       });
+       handleSelection();
 
-      expect(updateBulk).toHaveBeenCalledWith(
-        expect.any(String),
-        ['sdd-spec'],
-        'openai/gpt-5',
-        action.operation,
-        expect.anything(),
-        buildBulkModelMutationContext(api, ['sdd-spec']),
-      );
-      expect(showDetail).toHaveBeenCalledWith(api, profileOpt);
-      expect(api.ui.toast).toHaveBeenCalledWith(expect.objectContaining({ title: 'Actualizado', variant: 'success' }));
+       expect(showEffort).toHaveBeenCalledWith(api, profileOpt, 'openai/gpt-5');
+       expect(updateBulk).not.toHaveBeenCalled();
+     });
+
+      it('commits one fallback bulk transaction only after effort selection and confirms model plus effort', () => {
+        const api = createFlowApi();
+        const updateBulk = vi.fn().mockReturnValue({ assignment: { modelsAssigned: 19, effortsAssigned: 19, changed: true } });
+        const showDetail = vi.fn();
+        const props = createBulkReasoningEffortPickerDialogProps(api, profileOpt, 'openai/gpt-5', {
+          collectConfigurableProfileTargets: vi.fn(() => [{ profileKey: 'sdd-spec', field: 'model' as const }]),
+          updateProfileWithBulkOverwrite: updateBulk,
+          showProfileDetail: showDetail,
+          bulkTarget: BULK_ASSIGNMENT_TARGET.FALLBACK,
+        });
+
+       props.onSelect({ value: 'high' });
+
+       expect(updateBulk).toHaveBeenCalledTimes(1);
+       expect(updateBulk).toHaveBeenCalledWith(
+         expect.any(String),
+         [{ profileKey: 'sdd-spec', field: 'model' }],
+         'openai/gpt-5',
+          'high',
+          buildBulkModelMutationContext(api, ['sdd-spec']),
+          expect.anything(),
+          BULK_ASSIGNMENT_TARGET.FALLBACK,
+        );
+        expect(api.ui.toast).toHaveBeenCalledWith({
+          title: 'Actualizado',
+          message: '19 agentes configurados con openai/gpt-5 y esfuerzo high. Versión guardada.',
+          variant: 'success',
+        });
+       expect(showDetail).toHaveBeenCalledWith(api, profileOpt);
+     });
+
+     it('cancels the bulk model or effort selection without creating writes or snapshots', () => {
+       const api = createFlowApi();
+       const updateBulk = vi.fn();
+       const showDetail = vi.fn();
+       const props = createBulkReasoningEffortPickerDialogProps(api, profileOpt, 'openai/gpt-5', {
+         updateProfileWithBulkOverwrite: updateBulk,
+         showProfileDetail: showDetail,
+       });
+
+       props.onCancel();
+
+       expect(updateBulk).not.toHaveBeenCalled();
+       expect(showDetail).toHaveBeenCalledWith(api, profileOpt);
+       expect(api.ui.toast).not.toHaveBeenCalled();
+     });
+
+      it('cancels the bulk model picker before staging a global transaction', () => {
+        const api = createFlowApi();
+        const onModelSelected = vi.fn();
+       const returnToProvider = vi.fn();
+       const props = createBulkModelPickerDialogProps(api, profileOpt, reasoningProvider, {
+         title: 'Asignar un modelo y esfuerzo a todos los agentes',
+         value: 'bulk:assign-model-and-effort',
+       }, { onModelSelected, showProviderPickerForBulkProfilePhases: returnToProvider });
+
+       props.onCancel();
+
+        expect(onModelSelected).not.toHaveBeenCalled();
+        expect(returnToProvider).toHaveBeenCalledWith(api, profileOpt, expect.anything());
+      });
+
+      it('passes the selected bulk model to the effort picker when using the default callback', () => {
+        const api = createFlowApi();
+        const showEffort = vi.fn();
+        const props = createBulkModelPickerDialogProps(api, profileOpt, reasoningProvider, {
+          title: 'Asignar un modelo y esfuerzo a todos los agentes',
+          value: 'bulk:assign-model-and-effort',
+        }, { showBulkReasoningEffortPicker: showEffort });
+
+        props.onSelect({ value: 'openai/gpt-5' });
+
+        expect(showEffort).toHaveBeenCalledWith(api, profileOpt, 'openai/gpt-5');
+      });
     });
-  });
 });

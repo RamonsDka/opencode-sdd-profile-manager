@@ -9,9 +9,6 @@
 import * as fs from "node:fs";
 import * as path from "node:path";
 import {
-  BULK_ASSIGNMENT_MODE,
-  BULK_ASSIGNMENT_TARGET,
-  BulkAssignmentOperation,
   PROFILE_VERSION_SOURCE,
   ProfileVersion,
   ProfileVersionMetadata,
@@ -31,7 +28,7 @@ import {
   isEditablePrimaryAgent,
   isPrimarySddAgent,
 } from "./utils";
-import { buildCatalogSections, CATALOG_GROUPS, isFallbackCatalogAgent } from "./catalog";
+import { buildCatalogSections, CATALOG_GROUPS, collectConfigurableProfileTargets, isFallbackCatalogAgent } from "./catalog";
 import { safeSetDialogSize } from "./host-compat";
 import { resolveEngramProjectName, resolvePaths, ensureProfilesDir, resolveProjectName } from "./config";
 import {
@@ -40,7 +37,7 @@ import {
   sanitizeProfileName,
   writeProfileData,
   writeProfileModels,
-  updateProfileWithBulkPhaseAssignment,
+  updateProfileWithBulkOverwrite,
   updateProfilePhaseModel,
   updateProfileReasoningWithoutVersion,
   stageProfileModelSelection,
@@ -304,12 +301,6 @@ export function buildProfileDetailHubOptions(api: any, profileOpt: any, profileD
       description: fallbackSummary,
       category: "Navegación",
     },
-    {
-      title: "Versiones del perfil...",
-      value: "__profile_versions__",
-      description: "Previsualiza y restaura versiones anteriores del perfil",
-      category: "Agentes",
-    },
     { title: "✓ Activar perfil", value: "__assign__", category: NAV_CATEGORY },
     { title: "✕ Eliminar perfil", value: "__delete__", category: NAV_CATEGORY },
     buildBackOption(),
@@ -540,47 +531,20 @@ let showProjectMemoriesMenuFn: (api: any) => void | Promise<void>;
 export type BulkProfileActionOption = {
   title: string;
   value: string;
-  operation: BulkAssignmentOperation;
-  requiresConfirmation: boolean;
+  target?: "primary" | "fallback";
 };
 
 export function buildBulkProfileActionOptions(): BulkProfileActionOption[] {
   return [
     {
-      title: "Asignar todas las fases primarias",
-      value: "bulk:fill-only:primary",
-      operation: { target: BULK_ASSIGNMENT_TARGET.PRIMARY, mode: BULK_ASSIGNMENT_MODE.FILL_ONLY },
-      requiresConfirmation: false,
+      title: "Asignar un modelo y esfuerzo a todos los agentes",
+      value: "bulk:assign-model-and-effort",
+      target: "primary",
     },
     {
-      title: "Asignar todas las fases fallback",
-      value: "bulk:fill-only:fallback",
-      operation: { target: BULK_ASSIGNMENT_TARGET.FALLBACK, mode: BULK_ASSIGNMENT_MODE.FILL_ONLY },
-      requiresConfirmation: false,
-    },
-    {
-      title: "Asignar todas las fases y fallback",
-      value: "bulk:fill-only:both",
-      operation: { target: BULK_ASSIGNMENT_TARGET.BOTH, mode: BULK_ASSIGNMENT_MODE.FILL_ONLY },
-      requiresConfirmation: false,
-    },
-    {
-      title: "Sobrescribir todas las fases primarias",
-      value: "bulk:overwrite:primary",
-      operation: { target: BULK_ASSIGNMENT_TARGET.PRIMARY, mode: BULK_ASSIGNMENT_MODE.OVERWRITE },
-      requiresConfirmation: true,
-    },
-    {
-      title: "Sobrescribir todas las fases fallback",
-      value: "bulk:overwrite:fallback",
-      operation: { target: BULK_ASSIGNMENT_TARGET.FALLBACK, mode: BULK_ASSIGNMENT_MODE.OVERWRITE },
-      requiresConfirmation: true,
-    },
-    {
-      title: "Sobrescribir todas las fases y fallback",
-      value: "bulk:overwrite:both",
-      operation: { target: BULK_ASSIGNMENT_TARGET.BOTH, mode: BULK_ASSIGNMENT_MODE.OVERWRITE },
-      requiresConfirmation: true,
+      title: "Asignar un modelo y esfuerzo a todos los agentes fallback",
+      value: "bulk:assign-model-and-effort:fallback",
+      target: "fallback",
     },
   ];
 }
@@ -1045,7 +1009,10 @@ type DialogFlowDependencies = {
   stageProfileModelSelection?: typeof stageProfileModelSelection;
   commitPendingModelSelection?: typeof commitPendingModelSelection;
   updateProfileReasoningWithoutVersion?: typeof updateProfileReasoningWithoutVersion;
-  updateProfileWithBulkPhaseAssignment?: typeof updateProfileWithBulkPhaseAssignment;
+  updateProfileWithBulkOverwrite?: typeof updateProfileWithBulkOverwrite;
+  collectConfigurableProfileTargets?: typeof collectConfigurableProfileTargets;
+  showBulkReasoningEffortPicker?: (api: any, profileOpt: any, modelId: string, target?: "primary" | "fallback") => void;
+  showProviderPickerForBulkProfilePhases?: (api: any, profileOpt: any, action: BulkProfileActionOption) => void;
   showReasoningEffortPicker?: (
     api: any,
     profileOpt: any,
@@ -1057,6 +1024,7 @@ type DialogFlowDependencies = {
   returnToProfileDetailTarget?: typeof returnToProfileDetailTarget;
   showProfileDetail?: typeof showProfileDetailFn;
   onModelSelected?: (modelId: string) => void;
+  bulkTarget?: "primary" | "fallback";
 };
 
 export function buildModelMutationContext(api: any, mode: ModelSelectionMode): ModelMutationContext {
@@ -1125,25 +1093,12 @@ export function createModelSelectionHandler(
       const profile = readProfileData(profilePath);
       const staged = stageModel(profile, agentName, mode, fullModelId);
 
-      if (mode === "primary") {
-        showReasoning(api, profileOpt, agentName, returnTarget, {
-          sequential: true,
-          pending: staged.pending,
-          commitPendingModelSelection: commitModel,
-          modelMutationContext: buildModelMutationContext(api, mode),
-        });
-        return;
-      }
-
-      const result = commitModel(
-        profilePath,
-        staged.pending,
-        undefined,
-        resolveRuntimeOrchestratorPolicy(api.state.config),
-        buildModelMutationContext(api, mode),
-      );
-      api.ui.toast(buildModelSelectionToast(agentName, fullModelId, mode, result.changed));
-      returnToTarget(api, profileOpt, returnTarget);
+      showReasoning(api, profileOpt, agentName, returnTarget, {
+        sequential: true,
+        pending: staged.pending,
+        commitPendingModelSelection: commitModel,
+        modelMutationContext: buildModelMutationContext(api, mode),
+      });
     } catch (error: any) {
       log.error(`handleModelSelection: failed to update ${agentName}`, error);
       api.ui.toast({ title: UI_TEXT.error, message: `No se pudo actualizar el agente: ${error.message}`, variant: "error" });
@@ -1235,7 +1190,14 @@ export function createReasoningEffortPickerDialogProps(
         } else {
           updateEffort(profilePath, agentName, effort, resolveRuntimeOrchestratorPolicy(api.state.config));
         }
-        api.ui.toast({ title: "Actualizado", message: `${agentName}: esfuerzo de razonamiento actualizado`, variant: "success" });
+        const selectedModel = flow?.pending?.modelId || profile?.models?.[agentName];
+        api.ui.toast({
+          title: "Actualizado",
+          message: flow?.sequential
+            ? `${agentName}: modelo ${selectedModel} y esfuerzo ${localizedEffortLabel(effort)} actualizados`
+            : `${agentName}: esfuerzo de razonamiento actualizado`,
+          variant: "success",
+        });
         returnToTarget(api, profileOpt, returnTarget);
       } catch (error: any) {
         showReasoningEffortError(api, agentName, error);
@@ -1250,37 +1212,71 @@ export function createBulkModelSelectionHandler(
   api: any,
   profileOpt: any,
   fullModelId: string,
-  action: BulkProfileActionOption,
-  deps: DialogFlowDependencies = {},
+  targetOrDeps: "primary" | "fallback" | DialogFlowDependencies = "primary",
+  depsArg: DialogFlowDependencies = {},
 ) {
-  const updateBulk = deps.updateProfileWithBulkPhaseAssignment || updateProfileWithBulkPhaseAssignment;
+  const deps = typeof targetOrDeps === "string" ? depsArg : targetOrDeps;
+  const target = typeof targetOrDeps === "string" ? targetOrDeps : "primary";
+  const showEffortPicker = deps.showBulkReasoningEffortPicker || showBulkReasoningEffortPicker;
+
+  return () => target === "fallback"
+    ? showEffortPicker(api, profileOpt, fullModelId, target)
+    : showEffortPicker(api, profileOpt, fullModelId);
+}
+
+export function createBulkReasoningEffortPickerDialogProps(
+  api: any,
+  profileOpt: any,
+  modelId: string,
+  targetOrDeps: "primary" | "fallback" | DialogFlowDependencies = "primary",
+  depsArg: DialogFlowDependencies = {},
+) {
+  const deps = typeof targetOrDeps === "string" ? depsArg : targetOrDeps;
+  const updateBulk = deps.updateProfileWithBulkOverwrite || updateProfileWithBulkOverwrite;
+  const collectTargets = deps.collectConfigurableProfileTargets || collectConfigurableProfileTargets;
   const showDetail = deps.showProfileDetail || showProfileDetailFn;
   const runtimePrimaryNames = Object.keys(api?.state?.config?.agent || {}).filter(isPrimarySddAgent);
+  const resolvedTarget = deps.bulkTarget || (typeof targetOrDeps === "string" ? targetOrDeps : "primary");
   const { profilesDir } = resolvePaths();
   const profilePath = path.join(profilesDir, profileOpt.value);
+  const state = buildReasoningEditState(api?.state?.provider || [], "sdd-spec", modelId);
 
-  return () => {
-    try {
-      const result = updateBulk(
-        profilePath,
-        runtimePrimaryNames,
-        fullModelId,
-        action.operation,
-        resolveRuntimeOrchestratorPolicy(api.state.config),
-        buildBulkModelMutationContext(api, runtimePrimaryNames),
-      );
-      const totalAssigned = (result.assignment?.modelsAssigned || 0) + (result.assignment?.fallbackAssigned || 0);
-      api.ui.toast({
-        title: totalAssigned > 0 ? UI_TEXT.updated : UI_TEXT.noChanges,
-        message: totalAssigned > 0 ? `${action.title}: ${totalAssigned} asignaciones establecidas en ${fullModelId}. Versión guardada.` : "No hay fases SDD primarias o fallback objetivo que actualizar",
-        variant: totalAssigned > 0 ? "success" : "warning",
-      });
+  return {
+    title: `${UI_TEXT.reasoningEffort} › Todos los agentes`,
+    options: [
+      ...(state?.options || []).map((value: string) => ({ title: localizedEffortLabel(value), value })),
+      buildBackOption(),
+    ],
+    onSelect: (opt: any) => {
+      if (opt.value === "__back__") {
+        showDetail(api, profileOpt);
+        return;
+      }
+      try {
+        const result = updateBulk(
+          profilePath,
+          collectTargets(api.state.config, resolvedTarget),
+          modelId,
+          opt.value,
+          buildBulkModelMutationContext(api, runtimePrimaryNames),
+          resolveRuntimeOrchestratorPolicy(api.state.config),
+          ...(resolvedTarget === "fallback" ? [resolvedTarget] : []),
+        );
+        const totalAssigned = result.assignment?.modelsAssigned || 0;
+        api.ui.toast({
+          title: totalAssigned > 0 ? UI_TEXT.updated : UI_TEXT.noChanges,
+          message: totalAssigned > 0
+            ? `${totalAssigned} agentes configurados con ${modelId} y esfuerzo ${localizedEffortLabel(opt.value)}. Versión guardada.`
+            : "No hay agentes configurables que actualizar",
+          variant: totalAssigned > 0 ? "success" : "warning",
+        });
+      } catch (error: any) {
+        log.error(`handleBulkReasoningEffortSelection: failed for profile '${profileOpt?.value}'`, error);
+        api.ui.toast({ title: UI_TEXT.error, message: `No se pudieron actualizar los agentes: ${error.message}`, variant: "error" });
+      }
       showDetail(api, profileOpt);
-    } catch (error: any) {
-      log.error(`handleBulkModelSelection: failed for profile '${profileOpt?.value}'`, error);
-      api.ui.toast({ title: UI_TEXT.error, message: `No se pudieron actualizar las fases: ${error.message}`, variant: "error" });
-      showDetail(api, profileOpt);
-    }
+    },
+    onCancel: () => showDetail(api, profileOpt),
   };
 }
 
@@ -1394,7 +1390,7 @@ export function showBulkProfileActions(api: any, profileOpt: any) {
         ...options.map((option) => ({
           title: option.title,
           value: option.value,
-          description: option.requiresConfirmation ? "Requiere confirmación antes de sobrescribir" : "Completa solo entradas vacías o sin asignar",
+          description: "Selecciona un modelo y después su esfuerzo de razonamiento.",
         })),
         buildBackOption(),
       ]}
@@ -1403,23 +1399,10 @@ export function showBulkProfileActions(api: any, profileOpt: any) {
         else {
           const selected = options.find((option) => option.value === opt.value);
           if (!selected) return;
-          if (selected.requiresConfirmation) showConfirmBulkProfileOverride(api, profileOpt, selected);
-          else showProviderPickerForBulkProfilePhases(api, profileOpt, selected);
+          showProviderPickerForBulkProfilePhases(api, profileOpt, selected);
         }
       }}
       onCancel={() => showProfileDetailFn(api, profileOpt)}
-    />
-  ));
-}
-
-export function showConfirmBulkProfileOverride(api: any, profileOpt: any, action: BulkProfileActionOption) {
-  safeSetDialogSize(api, "medium");
-  api.ui.dialog.replace(() => (
-    <api.ui.DialogConfirm
-      title="Confirmar sobrescritura masiva"
-      message={`${action.title} reemplazará las asignaciones existentes de '${profileOpt.title}'. Primero se guardará una versión fechada.`}
-      onConfirm={() => showProviderPickerForBulkProfilePhases(api, profileOpt, action)}
-      onCancel={() => showBulkProfileActions(api, profileOpt)}
     />
   ));
 }
@@ -1463,32 +1446,44 @@ export function showProviderPickerForBulkProfilePhases(api: any, profileOpt: any
 /**
  * Displays a model picker for bulk phase assignment.
  */
-export function showModelPickerForBulkProfilePhases(api: any, profileOpt: any, provider: any, action: BulkProfileActionOption) {
-  safeSetDialogSize(api, "xlarge");
+export function createBulkModelPickerDialogProps(
+  api: any,
+  profileOpt: any,
+  provider: any,
+  action: BulkProfileActionOption,
+  deps: DialogFlowDependencies = {},
+) {
   const models = provider.models || {};
   const modelKeys = Object.keys(models);
+  const showProvider = deps.showProviderPickerForBulkProfilePhases || showProviderPickerForBulkProfilePhases;
+  const onModelSelected = deps.onModelSelected || ((modelId: string) =>
+    createBulkModelSelectionHandler(api, profileOpt, modelId, action.target || "primary", deps)());
+
+  return {
+    title: `${provider.name || provider.id} › ${action.title}`,
+    options: [
+      ...modelKeys.map((key) => {
+        const model = models[key];
+        const ctxText = model.limit?.context ? formatContext(model.limit.context) : "contexto: N/D";
+        return { title: model.name || key, value: `${provider.id}/${key}`, description: ctxText };
+      }),
+      buildBackOption(),
+    ],
+    onSelect: (opt: any) => {
+      if (opt.value === "__back__") showProvider(api, profileOpt, action);
+      else onModelSelected(opt.value);
+    },
+    onCancel: () => showProvider(api, profileOpt, action),
+  };
+}
+
+export function showModelPickerForBulkProfilePhases(api: any, profileOpt: any, provider: any, action: BulkProfileActionOption) {
+  safeSetDialogSize(api, "xlarge");
 
   api.ui.dialog.replace(() => (
-    <api.ui.DialogSelect
-      title={`${provider.name || provider.id} › ${action.title}`}
-      options={[
-        ...modelKeys.map((key) => {
-          const model = models[key];
-          const ctxText = model.limit?.context ? formatContext(model.limit.context) : "contexto: N/D";
-          return {
-            title: model.name || key,
-            value: `${provider.id}/${key}`,
-            description: ctxText,
-          };
-        }),
-        buildBackOption(),
-      ]}
-      onSelect={(opt: any) => {
-        if (opt.value === "__back__") showProviderPickerForBulkProfilePhases(api, profileOpt, action);
-        else createBulkModelSelectionHandler(api, profileOpt, opt.value, action)();
-      }}
-      onCancel={() => showProviderPickerForBulkProfilePhases(api, profileOpt, action)}
-    />
+    <api.ui.DialogSelect {...createBulkModelPickerDialogProps(api, profileOpt, provider, action, {
+      onModelSelected: (modelId) => createBulkModelSelectionHandler(api, profileOpt, modelId, action.target || "primary")(),
+    })} />
   ));
 }
 
@@ -1653,6 +1648,18 @@ function updateAgentModel(
 ) {
   const selectionMode: ModelSelectionMode = mode === "fallback" ? "fallback" : "primary";
   createModelSelectionHandler(api, profileOpt, agentName, selectionMode, returnTarget)(fullModelId);
+}
+
+export function showBulkReasoningEffortPicker(
+  api: any,
+  profileOpt: any,
+  modelId: string,
+  target: "primary" | "fallback" = "primary",
+) {
+  safeSetDialogSize(api, "medium");
+  api.ui.dialog.replace(() => (
+    <api.ui.DialogSelect {...createBulkReasoningEffortPickerDialogProps(api, profileOpt, modelId, target)} />
+  ));
 }
 
 /**

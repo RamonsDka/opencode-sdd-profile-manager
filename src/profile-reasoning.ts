@@ -1,5 +1,6 @@
 /** @jsxImportSource @opentui/solid */
 import type { ProfileData, ProfileConfigs } from "./types";
+import { deriveFallbackProfileKey } from "./catalog";
 import { isEditablePrimaryAgent, RESERVED_RUNTIME_AGENT_NAMES } from "./utils";
 import {
   LEGACY_ORCHESTRATOR,
@@ -12,8 +13,11 @@ import {
 export const PROVIDER_DEFAULT_REASONING_EFFORT = "provider-default" as const;
 export const DEFAULT_REASONING_EFFORT_LABEL = "Predeterminado" as const;
 
-function normalizeReasoningEffortValue(value?: string): string | undefined {
+function normalizeReasoningEffortValue(value?: string, preserveProviderDefault = false): string | undefined {
   const trimmed = typeof value === "string" ? value.trim() : "";
+  if (preserveProviderDefault && trimmed === PROVIDER_DEFAULT_REASONING_EFFORT) {
+    return PROVIDER_DEFAULT_REASONING_EFFORT;
+  }
   return trimmed && trimmed !== PROVIDER_DEFAULT_REASONING_EFFORT && trimmed !== DEFAULT_REASONING_EFFORT_LABEL
     ? trimmed
     : undefined;
@@ -45,8 +49,14 @@ function isFallbackOrReservedAgent(agentName: string): boolean {
   return agentName.endsWith("-fallback") || RESERVED_RUNTIME_AGENT_NAMES.has(agentName);
 }
 
-function isStoredReasoningOwner(agentName: string, policy?: OrchestratorPolicy): boolean {
-  return isReasoningOwner(agentName, policy);
+function isStoredReasoningOwner(
+  agentName: string,
+  policy?: OrchestratorPolicy,
+  fallbackModels?: Record<string, string>,
+): boolean {
+  if (isReasoningOwner(agentName, policy)) return true;
+  const fallbackOwner = deriveFallbackProfileKey(agentName);
+  return Boolean(fallbackOwner && fallbackModels?.[fallbackOwner]);
 }
 
 function canonicalizeProfileConfigs(configs: ProfileConfigs, policy: OrchestratorPolicy): ProfileConfigs {
@@ -124,13 +134,18 @@ export function buildReasoningEditState(
   };
 }
 
-export function normalizeProfileConfigs(configs: unknown, policy?: OrchestratorPolicy): ProfileConfigs | undefined {
+export function normalizeProfileConfigs(
+  configs: unknown,
+  policy?: OrchestratorPolicy,
+  preserveProviderDefault = false,
+  fallbackModels?: Record<string, string>,
+): ProfileConfigs | undefined {
   if (!configs || typeof configs !== "object" || Array.isArray(configs)) return undefined;
   const normalizedBase = Object.fromEntries(
     Object.entries(configs as Record<string, any>)
-      .filter(([agentName]) => isStoredReasoningOwner(agentName, policy) && !agentName.endsWith("-fallback"))
+      .filter(([agentName]) => isStoredReasoningOwner(agentName, policy, fallbackModels))
       .map(([agentName, config]) => {
-        const effort = normalizeReasoningEffortValue(config?.reasoningEffort) || "";
+        const effort = normalizeReasoningEffortValue(config?.reasoningEffort, preserveProviderDefault) || "";
         return effort ? [agentName, { reasoningEffort: effort }] : null;
       })
       .filter(Boolean) as any,

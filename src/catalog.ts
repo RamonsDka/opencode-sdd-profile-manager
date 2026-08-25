@@ -3,6 +3,7 @@ import type {
   AssignmentField,
   CatalogGroup,
   CatalogEntry,
+  ConfigurableProfileTarget,
   DialogCatalogRow,
   PersistibleAgentKey,
   ProfileData,
@@ -274,6 +275,30 @@ export function collectRuntimeAgentInventory(config: unknown): RuntimeAgentInven
     .map(classifyRuntimeAgent)
     .filter((entry): entry is RuntimeAgentInventoryItem => entry !== null)
     .sort(compareInventory);
+}
+
+/** Projects runtime definitions into target-aware profile fields eligible for a bulk overwrite. */
+export function collectConfigurableProfileTargets(
+  config: unknown,
+  target: "primary" | "fallback" = "primary",
+): ConfigurableProfileTarget[] {
+  if (target === "fallback") {
+    return CANONICAL_FALLBACK_ORDER
+      .map(deriveFallbackProfileKey)
+      .filter((profileKey): profileKey is string => profileKey !== null)
+      .map((profileKey) => ({ field: "fallback" as const, profileKey }));
+  }
+
+  const seen = new Set<string>();
+  return collectRuntimeAgentInventory(config)
+    .filter((entry) => entry.classification === "primary" && entry.field === "model")
+    .filter((entry) => {
+      const key = `${entry.field}:${entry.profileKey}`;
+      if (seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    })
+    .map(({ field, profileKey }) => ({ field, profileKey }));
 }
 
 export function buildCatalogSections(config: unknown, _profileData?: ProfileData | null): Map<AgentFamily, CatalogEntry[]> {
