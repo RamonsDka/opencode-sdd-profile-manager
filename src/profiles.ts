@@ -12,6 +12,7 @@ import { randomBytes } from "node:crypto";
 import { createLogger } from "./logger";
 import {
   applyProfileReasoningEffort,
+  getReasoningEffortOptions,
   pruneProfileReasoningEffort,
   normalizeProfileConfigs,
   resolveReasoningEffortSelection,
@@ -29,7 +30,10 @@ import {
   PROFILE_VERSION_SOURCE,
   ProfilePhaseModelField,
   BulkProfilePhaseAssignmentResult,
+  BulkProfileOverwriteResult,
+  ConfigurableProfileTarget,
   ProfileData,
+  ProfileConfigs,
   ProfileFallbackModels,
   ProfileModels,
   ProfileVersion,
@@ -37,6 +41,7 @@ import {
   ProfileVersionOperation,
   ModelMutationContext,
   ProfileWriteTransaction,
+  ProfileWriteOptions,
   PendingModelSelection,
   StagedModelSelection,
   UpdateProfilePhaseModelResult,
@@ -246,12 +251,24 @@ export function extractPersistedProfileExtras(raw: unknown): Record<string, unkn
   );
 }
 
-function normalizePersistedProfileData(profile: ProfileData, policy?: OrchestratorPolicy): ProfileData {
+function normalizePersistedProfileData(
+  profile: ProfileData,
+  policy?: OrchestratorPolicy,
+  options?: ProfileWriteOptions,
+): ProfileData {
   const models = normalizeProfileModels(profile?.models, policy);
   const fallback = extractSddFallbackModels({ fallback: profile?.fallback || {} });
-  const configs = normalizeProfileConfigs(profile?.configs, policy);
+  const configs = normalizeProfileConfigs(
+    profile?.configs,
+    policy,
+    options?.preserveProviderDefaultReasoning,
+    fallback,
+  );
   const persistedConfigs = configs
-    ? Object.fromEntries(Object.entries(configs).filter(([name]) => Object.hasOwn(models, name)))
+    ? Object.fromEntries(Object.entries(configs).filter(([name]) => {
+      const fallbackOwner = deriveFallbackProfileKey(name);
+      return fallbackOwner ? Object.hasOwn(fallback, fallbackOwner) : Object.hasOwn(models, name);
+    }))
     : undefined;
 
   return {
@@ -400,8 +417,13 @@ function readProfileDataFromRaw(rawContent: string): ProfileData {
 /**
  * Persists full profile data while preserving the existing profile payload shape.
  */
-export function writeProfileData(profilePath: string, profile: ProfileData, policy?: OrchestratorPolicy): void {
-  const normalized = normalizePersistedProfileData(profile, policy);
+export function writeProfileData(
+  profilePath: string,
+  profile: ProfileData,
+  policy?: OrchestratorPolicy,
+  options?: ProfileWriteOptions,
+): void {
+  const normalized = normalizePersistedProfileData(profile, policy, options);
   if (normalized.configs) {
     const configs = Object.fromEntries(
       Object.entries(normalized.configs).filter(([name]) => isValidAgentKey(name) && (isEditablePrimaryAgent(name) || name === policy?.canonicalName)),
@@ -816,6 +838,41 @@ function resolveModelMutationContext(
   return context || { providers: [], effortPolicy: fallbackPolicy };
 }
 
+function preparePrimaryModelMutation(
+  profile: ProfileData,
+  agentName: string,
+  modelId: string,
+  policy: OrchestratorPolicy,
+): { profile: ProfileData; agentName: string } {
+  if (!policy.aliasNames.includes(agentName as any)) {
+    return {
+      profile: {
+        ...profile,
+        models: { ...(profile.models || {}), [agentName]: modelId },
+      },
+      agentName,
+    };
+  }
+
+  const models = { ...(profile.models || {}) };
+  const configs = { ...(profile.configs || {}) };
+  for (const aliasName of policy.aliasNames) {
+    delete models[aliasName];
+    delete configs[aliasName];
+  }
+  models[policy.canonicalName] = modelId;
+  const { configs: _discardedConfigs, ...profileWithoutConfigs } = profile;
+
+  return {
+    profile: {
+      ...profileWithoutConfigs,
+      models,
+      ...(Object.keys(configs).length > 0 ? { configs } : {}),
+    },
+    agentName: policy.canonicalName,
+  };
+}
+
 function applyModelReasoningMutation(
   profile: ProfileData,
   agentName: string,
@@ -839,13 +896,124 @@ function persistVersionedProfileMutation(
   profile: ProfileData,
   version: ProfileVersion,
   policy?: OrchestratorPolicy,
+  options?: ProfileWriteOptions,
 ): void {
   try {
-    writeProfileData(profilePath, profile, policy);
+    writeProfileData(profilePath, profile, policy, options);
   } catch (error) {
     removeCreatedProfileVersion(version);
+    atomicWriteFile(profilePath, version.beforeRaw);
     throw error;
   }
+}
+
+function deduplicateBulkProfileTargets(targets: readonly ConfigurableProfileTarget[]): ConfigurableProfileTarget[] {
+  const seen = new Set<string>();
+  return targets.filter((target) => {
+    if ((target.field !== "model" && target.field !== "fallback") || !isValidAgentKey(target.profileKey)) return false;
+    if (target.field === "fallback" && !isFallbackEligibleSddAgent(target.profileKey)) return false;
+    const key = `${target.field}:${target.profileKey}`;
+    if (seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
+}
+
+function resolveBulkReasoningEffort(
+  context: ModelMutationContext,
+  modelId: string,
+  selection: string,
+): string {
+  if (getReasoningEffortOptions(context.providers as any[], modelId).length === 0) {
+    return "provider-default";
+  }
+  const resolved = resolveReasoningEffortSelection(context.providers as any[], modelId, selection);
+  return resolved.kind === "provider-default" ? "provider-default" : resolved.value;
+}
+
+/** Builds the complete next profile without I/O for a runtime-derived bulk request. */
+export function buildBulkProfileOverwrite(
+  profile: ProfileData,
+  targets: readonly ConfigurableProfileTarget[],
+  modelId: string,
+  effortSelection: string,
+  context: ModelMutationContext,
+  runtimePolicy?: OrchestratorPolicy,
+  target: "primary" | "fallback" = BULK_ASSIGNMENT_TARGET.PRIMARY,
+): BulkProfileOverwriteResult {
+  const trimmedModelId = modelId?.trim();
+  if (!trimmedModelId) throw new Error("modelId must be a non-empty string");
+
+  const uniqueTargets = deduplicateBulkProfileTargets(targets);
+  const policy = runtimePolicy ?? getOrchestratorPolicy(Object.keys(profile?.models || {}));
+  const reasoningEffort = resolveBulkReasoningEffort(context, trimmedModelId, effortSelection);
+  const nextModels = { ...(profile?.models || {}) };
+  const nextFallback = { ...(profile?.fallback || {}) };
+  const nextConfigs = { ...(profile?.configs || {}) };
+  let modelsAssigned = 0;
+  let effortsAssigned = 0;
+
+  for (const profileTarget of uniqueTargets) {
+    if ((target === BULK_ASSIGNMENT_TARGET.FALLBACK) !== (profileTarget.field === "fallback")) continue;
+    const targetName = policy.aliasNames.includes(profileTarget.profileKey as any)
+      ? policy.canonicalName
+      : profileTarget.profileKey;
+    if (target === BULK_ASSIGNMENT_TARGET.PRIMARY && policy.aliasNames.includes(profileTarget.profileKey as any)) {
+      for (const aliasName of policy.aliasNames) {
+        delete nextModels[aliasName];
+        delete nextConfigs[aliasName];
+      }
+    }
+    const modelMap = target === BULK_ASSIGNMENT_TARGET.FALLBACK ? nextFallback : nextModels;
+    const configKey = target === BULK_ASSIGNMENT_TARGET.FALLBACK ? `${targetName}-fallback` : targetName;
+    if (modelMap[targetName] !== trimmedModelId) modelsAssigned += 1;
+    const currentEffort = nextConfigs[configKey]?.reasoningEffort;
+    if (currentEffort !== reasoningEffort) effortsAssigned += 1;
+    modelMap[targetName] = trimmedModelId;
+    nextConfigs[configKey] = { ...(nextConfigs[configKey] || {}), reasoningEffort };
+  }
+
+  const { configs: _ignoredConfigs, ...profileWithoutConfigs } = profile || { models: {} };
+  return {
+    profile: {
+      ...profileWithoutConfigs,
+      models: nextModels,
+      ...(Object.keys(nextFallback).length > 0 ? { fallback: nextFallback } : {}),
+      ...(Object.keys(nextConfigs).length > 0 ? { configs: nextConfigs } : {}),
+    },
+    modelsAssigned,
+    effortsAssigned,
+    changed: modelsAssigned > 0 || effortsAssigned > 0,
+  };
+}
+
+/** Persists one snapshot-backed profile-wide overwrite after its pure build succeeds. */
+export function updateProfileWithBulkOverwrite(
+  profilePath: string,
+  targets: readonly ConfigurableProfileTarget[],
+  modelId: string,
+  effortSelection: string,
+  context: ModelMutationContext,
+  runtimePolicy?: OrchestratorPolicy,
+  target: "primary" | "fallback" = BULK_ASSIGNMENT_TARGET.PRIMARY,
+): { assignment: BulkProfileOverwriteResult; version?: ProfileVersion } {
+  const beforeRaw = fs.readFileSync(profilePath, "utf-8").toString();
+  const profileData = readProfileDataFromRaw(beforeRaw);
+  const policy = runtimePolicy ?? getOrchestratorPolicy(Object.keys(profileData.models || {}));
+  const assignment = buildBulkProfileOverwrite(profileData, targets, modelId, effortSelection, context, policy, target);
+  if (!assignment.changed) return { assignment };
+
+  const version = createProfileVersion(
+    profilePath,
+    normalizeBulkVersionOperation({ target, mode: BULK_ASSIGNMENT_MODE.OVERWRITE }, assignment.modelsAssigned),
+    `Override ${assignment.modelsAssigned} configurable ${target} agents`,
+    DEFAULT_PROFILE_VERSION_RETENTION,
+    beforeRaw,
+  );
+  persistVersionedProfileMutation(profilePath, assignment.profile, version, policy, {
+    preserveProviderDefaultReasoning: true,
+  });
+  return { assignment, version };
 }
 
 export function createProfileVersion(
@@ -1020,6 +1188,7 @@ export function updateProfilePhaseModel(
   }
 
   const profileData = readProfileData(profilePath);
+  const policy = runtimePolicy ?? getOrchestratorPolicy(Object.keys(profileData.models || {}));
   const currentValue = field === PROFILE_PHASE_MODEL_FIELD.FALLBACK
     ? profileData.fallback?.[agentName]
     : profileData.models?.[agentName];
@@ -1041,9 +1210,10 @@ export function updateProfilePhaseModel(
   if (field === PROFILE_PHASE_MODEL_FIELD.FALLBACK) {
     nextProfile.fallback = { ...(nextProfile.fallback || {}), [agentName]: trimmedModelId };
   } else {
-    nextProfile.models = { ...(nextProfile.models || {}), [agentName]: trimmedModelId };
-    const reasonedProfile = applyModelReasoningMutation(nextProfile, agentName, trimmedModelId, mutationContext, runtimePolicy);
-    nextProfile.configs = reasonedProfile.configs;
+    const mutation = preparePrimaryModelMutation(nextProfile, agentName, trimmedModelId, policy);
+    const reasonedProfile = applyModelReasoningMutation(mutation.profile, mutation.agentName, trimmedModelId, mutationContext, policy);
+    delete nextProfile.configs;
+    Object.assign(nextProfile, reasonedProfile);
   }
 
   const operation: PhaseProfileVersionOperation = {
@@ -1054,7 +1224,6 @@ export function updateProfilePhaseModel(
     changedPhases: 1,
   };
   const version = createProfileVersion(profilePath, operation, buildPhaseOperationSummary(agentName, field, trimmedModelId));
-  const policy = runtimePolicy ?? getOrchestratorPolicy(Object.keys(profileData.models || {}));
   persistVersionedProfileMutation(profilePath, nextProfile, version, policy);
   return {
     profile: nextProfile,
@@ -1110,6 +1279,7 @@ export function commitPendingModelSelection(
 
   const beforeRaw = fs.readFileSync(profilePath, "utf-8").toString();
   const profileData = readProfileDataFromRaw(beforeRaw);
+  const policy = runtimePolicy ?? getOrchestratorPolicy(Object.keys(profileData.models || {}));
   const currentModel = pending.field === PROFILE_PHASE_MODEL_FIELD.FALLBACK
     ? profileData.fallback?.[pending.agentName]
     : profileData.models?.[pending.agentName];
@@ -1121,16 +1291,32 @@ export function commitPendingModelSelection(
 
   if (pending.field === PROFILE_PHASE_MODEL_FIELD.FALLBACK) {
     nextProfile.fallback = { ...(nextProfile.fallback || {}), [pending.agentName]: pending.modelId };
+    const resolvedEffort = resolvePendingReasoningEffort(context, pending.modelId, effortSelection || "provider-default");
+    const fallbackConfigKey = `${pending.agentName}-fallback`;
+    const nextConfigs = { ...(nextProfile.configs || {}) };
+    if (resolvedEffort) {
+      nextConfigs[fallbackConfigKey] = {
+        ...(nextConfigs[fallbackConfigKey] || {}),
+        reasoningEffort: resolvedEffort,
+      };
+    } else {
+      delete nextConfigs[fallbackConfigKey];
+    }
+    delete nextProfile.configs;
+    if (Object.keys(nextConfigs).length > 0) nextProfile.configs = nextConfigs;
   } else {
     const resolvedEffort = resolvePendingReasoningEffort(context, pending.modelId, effortSelection || "provider-default");
-    nextProfile.models[pending.agentName] = pending.modelId;
-    const reasonedProfile = updateProfileReasoningEffort(nextProfile, pending.agentName, resolvedEffort);
-    if (reasonedProfile.configs) nextProfile.configs = reasonedProfile.configs;
-    else delete nextProfile.configs;
+    const mutation = preparePrimaryModelMutation(nextProfile, pending.agentName, pending.modelId, policy);
+    const reasonedProfile = updateProfileReasoningEffort(mutation.profile, mutation.agentName, resolvedEffort);
+    delete nextProfile.configs;
+    Object.assign(nextProfile, reasonedProfile);
   }
 
-  const currentEffort = profileData.configs?.[pending.agentName]?.reasoningEffort;
-  const nextEffort = nextProfile.configs?.[pending.agentName]?.reasoningEffort;
+  const effortConfigKey = pending.field === PROFILE_PHASE_MODEL_FIELD.FALLBACK
+    ? `${pending.agentName}-fallback`
+    : pending.agentName;
+  const currentEffort = profileData.configs?.[effortConfigKey]?.reasoningEffort;
+  const nextEffort = nextProfile.configs?.[effortConfigKey]?.reasoningEffort;
   const changed = currentModel !== pending.modelId || currentEffort !== nextEffort;
   const contextValue = context || { providers: [], effortPolicy: "none" as const };
   if (!changed) return { profile: profileData, changed: false, context: contextValue };
@@ -1149,7 +1335,7 @@ export function commitPendingModelSelection(
     DEFAULT_PROFILE_VERSION_RETENTION,
     beforeRaw,
   );
-  persistVersionedProfileMutation(profilePath, nextProfile, version, runtimePolicy);
+  persistVersionedProfileMutation(profilePath, nextProfile, version, policy);
   return { profile: nextProfile, changed: true, version, versionId: version.id, context: contextValue };
 }
 
@@ -1323,7 +1509,11 @@ function isFallbackSyncBaseAgent(agentName: string, fallbackModels: ProfileFallb
 /**
  * Ensures and reconciles *-fallback agents against managed base agents
  */
-export function syncSddFallbackAgents(currentConfig: any, fallbackModels: ProfileFallbackModels): any {
+export function syncSddFallbackAgents(
+  currentConfig: any,
+  fallbackModels: ProfileFallbackModels,
+  fallbackConfigs?: ProfileConfigs,
+): any {
   const nextConfig = JSON.parse(JSON.stringify(currentConfig || {}));
   if (!nextConfig.agent) nextConfig.agent = {};
 
@@ -1355,6 +1545,19 @@ export function syncSddFallbackAgents(currentConfig: any, fallbackModels: Profil
       ...JSON.parse(JSON.stringify(baseConfig)),
       model: resolvedFallbackModel,
     };
+    const fallbackEffort = fallbackConfigs?.[fallbackAgentName]?.reasoningEffort;
+    if (fallbackEffort && fallbackEffort !== "provider-default") {
+      desiredFallbackConfig.reasoningEffort = fallbackEffort;
+      desiredFallbackConfig.options = {
+        ...(desiredFallbackConfig.options || {}),
+        reasoningEffort: fallbackEffort,
+      };
+    } else {
+      delete desiredFallbackConfig.reasoningEffort;
+      if (desiredFallbackConfig.options && typeof desiredFallbackConfig.options === "object") {
+        delete desiredFallbackConfig.options.reasoningEffort;
+      }
+    }
 
     const currentFallbackConfig = nextConfig.agent[fallbackAgentName];
 
@@ -1437,7 +1640,7 @@ export function discoverInstalledAgentDefinitions(
 export function applyProfileDataToConfig(currentConfig: any, profile: ProfileData): any {
   const withPrimaryModels = applyProfileModelsToConfig(currentConfig, profile.models || {});
   const fallbackModels = profile.fallback || {};
-  const withFallback = syncSddFallbackAgents(withPrimaryModels, fallbackModels);
+  const withFallback = syncSddFallbackAgents(withPrimaryModels, fallbackModels, profile.configs);
   const policy = getOrchestratorPolicy(Object.keys(withFallback?.agent || {}), withFallback?.default_agent);
   return applyProfileReasoningEffort(withFallback, profile, [], policy).config;
 }

@@ -162,6 +162,40 @@ describe("profile reasoning helpers", () => {
         "security-auditor": { reasoningEffort: "high" },
       });
     });
+
+    it("preserves a valid fallback effort only when its eligible owner has a fallback model", () => {
+      const normalized = normalizeProfileConfigs(
+        {
+          "sdd-init": { reasoningEffort: "high" },
+          "sdd-init-fallback": { reasoningEffort: "low" },
+        },
+        undefined,
+        false,
+        { "sdd-init": "openai/gpt-5" },
+      );
+
+      expect(normalized).toEqual({
+        "sdd-init": { reasoningEffort: "high" },
+        "sdd-init-fallback": { reasoningEffort: "low" },
+      });
+    });
+
+    it("prunes orphan and reserved fallback efforts while retaining provider-default for valid fallback owners", () => {
+      const normalized = normalizeProfileConfigs(
+        {
+          "sdd-init-fallback": { reasoningEffort: PROVIDER_DEFAULT_REASONING_EFFORT },
+          "unknown-fallback": { reasoningEffort: "high" },
+          "summary-fallback": { reasoningEffort: "low" },
+        },
+        undefined,
+        true,
+        { "sdd-init": "anthropic/claude-3-5-sonnet" },
+      );
+
+      expect(normalized).toEqual({
+        "sdd-init-fallback": { reasoningEffort: PROVIDER_DEFAULT_REASONING_EFFORT },
+      });
+    });
   });
 
   describe("updateProfileReasoningEffort", () => {
