@@ -13,6 +13,7 @@ import {
   deriveFallbackProfileKey,
   classifyFamily,
   buildCatalogSections,
+  collectConfigurableProfileTargets,
   collectRuntimeAgentInventory,
 } from "./catalog";
 import { isCatalogVisibleAgent, isEditablePrimaryAgent } from "./utils";
@@ -117,6 +118,26 @@ describe("catalog SSOT & validation", () => {
       expect(FALLBACK_SYNC_BASE_ORDER).toHaveLength(19);
       expect(FALLBACK_SYNC_BASE_ORDER).not.toContain("model-audit");
       expect(FALLBACK_SYNC_BASE_ORDER).not.toContain("gentle-orchestrator");
+    });
+  });
+
+  describe("fallback bulk target projection", () => {
+    it("projects the exact canonical 19 fallbacks even when they are absent from runtime config", () => {
+      const targets = collectConfigurableProfileTargets({
+        agent: {
+          "sdd-apply-fallback": {},
+          "sdd-future-fallback": {},
+          "model-audit-fallback": {},
+          compaction: {},
+          summary: {},
+          title: {},
+        },
+      }, "fallback");
+
+      expect(targets).toEqual(EXPECTED_FALLBACK_ORDER.map((fallbackName) => ({
+        field: "fallback",
+        profileKey: fallbackName.slice(0, -"-fallback".length),
+      })));
     });
   });
 

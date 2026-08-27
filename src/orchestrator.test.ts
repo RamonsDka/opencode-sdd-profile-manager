@@ -68,4 +68,15 @@ describe('orchestrator compatibility policy', () => {
     expect(next['sdd-ORCHETATOR']).toBeUndefined();
     expect(next['sdd-apply']).toBe('phase/model');
   });
+
+  it('keeps the runtime canonical alias ahead of a discordant catalog alias during generic normalization', () => {
+    const policy = getOrchestratorPolicy(['gentle-orchestrator', 'sdd-ORCHETATOR']);
+
+    const next = canonicalizeProfileModels({
+      'gentle-orchestrator': 'runtime/model',
+      'sdd-ORCHETATOR': 'catalog/model',
+    }, policy);
+
+    expect(next).toEqual({ 'gentle-orchestrator': 'runtime/model' });
+  });
 });

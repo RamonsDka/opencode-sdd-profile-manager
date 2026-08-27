@@ -72,6 +72,9 @@ export type RuntimeAgentInventoryItem = {
   fallbackEligible: boolean;
 };
 
+/** A runtime-derived primary profile field eligible for profile-wide configuration. */
+export type ConfigurableProfileTarget = Pick<RuntimeAgentInventoryItem, "profileKey" | "field">;
+
 export type CatalogEntry = {
   displayName: string;
   profileKey: string;
@@ -96,6 +99,11 @@ export type ProfileAgentConfig = {
   reasoningEffort?: string;
 };
 
+/**
+ * Agent-name keyed reasoning configuration. Fallback effort is stored using
+ * the runtime fallback agent key (`${primary}-fallback`) to keep it separate
+ * from the primary agent's reasoning configuration.
+ */
 export type ProfileConfigs = Record<string, ProfileAgentConfig>;
 
 /**
@@ -199,6 +207,17 @@ export type UpdateProfilePhaseModelResult = {
   version?: ProfileVersion;
   versionId?: string;
   context?: ModelMutationContext;
+};
+
+export type BulkProfileOverwriteResult = {
+  profile: ProfileData;
+  modelsAssigned: number;
+  effortsAssigned: number;
+  changed: boolean;
+};
+
+export type ProfileWriteOptions = {
+  preserveProviderDefaultReasoning?: boolean;
 };
 
 export type ProfileVersionMetadata = Omit<ProfileVersion, "beforeRaw">;

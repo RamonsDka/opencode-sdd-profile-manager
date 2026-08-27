@@ -1,0 +1,59 @@
+schema: spec-driven
+
+context: |
+  Tech stack: TypeScript 6.0, Node.js >=24 (ESM), SolidJS 1.9, OpenTUI >=0.4.2, OpenCode Plugin >=1.17.11, tsup
+  Architecture: OpenCode TUI plugin with SolidJS/OpenTUI UI, profile & reasoning management, Engram/JSON storage, native dialogs
+  Testing: Vitest 4.1, @vitest/coverage-v8, unit & integration tests
+  Style: ESM modules, TypeScript strict mode, Conventional Commits
+
+testing:
+  runner: vitest run
+  framework: vitest
+  strict_tdd: true
+  coverage:
+    available: true
+    command: vitest run --coverage
+  layers:
+    unit:
+      available: true
+      tool: vitest
+    integration:
+      available: true
+      tool: vitest
+    e2e:
+      available: false
+      tool: null
+  quality:
+    linter:
+      available: false
+      command: null
+    typecheck:
+      available: true
+      command: npm run typecheck
+    formatter:
+      available: false
+      command: null
+
+rules:
+  proposal:
+    - Include rollback plan for risky changes
+  specs:
+    - Use Given/When/Then for scenarios
+    - Use RFC 2119 keywords (MUST, SHALL, SHOULD, MAY)
+  design:
+    - Include sequence diagrams for complex flows
+    - Document architecture decisions with rationale
+  tasks:
+    - Group by phase, use hierarchical numbering
+    - Keep tasks completable in one session
+  apply:
+    guidelines:
+      - Follow existing code patterns
+    tdd: true
+    test_command: "npm test"
+  verify:
+    test_command: "npm test"
+    build_command: ""
+    coverage_threshold: 0
+  archive:
+    - Warn before merging destructive deltas

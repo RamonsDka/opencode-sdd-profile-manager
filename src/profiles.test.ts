@@ -27,6 +27,8 @@ import {
     commitPendingModelSelection,
     stageProfileModelSelection,
     updateProfileWithBulkPhaseAssignment,
+    buildBulkProfileOverwrite,
+    updateProfileWithBulkOverwrite,
     updateProfilePhaseModel,
     updateProfileReasoningWithoutVersion,
     detectActiveProfileFile,
@@ -37,6 +39,7 @@ import {
    migrateProfilesForRuntimePolicy
 } from './profiles';
 import { getOrchestratorPolicy } from './orchestrator';
+import { collectConfigurableProfileTargets } from './catalog';
 
 const toPosix = (p: any) => (typeof p === 'string' ? p.replace(/\\/g, '/') : p);
 
@@ -993,6 +996,55 @@ describe('profiles logic', () => {
       expect(firstPass).toEqual(secondPass);
     });
 
+    it('applies a persisted suffixed fallback effort without contaminating the primary agent', () => {
+      const config = {
+        agent: {
+          'sdd-init': { model: 'openai/gpt-5', reasoningEffort: 'high', options: { reasoningEffort: 'high' } },
+          'sdd-init-fallback': { model: 'old/model', reasoningEffort: 'medium', options: { reasoningEffort: 'medium' } },
+        },
+      };
+
+      const synced = (syncSddFallbackAgents as any)(
+        config,
+        { 'sdd-init': 'openai/gpt-5-mini' },
+        { 'sdd-init-fallback': { reasoningEffort: 'low' } },
+      );
+
+      expect(synced.agent['sdd-init']).toEqual(config.agent['sdd-init']);
+      expect(synced.agent['sdd-init-fallback']).toMatchObject({
+        model: 'openai/gpt-5-mini',
+        reasoningEffort: 'low',
+        options: { reasoningEffort: 'low' },
+      });
+    });
+
+    it('clears fallback-only runtime effort when the persisted fallback effort is provider-default or absent', () => {
+      const config = {
+        agent: {
+          'sdd-init': { model: 'openai/gpt-5', reasoningEffort: 'high', options: { reasoningEffort: 'high' } },
+          'sdd-init-fallback': { model: 'old/model', reasoningEffort: 'medium', options: { reasoningEffort: 'medium' } },
+        },
+      };
+
+      const providerDefault = (syncSddFallbackAgents as any)(
+        config,
+        { 'sdd-init': 'anthropic/claude-3-5-sonnet' },
+        { 'sdd-init-fallback': { reasoningEffort: 'provider-default' } },
+      );
+      expect(providerDefault.agent['sdd-init-fallback']).toMatchObject({ model: 'anthropic/claude-3-5-sonnet' });
+      expect(providerDefault.agent['sdd-init-fallback'].reasoningEffort).toBeUndefined();
+      expect(providerDefault.agent['sdd-init-fallback'].options.reasoningEffort).toBeUndefined();
+
+      const absent = (syncSddFallbackAgents as any)(
+        config,
+        { 'sdd-init': 'anthropic/claude-3-5-sonnet' },
+        {},
+      );
+      expect(absent.agent['sdd-init-fallback'].reasoningEffort).toBeUndefined();
+      expect(absent.agent['sdd-init-fallback'].options.reasoningEffort).toBeUndefined();
+      expect(absent.agent['sdd-init'].reasoningEffort).toBe('high');
+    });
+
     it('does not synthesize fallback for dynamic primary when profile fallback is omitted (RED)', () => {
       const config = {
         agent: {
@@ -1349,6 +1401,231 @@ describe('profiles logic', () => {
       });
       expect(noOp.changed).toBe(false);
       expect(noOp.profile).toEqual(profile);
+    });
+  });
+
+  describe('bulk profile overwrite engine (Unit 2)', () => {
+    const configurableRuntime = {
+      agent: {
+        'gentle-orchestrator': {},
+        'sdd-apply': {},
+        'jd-judge-a': {},
+        'review-risk': {},
+        'model-audit': {},
+        'gentle-ai-windows-validator': {},
+        'security-scanner': {},
+        compaction: {},
+        summary: {},
+        title: {},
+        general: {},
+        'sdd-apply-fallback': {},
+      },
+    };
+
+    it('derives every configurable primary target from runtime inventory and excludes internal or fallback entries', () => {
+      const targets = collectConfigurableProfileTargets(configurableRuntime);
+
+      expect(targets.map((target) => [target.field, target.profileKey])).toEqual([
+        ['model', 'gentle-orchestrator'],
+        ['model', 'sdd-apply'],
+        ['model', 'jd-judge-a'],
+        ['model', 'review-risk'],
+        ['model', 'model-audit'],
+        ['model', 'gentle-ai-windows-validator'],
+        ['model', 'security-scanner'],
+      ]);
+    });
+
+    it('overwrites every catalog-derived target with model and selected effort while leaving internal profile entries untouched', () => {
+      const targets = collectConfigurableProfileTargets(configurableRuntime);
+      const profile = {
+        models: {
+          'gentle-orchestrator': 'old/orchestrator',
+          'sdd-apply': 'old/apply',
+          'jd-judge-a': 'old/judge',
+          'review-risk': 'old/review',
+          'model-audit': 'old/audit',
+          'gentle-ai-windows-validator': 'old/validator',
+          'security-scanner': 'old/security',
+          compaction: 'internal/compaction',
+        },
+        configs: {
+          'sdd-apply': { reasoningEffort: 'low' },
+          compaction: { reasoningEffort: 'low' },
+        },
+      } as ProfileData;
+
+      const result = buildBulkProfileOverwrite(profile, targets, 'openai/o3-mini', 'high', {
+        providers: [{
+          id: 'openai',
+          models: {
+            'o3-mini': {
+              capabilities: { reasoning: true },
+              variants: { high: { reasoningEffort: 'high' } },
+            },
+          },
+        }],
+        effortPolicy: 'bulk-compatible-prune',
+      });
+
+      expect(result.modelsAssigned).toBe(7);
+      expect(result.effortsAssigned).toBe(7);
+      expect(result.profile.models).toMatchObject({
+        'gentle-orchestrator': 'openai/o3-mini',
+        'sdd-apply': 'openai/o3-mini',
+        'jd-judge-a': 'openai/o3-mini',
+        'review-risk': 'openai/o3-mini',
+        'model-audit': 'openai/o3-mini',
+        'gentle-ai-windows-validator': 'openai/o3-mini',
+        'security-scanner': 'openai/o3-mini',
+        compaction: 'internal/compaction',
+      });
+      expect(result.profile.configs).toMatchObject({
+        'gentle-orchestrator': { reasoningEffort: 'high' },
+        'sdd-apply': { reasoningEffort: 'high' },
+        'jd-judge-a': { reasoningEffort: 'high' },
+        'review-risk': { reasoningEffort: 'high' },
+        'model-audit': { reasoningEffort: 'high' },
+        'gentle-ai-windows-validator': { reasoningEffort: 'high' },
+        'security-scanner': { reasoningEffort: 'high' },
+      });
+      expect(result.profile.configs?.compaction).toEqual({ reasoningEffort: 'low' });
+      expect(profile.models['sdd-apply']).toBe('old/apply');
+    });
+
+    it('uses provider-default for unsupported reasoning and deduplicates target field/profile-key pairs', () => {
+      const result = buildBulkProfileOverwrite({
+        models: { 'sdd-apply': 'old/apply', compaction: 'internal/compaction' },
+      }, [
+        { field: 'model', profileKey: 'sdd-apply' },
+        { field: 'model', profileKey: 'sdd-apply' },
+      ], 'anthropic/claude-3-5-sonnet', 'high', { providers: [], effortPolicy: 'bulk-compatible-prune' });
+
+      expect(result.modelsAssigned).toBe(1);
+      expect(result.effortsAssigned).toBe(1);
+      expect(result.profile.models).toEqual({
+        'sdd-apply': 'anthropic/claude-3-5-sonnet',
+        compaction: 'internal/compaction',
+      });
+      expect(result.profile.configs).toEqual({
+        'sdd-apply': { reasoningEffort: 'provider-default' },
+      });
+    });
+
+    it('overwrites fallback models and suffixed efforts without mutating primary models or configs', () => {
+      const result = buildBulkProfileOverwrite({
+        models: { 'sdd-apply': 'primary/apply', 'sdd-init': 'primary/init' },
+        configs: { 'sdd-apply': { reasoningEffort: 'low' } },
+        fallback: { 'sdd-apply': 'old/fallback' },
+      }, [
+        { field: 'fallback', profileKey: 'sdd-apply' },
+        { field: 'fallback', profileKey: 'sdd-init' },
+        { field: 'fallback', profileKey: 'sdd-apply' },
+      ], 'openai/o3-mini', 'high', {
+        providers: [{ id: 'openai', models: { 'o3-mini': { capabilities: { reasoning: true }, variants: { high: { reasoningEffort: 'high' } } } } }],
+        effortPolicy: 'bulk-compatible-prune',
+      }, undefined, BULK_ASSIGNMENT_TARGET.FALLBACK);
+
+      expect(result.modelsAssigned).toBe(2);
+      expect(result.effortsAssigned).toBe(2);
+      expect(result.profile.models).toEqual({ 'sdd-apply': 'primary/apply', 'sdd-init': 'primary/init' });
+      expect(result.profile.configs).toEqual({
+        'sdd-apply': { reasoningEffort: 'low' },
+        'sdd-apply-fallback': { reasoningEffort: 'high' },
+        'sdd-init-fallback': { reasoningEffort: 'high' },
+      });
+      expect(result.profile.fallback).toEqual({ 'sdd-apply': 'openai/o3-mini', 'sdd-init': 'openai/o3-mini' });
+    });
+
+    it('creates a fallback-target snapshot before one write and restores the exact legacy payload after a failed write', () => {
+      const beforeRaw = JSON.stringify({ models: { 'sdd-apply': 'primary/old' } });
+      const writes: Array<{ filePath: string; content: string }> = [];
+      vi.mocked(fs.existsSync).mockReturnValue(false);
+      vi.mocked(fs.readdirSync).mockReturnValue([] as any);
+      vi.mocked(fs.readFileSync).mockReturnValue(beforeRaw);
+      let profileWriteAttempts = 0;
+      vi.mocked(fs.writeFileSync).mockImplementation((filePath: any, content: any) => {
+        const normalizedPath = toPosix(filePath);
+        writes.push({ filePath: normalizedPath, content: String(content) });
+        if (normalizedPath.includes('/mock/profiles/team.json.tmp-') && profileWriteAttempts++ === 0) {
+          throw new Error('profile write failed');
+        }
+      });
+
+      expect(() => updateProfileWithBulkOverwrite(
+        '/mock/profiles/team.json',
+        [{ field: 'fallback', profileKey: 'sdd-apply' }],
+        'anthropic/claude-3-5-sonnet',
+        'high',
+        { providers: [], effortPolicy: 'bulk-compatible-prune' },
+        undefined,
+        BULK_ASSIGNMENT_TARGET.FALLBACK,
+      )).toThrow('profile write failed');
+
+      expect(writes[0].filePath).toContain('/mock/config/profile-versions/team.json/');
+      expect(JSON.parse(writes[0].content).operation.target).toBe(BULK_ASSIGNMENT_TARGET.FALLBACK);
+      expect(writes.filter(({ filePath }) => filePath.includes('/mock/profiles/team.json.tmp-'))).toHaveLength(2);
+      expect(JSON.parse(writes.at(-1)!.content)).toEqual(JSON.parse(beforeRaw));
+      expect(vi.mocked(fs.unlinkSync).mock.calls.some(([filePath]) =>
+        toPosix(filePath).includes('/mock/config/profile-versions/team.json/')
+      )).toBe(true);
+    });
+
+    it('persists provider-default with the snapshot-backed overwrite transaction', () => {
+      const writes: Array<{ filePath: string; content: string }> = [];
+      vi.mocked(fs.existsSync).mockReturnValue(false);
+      vi.mocked(fs.readdirSync).mockReturnValue([] as any);
+      vi.mocked(fs.readFileSync).mockReturnValue(JSON.stringify({
+        models: { 'sdd-apply': 'old/apply' },
+        configs: { 'sdd-apply': { reasoningEffort: 'low' } },
+      }));
+      vi.mocked(fs.writeFileSync).mockImplementation((filePath: any, content: any) => {
+        writes.push({ filePath: toPosix(filePath), content: String(content) });
+      });
+
+      const result = updateProfileWithBulkOverwrite(
+        '/mock/profiles/team.json',
+        [{ field: 'model', profileKey: 'sdd-apply' }],
+        'anthropic/claude-3-5-sonnet',
+        'high',
+        { providers: [], effortPolicy: 'bulk-compatible-prune' },
+      );
+
+      const profileWrite = writes.find(({ filePath }) => filePath.includes('/mock/profiles/team.json.tmp-'));
+      expect(result.version?.beforeRaw).toContain('old/apply');
+      expect(JSON.parse(profileWrite!.content)).toEqual({
+        models: { 'sdd-apply': 'anthropic/claude-3-5-sonnet' },
+        configs: { 'sdd-apply': { reasoningEffort: 'provider-default' } },
+      });
+    });
+
+    it('creates the snapshot before one profile write and compensates the snapshot when that write fails', () => {
+      const writes: string[] = [];
+      vi.mocked(fs.existsSync).mockReturnValue(false);
+      vi.mocked(fs.readdirSync).mockReturnValue([] as any);
+      vi.mocked(fs.readFileSync).mockReturnValue(JSON.stringify({
+        models: { 'sdd-apply': 'old/apply' },
+        configs: { 'sdd-apply': { reasoningEffort: 'low' } },
+      }));
+      vi.mocked(fs.writeFileSync).mockImplementation((filePath: any) => {
+        const normalizedPath = toPosix(filePath);
+        writes.push(normalizedPath);
+        if (normalizedPath.includes('/mock/profiles/team.json.tmp-')) throw new Error('profile write failed');
+      });
+
+      expect(() => updateProfileWithBulkOverwrite(
+        '/mock/profiles/team.json',
+        [{ field: 'model', profileKey: 'sdd-apply' }],
+        'anthropic/claude-3-5-sonnet',
+        'high',
+        { providers: [], effortPolicy: 'bulk-compatible-prune' },
+      )).toThrow('profile write failed');
+
+      expect(writes[0]).toContain('/mock/config/profile-versions/team.json/');
+      expect(writes[1]).toMatch(/^\/mock\/profiles\/team\.json\.tmp-[0-9a-f]{8}$/);
+      expect(vi.mocked(fs.unlinkSync).mock.calls.some(([filePath]) =>
+        toPosix(filePath).includes('/mock/config/profile-versions/team.json/')
+      )).toBe(true);
     });
   });
 
@@ -2124,6 +2401,76 @@ describe('profiles logic', () => {
       expect(fs.writeFileSync).not.toHaveBeenCalled();
     });
 
+    it('commits a catalog orchestrator selection to the supplied canonical owner and prunes stale aliases', () => {
+      const writes: Array<{ filePath: string; content: string }> = [];
+      vi.mocked(fs.existsSync).mockReturnValue(false);
+      vi.mocked(fs.readdirSync).mockReturnValue([] as any);
+      vi.mocked(fs.readFileSync).mockReturnValue(JSON.stringify({
+        models: {
+          'sdd-orchestrator': 'legacy/model',
+          'sdd-ORCHETATOR': 'catalog/model',
+        },
+        configs: {
+          'sdd-orchestrator': { reasoningEffort: 'low' },
+          'sdd-ORCHETATOR': { reasoningEffort: 'medium' },
+        },
+      }));
+      vi.mocked(fs.writeFileSync).mockImplementation((filePath: any, content: any) => {
+        writes.push({ filePath: toPosix(filePath), content: String(content) });
+      });
+
+      const result = commitPendingModelSelection(
+        '/mock/profiles/team.json',
+        { agentName: 'sdd-ORCHETATOR', field: 'primary', modelId: 'google/gemini-2.5-flash' },
+        'high',
+        getOrchestratorPolicy(['gentle-orchestrator']) as any,
+        {
+          providers: [{
+            id: 'google',
+            models: {
+              'gemini-2.5-flash': {
+                capabilities: { reasoning: true },
+                variants: { high: { reasoningEffort: 'high' } },
+              },
+            },
+          }],
+          effortPolicy: 'none',
+        },
+      );
+
+      const profileWrite = writes.find(({ filePath }) => filePath.includes('/profiles/team.json.tmp-'));
+      const persisted = JSON.parse(profileWrite!.content);
+      expect(result.changed).toBe(true);
+      expect(persisted.models).toEqual({ 'gentle-orchestrator': 'google/gemini-2.5-flash' });
+      expect(persisted.configs).toEqual({ 'gentle-orchestrator': { reasoningEffort: 'high' } });
+      expect(persisted.models['sdd-orchestrator']).toBeUndefined();
+      expect(persisted.models['sdd-ORCHETATOR']).toBeUndefined();
+      expect(persisted.configs['sdd-orchestrator']).toBeUndefined();
+      expect(persisted.configs['sdd-ORCHETATOR']).toBeUndefined();
+    });
+
+    it('aborts before the profile write when snapshot creation fails', () => {
+      vi.mocked(fs.existsSync).mockReturnValue(false);
+      vi.mocked(fs.readdirSync).mockReturnValue([] as any);
+      vi.mocked(fs.readFileSync).mockReturnValue(JSON.stringify({
+        models: { 'sdd-apply': 'openai/old' },
+      }));
+      vi.mocked(fs.writeFileSync).mockImplementation((filePath: any) => {
+        if (toPosix(filePath).includes('/profile-versions/team.json/')) {
+          throw new Error('snapshot write failed');
+        }
+      });
+
+      expect(() => commitPendingModelSelection(
+        '/mock/profiles/team.json',
+        { agentName: 'sdd-apply', field: 'primary', modelId: 'openai/new' },
+        'provider-default',
+      )).toThrow('snapshot write failed');
+      expect(vi.mocked(fs.writeFileSync).mock.calls.some(([filePath]) =>
+        toPosix(filePath).includes('/profiles/team.json.tmp-')
+      )).toBe(false);
+    });
+
     it('clears provider default without persisting its token or display label', () => {
       const writes: string[] = [];
       vi.mocked(fs.existsSync).mockReturnValue(false);
@@ -2145,6 +2492,34 @@ describe('profiles logic', () => {
       expect(profileWrite).not.toContain('provider-default');
       expect(profileWrite).not.toContain('Predeterminado');
     });
+
+    it('commits a fallback model and its suffixed reasoning effort in one versioned write', () => {
+      const writes: Array<{ filePath: string; content: string }> = [];
+      vi.mocked(fs.existsSync).mockReturnValue(false);
+      vi.mocked(fs.readdirSync).mockReturnValue([] as any);
+      vi.mocked(fs.readFileSync).mockReturnValue(JSON.stringify({
+        models: { 'sdd-apply': 'openai/old' },
+        fallback: { 'sdd-apply': 'openai/old' },
+      }));
+      vi.mocked(fs.writeFileSync).mockImplementation((filePath: any, content: any) => {
+        writes.push({ filePath: toPosix(filePath), content: String(content) });
+      });
+
+      const result = commitPendingModelSelection(
+        '/mock/profiles/team.json',
+        { agentName: 'sdd-apply', field: 'fallback', modelId: 'openai/gpt-5' },
+        'high',
+        undefined,
+        { providers: [{ id: 'openai', models: { 'gpt-5': { capabilities: { reasoning: true }, variants: { high: { reasoningEffort: 'high' } } } } }], effortPolicy: 'none' },
+      );
+
+      expect(result.changed).toBe(true);
+      expect(result.profile.fallback?.['sdd-apply']).toBe('openai/gpt-5');
+      expect(result.profile.configs).toEqual({ 'sdd-apply-fallback': { reasoningEffort: 'high' } });
+      expect(writes.filter(({ filePath }) => filePath.includes('/profile-versions/team.json/'))).toHaveLength(1);
+      expect(writes.filter(({ filePath }) => filePath.includes('/profiles/team.json.tmp-'))).toHaveLength(1);
+    });
+
 
     it('renames matching profile version history with migrated snapshot metadata', () => {
       const files: Record<string, string> = {

@@ -1,0 +1,2652 @@
+<!DOCTYPE html>
+<!--
+  Drop-In Task Manager — Single-file, file:// compatible, zero runtime deps
+  Generated: 2026-08-22T16:00:04.753Z via scripts/assemble.mjs
+  Source modules: 01-skeleton.html + 02-core.js + 03-header-hud.js + 04-phases.js + 05-panels.js + 06-todo-help.js
+  Island: script#tm-state (type=application/json) — AI edits ONLY this block
+  Docs: openspec/changes/drop-in-task-manager/ + Help tab (?)
+  Tokens: verbatim from project-tracking-dashboard/index.html
+-->
+
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Drop-In Task Manager — Obsidian Technical Cockpit</title>
+  <!-- AI-EDITABLE: TOKENS — verbatim from prototype + extended obsidian palette -->
+  <style>
+    :root {
+      /* Verbatim tokens from prototype */
+      --bg-canvas: #0b0e14;
+      --bg-surface-primary: #161b22;
+      --bg-surface-secondary: #12161d;
+      --bg-surface-tertiary: #1c222b;
+      --bg-surface-hover: #212833;
+      --border-subtle: #30363d;
+      --border-medium: #424b57;
+      --border-focus: #58a6ff;
+      --text-primary: #ffffff;
+      --text-secondary: #a0a0a0;
+      --text-tertiary: #8b949e;
+      --text-muted: #4b5563;
+      --accent-blue: #58a6ff;
+      --accent-green: #3fb950;
+      --accent-purple: #bc8cff;
+      --accent-amber: #d29922;
+      --accent-red: #f85149;
+      --color-completed: #238636;
+      --color-completed-bright: #3fb950;
+      --color-completed-bg: rgba(63, 185, 80, 0.12);
+      --color-completed-border: #3fb950;
+      --color-inprogress: #1f6feb;
+      --color-inprogress-bright: #58a6ff;
+      --color-inprogress-bg: rgba(88, 166, 255, 0.12);
+      --color-inprogress-border: #58a6ff;
+      --color-pending: #d29922;
+      --color-pending-bright: #d29922;
+      --color-pending-bg: rgba(210, 153, 34, 0.12);
+      --color-pending-border: #d29922;
+      --color-blocked: #da3633;
+      --color-blocked-bright: #f85149;
+      --color-blocked-bg: rgba(248, 81, 73, 0.12);
+      --color-blocked-border: #f85149;
+      --color-git: #8957e5;
+      --color-git-bright: #bc8cff;
+      --color-git-bg: rgba(188, 140, 255, 0.12);
+      --color-git-border: #bc8cff;
+      --radius-sm: 6px;
+      --radius-md: 10px;
+      --radius-lg: 12px;
+      --radius-full: 9999px;
+      --font-sans: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", "Noto Sans", Helvetica, Arial, sans-serif;
+      --font-mono: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, "Liberation Mono", monospace;
+      --shadow-sm: 0 2px 4px rgba(0, 0, 0, 0.3);
+      --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.5);
+      --shadow-lg: 0 8px 24px rgba(0, 0, 0, 0.6);
+
+      /* Extended high-density theme variables */
+      --glow-blue: 0 0 16px rgba(88, 166, 255, 0.2);
+      --glow-green: 0 0 16px rgba(63, 185, 80, 0.2);
+      --glow-amber: 0 0 16px rgba(210, 153, 34, 0.2);
+      --glow-red: 0 0 16px rgba(248, 81, 73, 0.25);
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    html, body { max-width: 100%; overflow-x: hidden; }
+    
+    body {
+      background-color: var(--bg-canvas);
+      color: var(--text-secondary);
+      font-family: var(--font-sans);
+      font-size: 14px;
+      line-height: 1.5;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      -webkit-font-smoothing: antialiased;
+      background-image: 
+        radial-gradient(circle at 50% 0%, rgba(31, 111, 235, 0.08) 0%, transparent 60%),
+        linear-gradient(to bottom, rgba(22, 27, 34, 0.4) 1px, transparent 1px),
+        linear-gradient(to right, rgba(22, 27, 34, 0.4) 1px, transparent 1px);
+      background-size: 100% 100%, 32px 32px, 32px 32px;
+      background-position: 0 0, -1px -1px, -1px -1px;
+    }
+
+    /* Scrollbars */
+    ::-webkit-scrollbar { width: 8px; height: 8px; }
+    ::-webkit-scrollbar-track { background: var(--bg-canvas); }
+    ::-webkit-scrollbar-thumb { background: var(--border-subtle); border-radius: 4px; }
+    ::-webkit-scrollbar-thumb:hover { background: var(--border-medium); }
+
+    .app-container {
+      max-width: 1720px;
+      width: 100%;
+      margin: 0 auto;
+      padding: 16px 24px 64px;
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+    }
+
+    .app-container,
+    .view-container,
+    .dashboard-layout,
+    .dashboard-main-col,
+    .dashboard-side-col,
+    .panel-card,
+    .metric-card,
+    .kanban-column { min-width: 0; max-width: 100%; }
+
+    /* Top Command & Header Bar */
+    .header-panel {
+      background-color: var(--bg-surface-primary);
+      border: 1px solid var(--border-subtle);
+      border-radius: var(--radius-lg);
+      padding: 14px 20px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 16px;
+      box-shadow: var(--shadow-md);
+      position: relative;
+    }
+
+    .header-brand { display: flex; align-items: center; gap: 14px; min-width: 0; }
+    .header-titles { min-width: 0; }
+    .header-icon {
+      width: 40px;
+      height: 40px;
+      background: linear-gradient(135deg, #1f6feb, #bc8cff);
+      border-radius: var(--radius-md);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: #fff;
+      font-size: 20px;
+      font-weight: 700;
+      flex-shrink: 0;
+      box-shadow: var(--glow-blue);
+    }
+
+    .header-titles h1 {
+      font-size: 17px;
+      font-weight: 700;
+      color: var(--text-primary);
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      letter-spacing: -0.01em;
+      flex-wrap: wrap;
+    }
+
+    .header-titles p {
+      font-size: 12px;
+      color: var(--text-tertiary);
+      margin-top: 1px;
+      overflow-wrap: anywhere;
+    }
+
+    .header-meta {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      flex-wrap: wrap;
+    }
+
+    /* Nav Tabs Bar */
+    .nav-tabs-bar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      background: var(--bg-surface-primary);
+      border: 1px solid var(--border-subtle);
+      border-radius: var(--radius-lg);
+      padding: 6px 10px;
+      box-shadow: var(--shadow-sm);
+      overflow-x: auto;
+    }
+
+    .tab-group {
+      display: flex;
+      align-items: center;
+      gap: 4px;
+      flex-shrink: 0;
+    }
+
+    .tab-btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 7px 14px;
+      border-radius: var(--radius-sm);
+      font-size: 13px;
+      font-weight: 500;
+      color: var(--text-secondary);
+      background: transparent;
+      border: 1px solid transparent;
+      cursor: pointer;
+      transition: all 0.15s ease;
+      white-space: nowrap;
+      user-select: none;
+    }
+
+    .tab-btn:hover {
+      color: var(--text-primary);
+      background: var(--bg-surface-hover);
+    }
+
+    .tab-btn.active {
+      color: #ffffff;
+      background: var(--bg-surface-tertiary);
+      border-color: var(--border-medium);
+      box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.1);
+    }
+
+    .tab-btn.active .tab-icon {
+      color: var(--accent-blue);
+    }
+
+    .tab-badge {
+      font-size: 10px;
+      font-family: var(--font-mono);
+      padding: 1px 5px;
+      border-radius: 4px;
+      background: rgba(255, 255, 255, 0.08);
+      color: var(--text-tertiary);
+    }
+
+    .nav-controls {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      flex-shrink: 0;
+    }
+
+    .search-box {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      background: var(--bg-surface-secondary);
+      border: 1px solid var(--border-subtle);
+      border-radius: var(--radius-sm);
+      padding: 4px 10px;
+      transition: border-color 0.15s;
+      min-width: 0;
+    }
+
+    .search-box:focus-within {
+      border-color: var(--border-focus);
+    }
+
+    .search-box input {
+      background: transparent;
+      border: none;
+      color: var(--text-primary);
+      font-size: 12.5px;
+      font-family: var(--font-sans);
+      outline: none;
+      width: 180px;
+    }
+
+    .search-box input::placeholder {
+      color: var(--text-muted);
+    }
+
+    /* Insight and filter controls */
+    .filter-toolbar {
+      display: grid;
+      grid-template-columns: minmax(180px, 1.4fr) repeat(4, minmax(120px, 1fr)) auto;
+      gap: 8px;
+      align-items: end;
+      padding: 12px 18px;
+      background: var(--bg-surface-secondary);
+      border-bottom: 1px solid var(--border-subtle);
+    }
+
+    .filter-field {
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+      min-width: 0;
+    }
+
+    .filter-field label {
+      color: var(--text-tertiary);
+      font-size: 11px;
+      font-family: var(--font-mono);
+      letter-spacing: 0.02em;
+    }
+
+    .filter-field input,
+    .filter-field select {
+      width: 100%;
+      min-height: 34px;
+      padding: 6px 8px;
+      border: 1px solid var(--border-subtle);
+      border-radius: var(--radius-sm);
+      background: var(--bg-surface-primary);
+      color: var(--text-primary);
+      font: inherit;
+    }
+
+    .filter-field input::placeholder { color: var(--text-muted); }
+    .filter-field input:focus-visible,
+    .filter-field select:focus-visible,
+    .btn:focus-visible,
+    .tab-btn:focus-visible,
+    .phase-header:focus-visible {
+      outline: 2px solid var(--border-focus);
+      outline-offset: 2px;
+    }
+
+    .filter-actions {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      min-height: 34px;
+    }
+
+    #filter-result-count {
+      color: var(--text-tertiary);
+      font: 11px var(--font-mono);
+      white-space: nowrap;
+    }
+
+    #filter-empty-state {
+      margin: 8px 0;
+      padding: 10px 12px;
+      border: 1px dashed var(--border-medium);
+      border-radius: var(--radius-sm);
+      color: var(--text-secondary);
+      background: var(--bg-surface-secondary);
+      font-size: 12px;
+    }
+
+    #filter-empty-state[hidden] { display: none; }
+
+    .insight-values {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px 12px;
+      color: var(--text-secondary);
+      font-size: 11.5px;
+    }
+
+    .insight-dimension-line { color: var(--text-tertiary); }
+    .insight-empty { color: var(--text-muted); }
+    .insight-trend { display: flex; flex-direction: column; gap: 3px; }
+    .insight-trend-chart { max-width: 100%; height: auto; }
+    .insight-trend-copy,
+    .insight-forecast { color: var(--text-tertiary); font-size: 11px; }
+
+    .metric-card.metric-insights-band {
+      grid-column: 1 / -1;
+    }
+
+    .insight-band-grid {
+      display: grid;
+      width: 100%;
+      grid-template-columns: minmax(150px, 1.15fr) minmax(126px, 0.85fr) minmax(150px, 1fr) minmax(150px, 1fr) minmax(190px, 1.2fr);
+      align-items: start;
+      gap: 14px;
+    }
+
+    .insight-band-region {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+      min-width: 0;
+    }
+
+    .insight-region-label {
+      color: var(--text-tertiary);
+      font: 10px var(--font-mono);
+      letter-spacing: 0.04em;
+      text-transform: uppercase;
+    }
+
+    .insight-status-chart,
+    .insight-trend-chart {
+      width: 100%;
+      max-width: 100%;
+    }
+
+    .insight-dimension-list {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(90px, 1fr));
+      gap: 3px 8px;
+      min-width: 0;
+    }
+
+    .insight-dimension-line {
+      min-width: 0;
+      overflow-wrap: anywhere;
+    }
+
+    .insight-dimension-line strong { color: var(--text-secondary); }
+
+    .insight-risk-values {
+      display: grid;
+      gap: 4px;
+      color: var(--text-secondary);
+      font-size: 11.5px;
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      *, *::before, *::after {
+        animation-duration: 0.001ms !important;
+        animation-iteration-count: 1 !important;
+        scroll-behavior: auto !important;
+        transition-duration: 0.001ms !important;
+      }
+    }
+
+    /* HUD Metrics Grid */
+    .metrics-grid {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      gap: 16px;
+    }
+
+    .metric-card {
+      background-color: var(--bg-surface-primary);
+      border: 1px solid var(--border-subtle);
+      border-radius: var(--radius-lg);
+      padding: 16px 20px;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      position: relative;
+      overflow: hidden;
+      box-shadow: var(--shadow-md);
+      transition: transform 0.15s ease, border-color 0.15s ease;
+    }
+
+    .metric-card:hover {
+      border-color: var(--border-medium);
+    }
+
+    .metric-card::before {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      height: 3px;
+      background: transparent;
+    }
+
+    .metric-card.accent-blue::before { background: var(--accent-blue); }
+    .metric-card.accent-green::before { background: var(--accent-green); }
+    .metric-card.accent-purple::before { background: var(--accent-purple); }
+    .metric-card.accent-amber::before { background: var(--accent-amber); }
+
+    @media (max-width: 900px) {
+      .insight-band-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    }
+
+    .metric-top-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    /* Main Dashboard Layout */
+    .dashboard-layout {
+      display: grid;
+      grid-template-columns: 1fr 390px;
+      gap: 16px;
+      align-items: start;
+    }
+
+    @media (max-width: 1200px) {
+      .dashboard-layout {
+        grid-template-columns: 1fr;
+      }
+
+      .metrics-grid {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+      }
+    }
+
+    @media (max-width: 720px) {
+      .app-container { padding: 10px 12px 40px; }
+      .header-panel { align-items: flex-start; flex-wrap: wrap; }
+      .header-meta { width: 100%; }
+      .nav-tabs-bar { align-items: flex-start; }
+      .search-box input { width: 100%; min-width: 0; max-width: 100%; }
+      .filter-toolbar { grid-template-columns: 1fr 1fr; align-items: stretch; }
+      .filter-field:first-child, .filter-actions { grid-column: 1 / -1; }
+      .filter-field input, .filter-field select, .filter-actions .btn { min-height: 44px; }
+      .filter-actions { justify-content: space-between; }
+      .metrics-grid { grid-template-columns: 1fr; }
+      .insight-band-grid { grid-template-columns: 1fr; }
+      .kanban-grid { grid-template-columns: 1fr; }
+      .phase-header { align-items: flex-start; }
+      .phase-header-left { min-width: 0; flex-wrap: wrap; }
+      .phase-header-right { width: 100%; flex-wrap: wrap; }
+       .phase-progress-info { width: auto; max-width: 100%; flex: 1 1 180px; }
+       .phase-meta-bar { flex-wrap: wrap; gap: 6px; }
+        .distribution-badges { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); min-width: 0; }
+      }
+
+    .dashboard-main-col,
+    .dashboard-side-col {
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+    }
+
+    /* Standard Panel Cards */
+    .panel-card {
+      background-color: var(--bg-surface-primary);
+      border: 1px solid var(--border-subtle);
+      border-radius: var(--radius-lg);
+      overflow: hidden;
+      box-shadow: var(--shadow-md);
+    }
+
+    .panel-header {
+      padding: 14px 18px;
+      background: var(--bg-surface-primary);
+      border-bottom: 1px solid var(--border-subtle);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+    }
+
+    .panel-title {
+      font-size: 14.5px;
+      font-weight: 600;
+      color: var(--text-primary);
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .metric-title-row { width: 100%; min-width: 0; justify-content: space-between; }
+    .distribution-badges { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 2px; min-width: 0; }
+
+    .panel-body { padding: 18px 20px; }
+
+    /* Badges & Pills */
+    .badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 3px 9px;
+      border-radius: 8px;
+      font-size: 11px;
+      font-weight: 600;
+      line-height: 1.4;
+      white-space: nowrap;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+      border: 1px solid currentColor;
+      font-family: var(--font-mono);
+    }
+
+    .badge-tag {
+      background: rgba(255, 255, 255, 0.04);
+      border: 1px solid var(--border-subtle);
+      color: var(--text-tertiary);
+      font-size: 11px;
+      padding: 2px 7px;
+      border-radius: 6px;
+      text-transform: none;
+      font-family: var(--font-mono);
+    }
+
+    .badge-completed { background: var(--color-completed-bg); border-color: var(--accent-green); color: var(--accent-green); }
+    .badge-inprogress { background: var(--color-inprogress-bg); border-color: var(--accent-blue); color: var(--accent-blue); }
+    .badge-pending { background: var(--color-pending-bg); border-color: var(--accent-amber); color: var(--accent-amber); }
+    .badge-blocked { background: var(--color-blocked-bg); border-color: var(--accent-red); color: var(--accent-red); }
+
+    .badge-dot {
+      width: 7px;
+      height: 7px;
+      border-radius: 50%;
+      display: inline-block;
+    }
+
+    .badge-dot.completed { background-color: var(--accent-green); box-shadow: 0 0 6px var(--accent-green); }
+    .badge-dot.inprogress { background-color: var(--accent-blue); box-shadow: 0 0 6px var(--accent-blue); animation: pulse 2s infinite; }
+    .badge-dot.pending { background-color: var(--accent-amber); }
+    .badge-dot.blocked { background-color: var(--accent-red); box-shadow: 0 0 6px var(--accent-red); }
+
+    @keyframes pulse {
+      0%, 100% { opacity: 1; transform: scale(1); }
+      50% { opacity: 0.5; transform: scale(0.9); }
+    }
+
+    /* Buttons */
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 7px;
+      padding: 6px 12px;
+      border-radius: var(--radius-sm);
+      font-size: 13px;
+      font-weight: 500;
+      cursor: pointer;
+      border: 1px solid transparent;
+      transition: all 0.15s ease;
+      user-select: none;
+      white-space: nowrap;
+      text-decoration: none;
+      background: transparent;
+      color: var(--text-primary);
+    }
+
+    .btn-sm { padding: 4px 10px; font-size: 12px; }
+    .btn-secondary { background: var(--bg-surface-tertiary); border-color: var(--border-subtle); color: #c9d1d9; }
+    .btn-secondary:hover { background: var(--bg-surface-hover); border-color: var(--border-medium); color: #fff; }
+    .btn-secondary.active { background: #1f6feb; border-color: var(--accent-blue); color: #fff; }
+
+    /* Progress Tracks */
+    .progress-track {
+      width: 100%;
+      height: 8px;
+      background: var(--bg-surface-secondary);
+      border: 1px solid rgba(255, 255, 255, 0.05);
+      border-radius: 4px;
+      overflow: hidden;
+      position: relative;
+    }
+
+    .progress-bar { height: 100%; border-radius: 4px; transition: width 0.35s ease; }
+    .progress-bar.completed { background: var(--accent-green); }
+    .progress-bar.inprogress { background: linear-gradient(90deg, var(--accent-blue), var(--accent-purple)); }
+    .progress-bar.pending { background: var(--accent-amber); }
+    .progress-bar.blocked { background: var(--accent-red); }
+
+    /* Phases & Tasks */
+    .phases-container { display: flex; flex-direction: column; gap: 12px; }
+    
+    .phase-card {
+      background: var(--bg-surface-primary);
+      border: 1px solid var(--border-subtle);
+      border-radius: var(--radius-md);
+      overflow: hidden;
+      transition: border-color 0.2s ease, box-shadow 0.2s ease;
+    }
+
+    .phase-card:hover { border-color: var(--border-medium); }
+    .phase-card.active-phase { border-color: rgba(88, 166, 255, 0.4); box-shadow: var(--glow-blue); }
+
+    .phase-header {
+      width: 100%;
+      background: rgba(255, 255, 255, 0.02);
+      padding: 14px 18px;
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      cursor: pointer;
+      user-select: none;
+      border: none;
+      text-align: left;
+      transition: background 0.15s ease;
+    }
+
+    .phase-header:hover { background: rgba(255, 255, 255, 0.05); }
+    .phase-header-left { display: flex; align-items: center; gap: 12px; flex: 1; min-width: 240px; }
+    .phase-toggle-icon { width: 20px; height: 20px; display: flex; align-items: center; justify-content: center; color: var(--text-tertiary); transition: transform 0.2s ease; }
+    .phase-card.collapsed .phase-toggle-icon { transform: rotate(-90deg); }
+    .phase-number { font-family: var(--font-mono); font-size: 11px; font-weight: 700; color: var(--text-tertiary); background: var(--bg-surface-secondary); border: 1px solid var(--border-subtle); padding: 2px 7px; border-radius: 4px; }
+    .phase-title-text { font-size: 14.5px; font-weight: 600; color: var(--text-primary); }
+    .phase-header-right { display: flex; align-items: center; gap: 14px; }
+    .phase-progress-info { display: flex; align-items: center; gap: 10px; width: 180px; }
+    .phase-progress-pct { font-family: var(--font-mono); font-size: 12px; font-weight: 600; color: var(--text-secondary); width: 36px; text-align: right; }
+
+    .phase-tasks-wrapper {
+      padding: 12px 18px 16px;
+      background: var(--bg-surface-primary);
+      border-top: 1px solid var(--border-subtle);
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+
+    .phase-card.collapsed .phase-tasks-wrapper { display: none; }
+    .phase-meta-bar { padding-top: 4px; display: flex; justify-content: space-between; align-items: center; color: var(--text-tertiary); font-size: 12px; border-bottom: 1px dashed var(--border-subtle); padding-bottom: 10px; margin-bottom: 4px; }
+
+    .task-item {
+      background: var(--bg-surface-secondary);
+      border: 1px solid var(--border-subtle);
+      border-radius: var(--radius-sm);
+      padding: 12px 14px;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      transition: all 0.15s ease;
+      font-size: 13px;
+    }
+
+    .task-item:hover { border-color: var(--border-medium); background: var(--bg-surface-tertiary); }
+    .task-item.status-completed { border-left: 3px solid var(--accent-green); }
+    .task-item.status-inprogress { border-left: 3px solid var(--accent-blue); background: rgba(88, 166, 255, 0.03); }
+    .task-item.status-pending { border-left: 3px solid var(--accent-amber); }
+    .task-item.status-blocked { border-left: 3px solid var(--accent-red); background: rgba(248, 81, 73, 0.04); }
+
+    .task-main-row { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+    .task-checkbox-wrap { display: flex; align-items: center; gap: 10px; flex: 1; }
+
+    .custom-checkbox {
+      appearance: none;
+      -webkit-appearance: none;
+      width: 17px;
+      height: 17px;
+      border: 1.5px solid var(--border-medium);
+      border-radius: 4px;
+      background: var(--bg-surface-secondary);
+      cursor: pointer;
+      display: grid;
+      place-content: center;
+      transition: all 0.15s ease;
+      flex-shrink: 0;
+    }
+
+    .custom-checkbox:hover { border-color: var(--border-focus); }
+    .custom-checkbox:checked { background: var(--color-completed); border-color: var(--accent-green); }
+    .custom-checkbox:checked::before { content: ""; width: 9px; height: 5px; border-left: 2px solid #fff; border-bottom: 2px solid #fff; transform: rotate(-45deg) translate(1px,-1px); }
+
+    .task-title { font-size: 13.5px; font-weight: 500; color: var(--text-primary); cursor: pointer; }
+    .task-item.status-completed .task-title { text-decoration: line-through; color: var(--text-tertiary); }
+    .task-id { font-family: var(--font-mono); font-size: 11px; color: var(--text-tertiary); margin-right: 4px; }
+    .task-badges { display: flex; align-items: center; gap: 8px; flex-shrink: 0; }
+    .task-note { font-size: 12px; color: var(--text-secondary); padding-left: 27px; line-height: 1.4; }
+    .task-footer-row { display: flex; align-items: center; justify-content: space-between; padding-left: 27px; font-size: 11px; color: var(--text-tertiary); gap: 12px; flex-wrap: wrap; }
+    .task-owner-pill { display: inline-flex; align-items: center; gap: 5px; font-family: var(--font-mono); color: var(--text-secondary); }
+
+    /* Todo & Help */
+    .todo-list { display: flex; flex-direction: column; gap: 8px; }
+    .todo-item {
+      background: var(--bg-surface-secondary);
+      border: 1px solid var(--border-subtle);
+      border-radius: var(--radius-sm);
+      padding: 10px 12px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      transition: all 0.15s ease;
+    }
+    .todo-item.done .todo-text { text-decoration: line-through; color: var(--text-tertiary); }
+    .todo-left { display: flex; align-items: center; gap: 10px; flex: 1; }
+    .todo-text { font-size: 13px; color: var(--text-primary); cursor: pointer; }
+
+    .help-panel {
+      background-color: var(--bg-surface-primary);
+      border: 1px solid var(--border-subtle);
+      border-radius: var(--radius-lg);
+      padding: 20px;
+      color: var(--text-secondary);
+    }
+
+
+    #tm-error-banner {
+      background: rgba(248, 81, 73, 0.12);
+      border: 1px solid var(--accent-red);
+      color: var(--accent-red);
+      border-radius: var(--radius-sm);
+      padding: 12px 16px;
+      margin-bottom: 12px;
+      font-family: var(--font-mono);
+      font-size: 13px;
+    }
+    #tm-error-banner[hidden] { display: none !important; }
+
+    /* Dedicated View Containers */
+    .view-container { display: flex; flex-direction: column; gap: 16px; width: 100%; }
+    .view-container[hidden] { display: none !important; }
+
+    /* Kanban Board Layout */
+    .kanban-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+      gap: 16px;
+      align-items: start;
+    }
+
+    .kanban-column {
+      background: var(--bg-surface-primary);
+      border: 1px solid var(--border-subtle);
+      border-radius: var(--radius-lg);
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+      min-height: 480px;
+    }
+
+    .kanban-column-header {
+      padding: 12px 16px;
+      border-bottom: 1px solid var(--border-subtle);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      font-weight: 600;
+      font-size: 13px;
+      background: var(--bg-surface-secondary);
+    }
+
+    .kanban-cards-list {
+      padding: 12px;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      flex: 1;
+      overflow-y: auto;
+      max-height: calc(100vh - 300px);
+    }
+
+    /* Final mobile containment must follow the shared badge defaults. */
+    @media (max-width: 720px) {
+      .metric-title-row { display: grid; grid-template-columns: 1fr; align-items: start; gap: 6px; min-width: 0; }
+      .metric-title-row .badge { width: max-content; max-width: 100%; white-space: normal; justify-self: start; }
+      .distribution-badges { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); min-width: 0; }
+      .distribution-badges .badge { width: 100%; min-width: 0; justify-content: center; white-space: normal; }
+      .distribution-risk-warning { width: 100%; min-width: 0; max-width: 100%; overflow-wrap: anywhere; }
+    }
+  </style>
+</head>
+<body>
+  <!-- AI-EDITABLE: STATE — single source of truth, AI edits only this block -->
+  <!-- AI-EDITABLE: STATE -->
+  <script type="application/json" id="tm-state">{"schemaVersion":"1.0","meta":{"projectName":"plugin-asig-subagentes","version":"1.7.0","syncStatus":"Reset autorizado y ejecutado correctamente (revision sha256:595b12f83396427bc5519b4c0414a833e2ff6683979e4ab5aa568f9269a2c3d5, decision_required=false, next_action=begin). Unit 3 completed/accepted: 88/88, typecheck, npm run examples y diff-check pasan; cambios preservados. Apply in-progress. Unit 4 pending y lista para solicitar aprobación/inicio separado. Memoria #7573.","description":"Seguimiento en español del flujo SDD. Apply vuelve a in-progress tras el reset autorizado y ejecutado de Unit 3. Unit 3 queda completed/accepted porque las pruebas y el reset están satisfechos; la revisión actual es sha256:595b12f83396427bc5519b4c0414a833e2ff6683979e4ab5aa568f9269a2c3d5, decision_required=false, next_action=begin, y sus cambios fueron preservados. Se retiene la evidencia histórica: Unit 3 midió 806 > 400 líneas en la revisión sha256:cde8386560fea3e1fd50364af91a3ed43875dc02b07ab74582c1fe8e722de400 y fue resuelta por reset autorizado; Engram #7569 y memoria #7573. Unit 4 permanece pending y está lista para pedir aprobación/inicio separado. Se conservan schema 1.0, IDs válidos, statuses válidos y métricas derivadas.","labels":{"es":{"overallProgress":"Progreso Global","filterAll":"Todas","filterActive":"Activas","todoTitle":"Próximas acciones","helpTitle":"Ayuda — Cómo usar este archivo","headerSubtitle":"Nuevo flujo SDD — seguimiento de refactorización del plugin"}},"features":{"git":false,"tree":false,"codegraph":false,"help":true},"sddSessionPreflight":{"ritmo":"interactivo","artefactos":"Engram","estrategiaPR":"PRs apilados a main","presupuestoLineas":400,"strictTDD":true,"trabajoFuncionalExplorado":true,"trabajoFuncionalPropuesto":true,"chainStrategy":"stacked-to-main","decisionAfter":"#7544"},"nativeReset":{"unit":"Unit 3","authorized":true,"executed":true,"revision":"sha256:595b12f83396427bc5519b4c0414a833e2ff6683979e4ab5aa568f9269a2c3d5","decision_required":false,"next_action":"begin","changes_preserved":true,"memory":"#7573"},"nativeAdmissionHistory":{"unit":"Unit 3","changed_lines":806,"budget":400,"previousRevision":"sha256:cde8386560fea3e1fd50364af91a3ed43875dc02b07ab74582c1fe8e722de400","engram":"#7569","resolution":"Resuelto por reset autorizado; la evidencia histórica se conserva."}},"phases":[{"id":"context-preflight","number":1,"title":"Contexto / Preflight","status":"completed","lead":"SDD","tasks":[{"id":"CTX-01","title":"Recuperar el contexto del proyecto y la inicialización SDD existente","status":"completed","tag":"Contexto","note":"El SDD Session Preflight vigente queda registrado: ritmo interactivo, artefactos Engram, estrategia de PR preguntar si existe riesgo y presupuesto de 400 líneas.","owner":"sdd-ORCHETATOR"},{"id":"CTX-02","title":"Confirmar Strict TDD y el flujo completo de fases","status":"completed","tag":"Strict TDD","note":"El flujo requerido incluye exploración, propuesta, especificación, diseño, tareas, aplicación, verificación y archivo.","owner":"sdd-ORCHETATOR"}]},{"id":"exploration","number":2,"title":"Exploración","status":"completed","lead":"sdd-explore","tasks":[{"id":"EXP-01","title":"Explorar la implementación actual de traducciones y textos visibles","status":"completed","tag":"Exploración","note":"Identificar todas las superficies visibles y los términos que deben permanecer en inglés, incluidos fallback, high y nombres de agentes.","owner":"sdd-explore"},{"id":"EXP-02","title":"Explorar el ancho y alto actuales de ventanas y diálogos","status":"completed","tag":"Exploración","note":"Localizar límites, presets y restricciones de tamaño antes de proponer cambios.","owner":"sdd-explore"},{"id":"EXP-03","title":"Explorar la fuente actual de agentes primarios y fallback","status":"completed","tag":"Exploración","note":"Comparar catálogo runtime, orden actual, separadores y posibles agentes ausentes sin modificar todavía el comportamiento.","owner":"sdd-explore"},{"id":"EXP-04","title":"Explorar el flujo actual de selección de agente, modelo y esfuerzo","status":"completed","tag":"Exploración","note":"Verificar cuándo se abre el selector de esfuerzo, incluida la reelección del mismo modelo.","owner":"sdd-explore"},{"id":"EXP-05","title":"Explorar mensajes de error, ayuda y accesibilidad visibles","status":"completed","tag":"Exploración","note":"Inventariar textos visibles para que la propuesta pueda delimitar qué se traduce y qué se conserva literalmente.","owner":"sdd-explore"}]},{"id":"proposal","number":3,"title":"Propuesta","status":"completed","lead":"sdd-propose","tasks":[{"id":"PROP-01","title":"Proponer el alcance funcional de traducción y terminología","status":"completed","tag":"Propuesta","note":"Mantener en inglés fallback, high y todos los nombres de agentes SDD/review/JD; aclarar cualquier excepción necesaria.","owner":"sdd-propose"},{"id":"PROP-02","title":"Aclarar si sdd-ORCHETATOR es un nombre literal o un typo","status":"completed","tag":"Aclaración","note":"No corregir el texto literal solicitado hasta que la propuesta registre la decisión del usuario.","owner":"sdd-propose"},{"id":"PROP-03","title":"Aclarar el criterio objetivo para ampliar ventanas y diálogos","status":"completed","tag":"Aclaración","note":"Definir el ancho y alto esperados, límites de pantalla y comportamiento cuando el texto exceda el espacio disponible.","owner":"sdd-propose"},{"id":"PROP-04","title":"Aclarar la semántica de la lista y los separadores visuales","status":"completed","tag":"Aclaración","note":"Confirmar si la lista solicitada es canónica completa, cómo tratar agentes runtime adicionales y cómo representar cada separador.","owner":"sdd-propose"},{"id":"PROP-05","title":"Aclarar el catálogo exacto de la sección fallback","status":"completed","tag":"Aclaración","note":"Confirmar si fallback debe mostrar literalmente los mismos nombres y grupos o una correspondencia con sufijos fallback, sin decidirlo por el usuario.","owner":"sdd-propose"},{"id":"PROP-06","title":"Aclarar el comportamiento exacto al reelegir el mismo modelo","status":"completed","tag":"Aclaración","note":"Confirmar si siempre se debe reabrir el selector de esfuerzo aunque el esfuerzo previo no haya cambiado.","owner":"sdd-propose"},{"id":"PROP-07","title":"Aclarar el alcance de términos y textos visibles traducibles","status":"completed","tag":"Aclaración","note":"Determinar si se traducen mensajes de error, ayuda, etiquetas internas visibles y textos de accesibilidad, sin asumir decisiones del usuario.","owner":"sdd-propose"},{"id":"PROP-08","title":"Aclarar el tratamiento de agentes no disponibles o adicionales en runtime","status":"completed","tag":"Aclaración","note":"Definir si el listado solicitado reemplaza el catálogo runtime, lo filtra o conserva entradas adicionales.","owner":"sdd-propose"}]},{"id":"specification","number":4,"title":"Especificación","status":"completed","lead":"sdd-spec","tasks":[{"id":"SPEC-01","title":"Especificar escenarios de traducción y conservación de términos","status":"completed","tag":"Spec","note":"Incluir escenarios para español, fallback, high y nombres literales de agentes.","owner":"sdd-spec"},{"id":"SPEC-02","title":"Especificar escenarios de tamaño responsive de ventanas y diálogos","status":"completed","tag":"Spec","note":"Cubrir texto largo, pantallas pequeñas, límites de ancho y límites de alto.","owner":"sdd-spec"},{"id":"SPEC-03","title":"Especificar el orden y la agrupación visual de agentes primarios","status":"completed","tag":"Spec","note":"Registrar literalmente sdd-ORCHETATOR; luego separador; luego sdd-propose, sdd-design, sdd-apply, sdd-verify, sdd-spec, sdd-onboard, sdd-explore, sdd-init, sdd-tasks, sdd-archive; luego separador; luego jd-judge-a, jd-judge-b, jd-fix-agent; luego separador; luego review-readability, review-reliability, review-resilience, review-validator, review-refuter, review-risk; luego separador; luego gentle-ai-windows-validator, compaction, summary, title.","owner":"sdd-spec"},{"id":"SPEC-04","title":"Especificar el mismo catálogo y agrupación para fallback","status":"completed","tag":"Spec","note":"Definir la correspondencia entre el listado primario y la sección fallback sin inventar excepciones.","owner":"sdd-spec"},{"id":"SPEC-05","title":"Especificar la apertura inmediata del selector de esfuerzo","status":"completed","tag":"Spec","note":"Cubrir selección de cualquier agente y reelección del mismo modelo.","owner":"sdd-spec"},{"id":"SPEC-06","title":"Especificar aclaraciones pendientes como decisiones explícitas","status":"completed","tag":"Aclaración","note":"No convertir ninguna ambigüedad en requisito definitivo hasta que exista una decisión del usuario.","owner":"sdd-spec"}]},{"id":"design","number":5,"title":"Diseño","status":"completed","lead":"sdd-design","tasks":[{"id":"DES-01","title":"Diseñar la estrategia de traducción y catálogo de textos","status":"completed","tag":"Design","note":"Engram #7540 (765 palabras): SSOT de 5 grupos/24 agentes, separadores tipados noop y fronteras visible/persistible/runtime; español local con fallback, high y nombres de agentes literales.","owner":"sdd-design"},{"id":"DES-02","title":"Diseñar el dimensionamiento amplio de ventanas y diálogos","status":"completed","tag":"Design","note":"Engram #7540: usar tiers xlarge/large con safeSetDialogSize; fallback por capacidades, sin dimensiones inventadas y con degradación no-op.","owner":"sdd-design"},{"id":"DES-03","title":"Diseñar el catálogo primario y fallback con agrupaciones literales","status":"completed","tag":"Design","note":"Engram #7540: catálogo compartido primario/fallback, alias literal sdd-ORCHETATOR, normalización idempotente y preservación de claves desconocidas válidas.","owner":"sdd-design"},{"id":"DES-04","title":"Diseñar el flujo agente → modelo → selector de esfuerzo","status":"completed","tag":"Design","note":"Engram #7540: transacción única modelo→esfuerzo; Predeterminado se representa como ausencia/no persistido, cancelación/error no escribe y la reelección abre esfuerzo. Cuatro unidades reversibles, cada una bajo 400 líneas.","owner":"sdd-design"}]},{"id":"tasks","number":6,"title":"Tareas","status":"completed","lead":"sdd-tasks","tasks":[{"id":"TASK-01","title":"Desglosar tareas Strict TDD por unidad revisable","status":"completed","tag":"Tasks","note":"Completado y persistido en Engram #7544: 4 fases de implementación y 12 tareas Strict TDD, cada una con ciclo RED → GREEN → REFACTOR.","owner":"sdd-tasks"},{"id":"TASK-02","title":"Definir la estrategia de PR cuando exista riesgo","status":"completed","tag":"Aclaración","note":"Completado en Engram #7544: forecast 550–750 líneas, riesgo High, chained PRs recomendados Yes y delivery ask-on-risk. Decisión posterior del usuario registrada: stacked-to-main; la decisión de cadena ya no está pendiente.","owner":"sdd-tasks"},{"id":"TASK-03","title":"Definir dependencias, criterios de aceptación y rollback","status":"completed","tag":"Tasks","note":"Completado en Engram #7544: slices catálogo/alias; esfuerzo/persistencia; TUI española/tamaño; sync/normalización/regresión.","owner":"sdd-tasks"},{"id":"TASK-04","title":"Definir la evidencia requerida para cada unidad Strict TDD","status":"completed","tag":"Tasks","note":"Completado en Engram #7544: cada unidad conserva evidencia Strict TDD y límite de rollback. Orden elegido: Unit 1 catálogo/alias → Unit 2 esfuerzo/persistencia → Unit 3 TUI española/tamaño → Unit 4 sync/normalización/regresión.","owner":"sdd-tasks"}]},{"id":"application","number":7,"title":"Aplicación","status":"in-progress","lead":"sdd-apply","tasks":[{"id":"APP-U1-01","title":"Unit 1 — Catálogo SSOT, elegibilidad y alias","status":"completed","tag":"Unit 1","note":"Tasks SDD 1.1-1.3 [x] en Engram #7544; apply-progress #7552. Strict TDD: RED 4 fallos reales; GREEN/refactor 55/55 focused tests; npm run typecheck exit 0; 272 líneas authored (<400); runtime N/A por contratos puros. Native attempt settled: complete por el parent. Boundary: src/catalog.ts/test, src/types.ts, src/utils.ts/test y src/orchestrator.ts/test. Rollback: revert solo esos siete archivos y preservar cambios no relacionados.","owner":"sdd-apply"},{"id":"APP-U2-01","title":"Unit 2.1 - RED: selección staged, esfuerzo y commit atómico","status":"completed","tag":"Unit 2","note":"Task SDD 2.1 [x] en apply-progress #7552 acumulativo y decision/mem #7560. Strict TDD RED: 6 fallos/142 pass. Boundary: src/types.ts, src/profile-reasoning.ts/test y src/profiles.ts/test.","owner":"sdd-apply"},{"id":"APP-U2-02","title":"Unit 2.2 - GREEN: resolución provider-default y persistencia","status":"completed","tag":"Unit 2","note":"Task SDD 2.2 [x] en apply-progress #7552 acumulativo y decision/mem #7560. Strict TDD GREEN: 151/151; typecheck y diff-check exit 0. Runtime N/A por fixtures deterministas.","owner":"sdd-apply"},{"id":"APP-U2-03","title":"Unit 2.3 - REFACTOR: normalización y transacción sin writes parciales","status":"completed","tag":"Unit 2","note":"Task SDD 2.3 [x] en apply-progress #7552 acumulativo y decision/mem #7560. Behavior: staged same-model selection requests effort; provider-default/Predeterminado maps to absence; atomic one-snapshot/one-write; cancel/error no write. Native attempt settled complete. Boundary: src/types.ts, src/profile-reasoning.ts/test y src/profiles.ts/test. Unit 2 authored delta: 323 líneas (<400). Rollback: revert solo los hunks de Unit 2 en esos cinco archivos.","owner":"sdd-apply"},{"id":"APP-U3-01","title":"Unit 3 — UI española, separadores y dimensionamiento","status":"completed","tag":"Unit 3","note":"Tasks SDD 3.1–3.3 implementadas y aceptadas tras pruebas y reset autorizado: 88/88, typecheck, npm run examples y diff-check. Reset ejecutado correctamente con revision sha256:595b12f83396427bc5519b4c0414a833e2ff6683979e4ab5aa568f9269a2c3d5, decision_required=false, next_action=begin; cambios de Unit 3 preservados. Histórico retenido: la revisión sha256:cde8386560fea3e1fd50364af91a3ed43875dc02b07ab74582c1fe8e722de400 midió 806 > 400 líneas y fue resuelta por reset autorizado; Engram #7569 y memoria #7573. Unit 4 queda pending para aprobación/inicio separado.","owner":"sdd-apply"},{"id":"APP-U4-01","title":"Unit 4 — Sincronización runtime, normalización y regresión","status":"pending","tag":"Unit 4","note":"Pending, pero lista para solicitar aprobación e inicio separado. No iniciar Unit 4 en esta actualización. Unit 3 ya fue aceptada tras pruebas y reset autorizado; revision actual sha256:595b12f83396427bc5519b4c0414a833e2ff6683979e4ab5aa568f9269a2c3d5, decision_required=false, next_action=begin, cambios preservados. La medición histórica 806 > 400 de Unit 3 se conserva en la evidencia de admisión.","owner":"sdd-apply"},{"id":"APP-02","title":"Registrar evidencia de pruebas y unidades de trabajo","status":"completed","tag":"Apply","note":"Evidencia de Unit 3 aceptada después de satisfacer pruebas y reset: 88/88, typecheck, npm run examples y diff-check. Reset autorizado y ejecutado con revision sha256:595b12f83396427bc5519b4c0414a833e2ff6683979e4ab5aa568f9269a2c3d5, decision_required=false, next_action=begin; cambios preservados. Histórico retenido: medición 806 > 400 líneas en la revisión sha256:cde8386560fea3e1fd50364af91a3ed43875dc02b07ab74582c1fe8e722de400, resuelta por reset autorizado; Engram #7569 y memoria #7573.","owner":"sdd-apply"}]},{"id":"verification","number":8,"title":"Verificación","status":"pending","lead":"sdd-verify","tasks":[{"id":"VER-01","title":"Verificar requisitos, escenarios y pruebas Strict TDD","status":"pending","tag":"Verify","note":"Confirmar traducciones, dimensiones, catálogos, agrupaciones y flujo de esfuerzo.","owner":"sdd-verify"},{"id":"VER-02","title":"Verificar compatibilidad runtime y regresiones","status":"pending","tag":"Verify","note":"Validar agentes primarios, fallback y reapertura del selector de esfuerzo sin modificar el alcance.","owner":"sdd-verify"},{"id":"VER-03","title":"Verificar que las aclaraciones no se hayan resuelto implícitamente","status":"pending","tag":"Aclaración","note":"Comprobar que las decisiones ambiguas estén respaldadas por una decisión explícita del usuario.","owner":"sdd-verify"}]},{"id":"archive","number":9,"title":"Archivo","status":"pending","lead":"sdd-archive","tasks":[{"id":"ARC-01","title":"Archivar el cambio SDD cuando la verificación esté lista","status":"pending","tag":"Archive","note":"Archivar únicamente después de la verificación independiente y de resolver los bloqueos del flujo.","owner":"sdd-archive"}]}],"todos":[{"id":"TODO-01","text":"Aclarar si sdd-ORCHETATOR es literal o un typo antes de corregirlo","priority":"P0","done":false},{"id":"TODO-02","text":"Aclarar límites concretos de ancho y alto para ventanas y diálogos","priority":"P1","done":false},{"id":"TODO-03","text":"Aclarar tratamiento de agentes runtime no incluidos en el listado solicitado","priority":"P1","done":false},{"id":"TODO-04","text":"Aclarar si mensajes de error, ayuda y accesibilidad también deben traducirse","priority":"P1","done":false},{"id":"TODO-05","text":"Aclarar la representación exacta del listado en la sección fallback","priority":"P1","done":false},{"id":"TODO-06","text":"Aclarar la reapertura del selector de esfuerzo al reelegir el mismo modelo","priority":"P1","done":false},{"id":"TODO-07","text":"Preguntar estrategia de PR si el riesgo supera el presupuesto de 400 líneas","priority":"P1","done":false},{"id":"TODO-08","text":"Solicitar aprobación e inicio separado de Unit 4","priority":"P0","done":false}]}</script>
+
+  <div class="app-container" id="dashboard-root">
+    <!-- AI-EDITABLE: HEADER -->
+    <header class="header-panel" id="project-header-panel">
+      <div class="header-brand">
+        <div class="header-icon">◈</div>
+        <div class="header-titles">
+          <h1 id="project-title"><span>Drop-In Task Manager</span> <span class="badge">v0.1.0</span></h1>
+          <p id="project-subtitle">Obsidian Technical Cockpit — sincronizado con orquestador IA</p>
+        </div>
+      </div>
+      <div class="header-meta">
+        <span class="badge"><span class="badge-dot inprogress"></span> main · abc1234</span>
+        <span class="badge"><span class="badge-dot completed"></span> Sincronizado</span>
+        <button class="btn btn-secondary btn-sm" id="btn-expand-all" title="Expandir/colapsar todas las fases">Expand All</button>
+      </div>
+    </header>
+
+    <!-- Navigation Tabs Bar (Interactive View Switcher) -->
+    <nav class="nav-tabs-bar" id="main-nav-tabs">
+      <div class="tab-group" role="tablist">
+        <button class="tab-btn active" id="tab-btn-overview" data-target-view="view-overview" role="tab" aria-selected="true">
+          <span class="tab-icon">📊</span> Resumen / HUD
+        </button>
+        <button class="tab-btn" id="tab-btn-phases" data-target-view="view-phases" role="tab" aria-selected="false">
+          <span class="tab-icon">📋</span> Fases & Tareas
+        </button>
+        <button class="tab-btn" id="tab-btn-kanban" data-target-view="view-kanban" role="tab" aria-selected="false">
+          <span class="tab-icon">📌</span> Tablero Kanban
+        </button>
+        <button class="tab-btn" id="tab-btn-git" data-target-view="view-git" role="tab" aria-selected="false">
+          <span class="tab-icon">🌿</span> Git Stream
+        </button>
+        <button class="tab-btn" id="tab-btn-codegraph" data-target-view="view-codegraph" role="tab" aria-selected="false">
+          <span class="tab-icon">🕸️</span> Codegraph
+        </button>
+        <button class="tab-btn" id="tab-btn-tree" data-target-view="view-tree" role="tab" aria-selected="false">
+          <span class="tab-icon">📁</span> Árbol Archivos
+        </button>
+        <button class="tab-btn" id="tab-btn-help" data-target-view="view-help" role="tab" aria-selected="false">
+          <span class="tab-icon">⚡</span> Consola IA
+        </button>
+      </div>
+      <div class="nav-controls">
+        <div class="search-box">
+          <span>🔍</span>
+          <input type="text" id="global-search-input" placeholder="Filtrar tareas, tags, commits..." autocomplete="off" />
+        </div>
+      </div>
+    </nav>
+
+    <!-- Error banner hidden by default -->
+    <div id="tm-error-banner" hidden data-error-banner style="display:none;">Error banner placeholder</div>
+
+    <!-- Tab View: Overview (Integrated dual column) -->
+    <div id="view-overview" class="view-container">
+      <!-- AI-EDITABLE: HUD -->
+      <section class="metrics-grid" id="metrics-overview">
+        <div class="metric-card accent-blue" id="metric-overall-card">
+          <div class="panel-title"><span>Progreso Global</span><span class="badge">Pendiente</span></div>
+          <div style="font-size:24px;font-weight:700;color:#fff;" id="overall-progress-num">—%</div>
+          <div class="progress-track"><div id="overall-progress-bar" class="progress-bar inprogress" style="width:0%;"></div></div>
+          <div style="font-size:12px;color:#8b949e;"><span id="stat-completed-count">0</span> de <span id="stat-total-count">0</span> tareas completadas</div>
+        </div>
+        <div class="metric-card accent-purple" id="metric-current-focus">
+          <div class="panel-title">Fase Actual</div>
+          <div style="font-size:18px;color:#fff;margin-top:4px;" id="current-focus-title">Sin fase</div>
+        </div>
+        <div class="metric-card accent-green" id="metric-distribution">
+          <div class="panel-title">Distribución</div>
+          <div style="display:flex;gap:8px;margin-top:6px;flex-wrap:wrap;">
+            <span class="badge badge-completed"><span class="badge-dot completed"></span> 0 Hechas</span>
+            <span class="badge badge-inprogress"><span class="badge-dot inprogress"></span> 0 Activas</span>
+            <span class="badge badge-pending"><span class="badge-dot pending"></span> 0 Pendientes</span>
+            <span class="badge badge-blocked"><span class="badge-dot blocked"></span> 0 Bloqueadas</span>
+          </div>
+        </div>
+        <div class="metric-card accent-amber" id="metric-git">
+          <div class="panel-title">Git</div>
+          <div style="font-size:13px;color:#fff;font-family:var(--font-mono);">branch: —</div>
+        </div>
+      </section>
+
+      <main class="dashboard-layout">
+        <div class="dashboard-main-col">
+          <!-- AI-EDITABLE: TODO -->
+          <section class="panel-card" id="todo-scratchpad-panel">
+            <div class="panel-header">
+              <div class="panel-title"><span>⚡ Tareas Rápidas</span></div>
+              <span class="badge" id="todo-count-badge">0 items</span>
+            </div>
+            <div class="panel-body">
+              <div class="todo-list" id="todo-items-container">
+                <div style="color:#8b949e;font-size:13px;">Sin tareas rápidas — la IA las añadirá aquí</div>
+              </div>
+            </div>
+          </section>
+
+          <!-- AI-EDITABLE: PHASES -->
+          <section class="panel-card" id="phases-panel">
+            <div class="panel-header">
+              <div class="panel-title"><span>📋 Fases del Proyecto</span></div>
+              <div style="display:flex;gap:8px;">
+                <button class="btn btn-secondary btn-sm" id="btn-filter-all">Todas</button>
+                <button class="btn btn-secondary btn-sm" id="btn-filter-active">Activas</button>
+              </div>
+            </div>
+            <form class="filter-toolbar" id="task-filter-form" aria-label="Task filters" onsubmit="return false;">
+              <div class="filter-field">
+                <label for="task-filter-text">Text</label>
+                <input type="search" id="task-filter-text" placeholder="Title, note, or ID" autocomplete="off">
+              </div>
+              <div class="filter-field">
+                <label for="task-filter-status">Status</label>
+                <select id="task-filter-status">
+                  <option value="all">All</option>
+                  <option value="active">Active</option>
+                  <option value="completed">Completed</option>
+                  <option value="in-progress">In progress</option>
+                  <option value="pending">Pending</option>
+                  <option value="blocked">Blocked</option>
+                </select>
+              </div>
+              <div class="filter-field">
+                <label for="task-filter-owner">Owner</label>
+                <select id="task-filter-owner"><option value="">All</option></select>
+              </div>
+              <div class="filter-field">
+                <label for="task-filter-tag">Tag</label>
+                <select id="task-filter-tag"><option value="">All</option></select>
+              </div>
+              <div class="filter-field">
+                <label for="task-filter-phase">Phase</label>
+                <select id="task-filter-phase"><option value="">All</option></select>
+              </div>
+              <div class="filter-actions">
+                <button type="button" class="btn btn-secondary btn-sm" id="task-filter-reset">Reset</button>
+                <span id="filter-result-count" aria-live="polite">0 / 0 visible</span>
+              </div>
+            </form>
+            <div class="panel-body">
+              <div id="filter-empty-state" role="status" hidden>No matching tasks found</div>
+              <div class="phases-container" id="phases-list">
+                <div style="color:#8b949e;font-size:13px;">Sin fases definidas — la IA creará las fases aquí</div>
+              </div>
+            </div>
+          </section>
+        </div>
+
+        <div class="dashboard-side-col">
+          <!-- AI-EDITABLE: GIT PANEL -->
+          <section class="panel-card" id="git-details-panel">
+            <div class="panel-header"><div class="panel-title"><span>🌿 Estado Git</span></div></div>
+            <div class="panel-body"><div style="color:#8b949e;font-size:13px;">sin datos — la IA copiará rama y commits al JSON si está disponible</div></div>
+          </section>
+
+          <!-- AI-EDITABLE: TREE PANEL -->
+          <section class="panel-card" id="project-structure-panel">
+            <div class="panel-header"><div class="panel-title"><span>📁 Estructura</span></div></div>
+            <div class="panel-body"><div style="color:#8b949e;font-size:13px;">sin datos — árbol del proyecto aparecerá aquí</div></div>
+          </section>
+
+          <!-- AI-EDITABLE: CODEGRAPH PANEL -->
+          <section class="panel-card" id="codegraph-panel">
+            <div class="panel-header"><div class="panel-title"><span>🕸️ Codegraph</span></div></div>
+            <div class="panel-body"><div style="color:#8b949e;font-size:13px;">sin datos — grafo de dependencias</div></div>
+          </section>
+
+          <!-- Help / Ayuda -->
+          <section class="help-panel" id="help-panel" data-help>
+            <h3 style="color:#fff;margin-bottom:8px;">Ayuda — Cómo usar este archivo</h3>
+            <p style="font-size:13px;color:#a0a0a0;margin-bottom:8px;">Este es un archivo HTML drop-in. Cópialo a cualquier carpeta de proyecto y ábrelo con doble clic (file://). No necesita servidor.</p>
+            <p style="font-size:13px;color:#a0a0a0;margin-bottom:8px;">La IA orquestadora actualiza SOLO el bloque <code style="background:#12161d;padding:2px 6px;border-radius:4px;">#tm-state</code> en JSON. Todo lo visual se recalcula desde ahí.</p>
+            <ul style="font-size:13px;color:#a0a0a0;padding-left:18px;display:flex;flex-direction:column;gap:4px;">
+              <li>Copia <code>drop-in-task-manager.html</code> a la raíz del proyecto</li>
+              <li>Asigna una IA: &quot;actualiza el task manager según avances&quot;</li>
+              <li>La IA edita solo el JSON island y guarda el HTML</li>
+              <li>Recarga el archivo en el navegador para ver progreso</li>
+            </ul>
+            <p style="font-size:12px;color:#8b949e;margin-top:12px;border-top:1px solid #30363d;padding-top:8px;">Documentación completa en <code>openspec/changes/drop-in-task-manager/</code> · Código en inglés, UI en español vía <code>meta.labels.es</code></p>
+          </section>
+        </div>
+      </main>
+    </div>
+
+    <!-- Dedicated Full Views (for individual Tab Navigation) -->
+    <div id="view-phases" class="view-container" hidden>
+      <div id="full-phases-mount"></div>
+    </div>
+
+    <div id="view-kanban" class="view-container" hidden>
+      <div class="panel-card">
+        <div class="panel-header">
+          <div class="panel-title"><span>📌 Tablero Kanban por Estado</span></div>
+          <div style="font-size:12px;color:var(--text-tertiary);" id="kanban-total-counter">0 tareas en flujo</div>
+        </div>
+        <div class="panel-body">
+          <div class="kanban-grid" id="kanban-board-mount">
+            <!-- Rendered by TMPhases -->
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div id="view-git" class="view-container" hidden>
+      <div id="full-git-mount"></div>
+    </div>
+
+    <div id="view-codegraph" class="view-container" hidden>
+      <div id="full-codegraph-mount"></div>
+    </div>
+
+    <div id="view-tree" class="view-container" hidden>
+      <div id="full-tree-mount"></div>
+    </div>
+
+    <div id="view-help" class="view-container" hidden>
+      <div id="full-help-mount"></div>
+    </div>
+  </div>
+
+<!-- MODULES: classic scripts, no bundler, file:// compatible -->
+<script>
+// modules/02-core.js — inlined
+// @ts-nocheck
+// modules/02-core.js — Core state parse/validate/derive/escape (PR2, classic script, no imports)
+// English comments. Spanish labels handled via meta.labels.es fallback in later renderers.
+// Classic script: attaches to window/globalThis as TMCore, no ESM import/export.
+(function (global) {
+  'use strict';
+
+  /**
+   * Parse island JSON text (textContent of #tm-state).
+   * MUST handle \u003c/script\u003e escaped form; JSON.parse decodes it.
+   * @param {string} text
+   * @returns {object} parsed state
+   * @throws {SyntaxError} if JSON invalid
+   */
+  function parseIsland(text) {
+    if (typeof text !== 'string') throw new SyntaxError('Island text must be string');
+    var trimmed = text.trim();
+    if (!trimmed) throw new SyntaxError('Island JSON empty');
+    // JSON.parse will correctly decode \u003c
+    return JSON.parse(trimmed);
+  }
+
+  /**
+   * Escape HTML for safe innerHTML inser{"schemaVersion":"1.0","meta":{"projectName":"plugin-asig-subagentes","version":"1.7.0","syncStatus":"Unit 2 esfuerzo/persistencia completada bajo Strict TDD; Engram #7552 acumulativo y decision/mem #7560 sincronizados. Native attempt settled: complete. Unit 3 TUI española/separadores/tamaño es el siguiente pendiente y requiere aprobación interactiva; Unit 4 permanece pendiente.","description":"Seguimiento en español del flujo SDD. Apply sigue in-progress: Unit 1 catálogo/alias completada (tasks 1.1-1.3 [x]) y Unit 2 esfuerzo/persistencia completada (tasks 2.1-2.3 [x]) bajo Strict TDD. Unit 2: RED 6 fallos/142 pass; GREEN/refactor 151/151; typecheck y diff-check exit 0; 323 líneas (<400); runtime N/A por fixtures deterministas. Behavior: staged same-model selection requests effort; provider-default/Predeterminado maps to absence; atomic one-snapshot/one-write; cancel/error no write. Boundary Unit 2: src/types.ts, src/profile-reasoning.ts/test, src/profiles.ts/test. Apply sigue in-progress; Unit 3 TUI española/separadores/tamaño es la siguiente pendiente y necesita aprobación interactiva; Unit 4 pendiente. Engram apply-progress #7552 acumulativo; decision/mem #7560. Estrategia stacked-to-main, PR/slice 2 de 4; forecast 550–750 líneas, riesgo High, chained PRs recomendados Yes.","labels":{"es":{"overallProgress":"Progreso Global","filterAll":"Todas","filterActive":"Activas","todoTitle":"Próximas acciones","helpTitle":"Ayuda — Cómo usar este archivo","headerSubtitle":"Nuevo flujo SDD — seguimiento de refactorización del plugin"}},"features":{"git":false,"tree":false,"codegraph":false,"help":true},"sddSessionPreflight":{"ritmo":"interactivo","artefactos":"Engram","estrategiaPR":"PRs apilados a main","presupuestoLineas":400,"strictTDD":true,"trabajoFuncionalExplorado":true,"trabajoFuncionalPropuesto":true,"chainStrategy":"stacked-to-main","decisionAfter":"#7544"}},"phases":[{"id":"context-preflight","number":1,"title":"Contexto / Preflight","status":"completed","lead":"SDD","tasks":[{"id":"CTX-01","title":"Recuperar el contexto del proyecto y la inicialización SDD existente","status":"completed","tag":"Contexto","note":"El SDD Session Preflight vigente queda registrado: ritmo interactivo, artefactos Engram, estrategia de PR preguntar si existe riesgo y presupuesto de 400 líneas.","owner":"sdd-ORCHETATOR"},{"id":"CTX-02","title":"Confirmar Strict TDD y el flujo completo de fases","status":"completed","tag":"Strict TDD","note":"El flujo requerido incluye exploración, propuesta, especificación, diseño, tareas, aplicación, verificación y archivo.","owner":"sdd-ORCHETATOR"}]},{"id":"exploration","number":2,"title":"Exploración","status":"completed","lead":"sdd-explore","tasks":[{"id":"EXP-01","title":"Explorar la implementación actual de traducciones y textos visibles","status":"completed","tag":"Exploración","note":"Identificar todas las superficies visibles y los términos que deben permanecer en inglés, incluidos fallback, high y nombres de agentes.","owner":"sdd-explore"},{"id":"EXP-02","title":"Explorar el ancho y alto actuales de ventanas y diálogos","status":"completed","tag":"Exploración","note":"Localizar límites, presets y restricciones de tamaño antes de proponer cambios.","owner":"sdd-explore"},{"id":"EXP-03","title":"Explorar la fuente actual de agentes primarios y fallback","status":"completed","tag":"Exploración","note":"Comparar catálogo runtime, orden actual, separadores y posibles agentes ausentes sin modificar todavía el comportamiento.","owner":"sdd-explore"},{"id":"EXP-04","title":"Explorar el flujo actual de selección de agente, modelo y esfuerzo","status":"completed","tag":"Exploración","note":"Verificar cuándo se abre el selector de esfuerzo, incluida la reelección del mismo modelo.","owner":"sdd-explore"},{"id":"EXP-05","title":"Explorar mensajes de error, ayuda y accesibilidad visibles","status":"completed","tag":"Exploración","note":"Inventariar textos visibles para que la propuesta pueda delimitar qué se traduce y qué se conserva literalmente.","owner":"sdd-explore"}]},{"id":"proposal","number":3,"title":"Propuesta","status":"completed","lead":"sdd-propose","tasks":[{"id":"PROP-01","title":"Proponer el alcance funcional de traducción y terminología","status":"completed","tag":"Propuesta","note":"Mantener en inglés fallback, high y todos los nombres de agentes SDD/review/JD; aclarar cualquier excepción necesaria.","owner":"sdd-propose"},{"id":"PROP-02","title":"Aclarar si sdd-ORCHETATOR es un nombre literal o un typo","status":"completed","tag":"Aclaración","note":"No corregir el texto literal solicitado hasta que la propuesta registre la decisión del usuario.","owner":"sdd-propose"},{"id":"PROP-03","title":"Aclarar el criterio objetivo para ampliar ventanas y diálogos","status":"completed","tag":"Aclaración","note":"Definir el ancho y alto esperados, límites de pantalla y comportamiento cuando el texto exceda el espacio disponible.","owner":"sdd-propose"},{"id":"PROP-04","title":"Aclarar la semántica de la lista y los separadores visuales","status":"completed","tag":"Aclaración","note":"Confirmar si la lista solicitada es canónica completa, cómo tratar agentes runtime adicionales y cómo representar cada separador.","owner":"sdd-propose"},{"id":"PROP-05","title":"Aclarar el catálogo exacto de la sección fallback","status":"completed","tag":"Aclaración","note":"Confirmar si fallback debe mostrar literalmente los mismos nombres y grupos o una correspondencia con sufijos fallback, sin decidirlo por el usuario.","owner":"sdd-propose"},{"id":"PROP-06","title":"Aclarar el comportamiento exacto al reelegir el mismo modelo","status":"completed","tag":"Aclaración","note":"Confirmar si siempre se debe reabrir el selector de esfuerzo aunque el esfuerzo previo no haya cambiado.","owner":"sdd-propose"},{"id":"PROP-07","title":"Aclarar el alcance de términos y textos visibles traducibles","status":"completed","tag":"Aclaración","note":"Determinar si se traducen mensajes de error, ayuda, etiquetas internas visibles y textos de accesibilidad, sin asumir decisiones del usuario.","owner":"sdd-propose"},{"id":"PROP-08","title":"Aclarar el tratamiento de agentes no disponibles o adicionales en runtime","status":"completed","tag":"Aclaración","note":"Definir si el listado solicitado reemplaza el catálogo runtime, lo filtra o conserva entradas adicionales.","owner":"sdd-propose"}]},{"id":"specification","number":4,"title":"Especificación","status":"completed","lead":"sdd-spec","tasks":[{"id":"SPEC-01","title":"Especificar escenarios de traducción y conservación de términos","status":"completed","tag":"Spec","note":"Incluir escenarios para español, fallback, high y nombres literales de agentes.","owner":"sdd-spec"},{"id":"SPEC-02","title":"Especificar escenarios de tamaño responsive de ventanas y diálogos","status":"completed","tag":"Spec","note":"Cubrir texto largo, pantallas pequeñas, límites de ancho y límites de alto.","owner":"sdd-spec"},{"id":"SPEC-03","title":"Especificar el orden y la agrupación visual de agentes primarios","status":"completed","tag":"Spec","note":"Registrar literalmente sdd-ORCHETATOR; luego separador; luego sdd-propose, sdd-design, sdd-apply, sdd-verify, sdd-spec, sdd-onboard, sdd-explore, sdd-init, sdd-tasks, sdd-archive; luego separador; luego jd-judge-a, jd-judge-b, jd-fix-agent; luego separador; luego review-readability, review-reliability, review-resilience, review-validator, review-refuter, review-risk; luego separador; luego gentle-ai-windows-validator, compaction, summary, title.","owner":"sdd-spec"},{"id":"SPEC-04","title":"Especificar el mismo catálogo y agrupación para fallback","status":"completed","tag":"Spec","note":"Definir la correspondencia entre el listado primario y la sección fallback sin inventar excepciones.","owner":"sdd-spec"},{"id":"SPEC-05","title":"Especificar la apertura inmediata del selector de esfuerzo","status":"completed","tag":"Spec","note":"Cubrir selección de cualquier agente y reelección del mismo modelo.","owner":"sdd-spec"},{"id":"SPEC-06","title":"Especificar aclaraciones pendientes como decisiones explícitas","status":"completed","tag":"Aclaración","note":"No convertir ninguna ambigüedad en requisito definitivo hasta que exista una decisión del usuario.","owner":"sdd-spec"}]},{"id":"design","number":5,"title":"Diseño","status":"completed","lead":"sdd-design","tasks":[{"id":"DES-01","title":"Diseñar la estrategia de traducción y catálogo de textos","status":"completed","tag":"Design","note":"Engram #7540 (765 palabras): SSOT de 5 grupos/24 agentes, separadores tipados noop y fronteras visible/persistible/runtime; español local con fallback, high y nombres de agentes literales.","owner":"sdd-design"},{"id":"DES-02","title":"Diseñar el dimensionamiento amplio de ventanas y diálogos","status":"completed","tag":"Design","note":"Engram #7540: usar tiers xlarge/large con safeSetDialogSize; fallback por capacidades, sin dimensiones inventadas y con degradación no-op.","owner":"sdd-design"},{"id":"DES-03","title":"Diseñar el catálogo primario y fallback con agrupaciones literales","status":"completed","tag":"Design","note":"Engram #7540: catálogo compartido primario/fallback, alias literal sdd-ORCHETATOR, normalización idempotente y preservación de claves desconocidas válidas.","owner":"sdd-design"},{"id":"DES-04","title":"Diseñar el flujo agente → modelo → selector de esfuerzo","status":"completed","tag":"Design","note":"Engram #7540: transacción única modelo→esfuerzo; Predeterminado se representa como ausencia/no persistido, cancelación/error no escribe y la reelección abre esfuerzo. Cuatro unidades reversibles, cada una bajo 400 líneas.","owner":"sdd-design"}]},{"id":"tasks","number":6,"title":"Tareas","status":"completed","lead":"sdd-tasks","tasks":[{"id":"TASK-01","title":"Desglosar tareas Strict TDD por unidad revisable","status":"completed","tag":"Tasks","note":"Completado y persistido en Engram #7544: 4 fases de implementación y 12 tareas Strict TDD, cada una con ciclo RED → GREEN → REFACTOR.","owner":"sdd-tasks"},{"id":"TASK-02","title":"Definir la estrategia de PR cuando exista riesgo","status":"completed","tag":"Aclaración","note":"Completado en Engram #7544: forecast 550–750 líneas, riesgo High, chained PRs recomendados Yes y delivery ask-on-risk. Decisión posterior del usuario registrada: stacked-to-main; la decisión de cadena ya no está pendiente.","owner":"sdd-tasks"},{"id":"TASK-03","title":"Definir dependencias, criterios de aceptación y rollback","status":"completed","tag":"Tasks","note":"Completado en Engram #7544: slices catálogo/alias; esfuerzo/persistencia; TUI española/tamaño; sync/normalización/regresión.","owner":"sdd-tasks"},{"id":"TASK-04","title":"Definir la evidencia requerida para cada unidad Strict TDD","status":"completed","tag":"Tasks","note":"Completado en Engram #7544: cada unidad conserva evidencia Strict TDD y límite de rollback. Orden elegido: Unit 1 catálogo/alias → Unit 2 esfuerzo/persistencia → Unit 3 TUI española/tamaño → Unit 4 sync/normalización/regresión.","owner":"sdd-tasks"}]},{"id":"application","number":7,"title":"Aplicación","status":"in-progress","lead":"sdd-apply","tasks":[{"id":"APP-U1-01","title":"Unit 1 — Catálogo SSOT, elegibilidad y alias","status":"completed","tag":"Unit 1","note":"Tasks SDD 1.1-1.3 [x] en Engram #7544; apply-progress #7552. Strict TDD: RED 4 fallos reales; GREEN/refactor 55/55 focused tests; npm run typecheck exit 0; 272 líneas authored (<400); runtime N/A por contratos puros. Native attempt settled: complete por el parent. Boundary: src/catalog.ts/test, src/types.ts, src/utils.ts/test y src/orchestrator.ts/test. Rollback: revert solo esos siete archivos y preservar cambios no relacionados.","owner":"sdd-apply"},{"id":"APP-U2-01","title":"Unit 2.1 - RED: selección staged, esfuerzo y commit atómico","status":"completed","tag":"Unit 2","note":"Task SDD 2.1 [x] en apply-progress #7552 acumulativo y decision/mem #7560. Strict TDD RED: 6 fallos/142 pass. Boundary: src/types.ts, src/profile-reasoning.ts/test y src/profiles.ts/test.","owner":"sdd-apply"},{"id":"APP-U2-02","title":"Unit 2.2 - GREEN: resolución provider-default y persistencia","status":"completed","tag":"Unit 2","note":"Task SDD 2.2 [x] en apply-progress #7552 acumulativo y decision/mem #7560. Strict TDD GREEN: 151/151; typecheck y diff-check exit 0. Runtime N/A por fixtures deterministas.","owner":"sdd-apply"},{"id":"APP-U2-03","title":"Unit 2.3 - REFACTOR: normalización y transacción sin writes parciales","status":"completed","tag":"Unit 2","note":"Task SDD 2.3 [x] en apply-progress #7552 acumulativo y decision/mem #7560. Behavior: staged same-model selection requests effort; provider-default/Predeterminado maps to absence; atomic one-snapshot/one-write; cancel/error no write. Native attempt settled complete. Boundary: src/types.ts, src/profile-reasoning.ts/test y src/profiles.ts/test. Unit 2 authored delta: 323 líneas (<400). Rollback: revert solo los hunks de Unit 2 en esos cinco archivos.","owner":"sdd-apply"},{"id":"APP-U3-01","title":"Unit 3 — UI española, separadores y dimensionamiento","status":"pending","tag":"Unit 3","note":"Siguiente unidad pendiente; requiere aprobación interactiva antes de iniciar. No iniciar en esta sincronización. Incluye tasks SDD 3.1-3.3.","owner":"sdd-apply"},{"id":"APP-U4-01","title":"Unit 4 — Sincronización runtime, normalización y regresión","status":"pending","tag":"Unit 4","note":"Pendiente después de Unit 3; no iniciar en esta sincronización. Incluye tasks SDD 4.1-4.3.","owner":"sdd-apply"},{"id":"APP-02","title":"Registrar evidencia de pruebas y unidades de trabajo","status":"pending","tag":"Apply","note":"La evidencia acumulativa de Units 1 y 2 está registrada en las tareas completadas y apply-progress #7552; mantener Unit 3, Unit 4 y la verificación final pendientes.","owner":"sdd-apply"}]},{"id":"verification","number":8,"title":"Verificación","status":"pending","lead":"sdd-verify","tasks":[{"id":"VER-01","title":"Verificar requisitos, escenarios y pruebas Strict TDD","status":"pending","tag":"Verify","note":"Confirmar traducciones, dimensiones, catálogos, agrupaciones y flujo de esfuerzo.","owner":"sdd-verify"},{"id":"VER-02","title":"Verificar compatibilidad runtime y regresiones","status":"pending","tag":"Verify","note":"Validar agentes primarios, fallback y reapertura del selector de esfuerzo sin modificar el alcance.","owner":"sdd-verify"},{"id":"VER-03","title":"Verificar que las aclaraciones no se hayan resuelto implícitamente","status":"pending","tag":"Aclaración","note":"Comprobar que las decisiones ambiguas estén respaldadas por una decisión explícita del usuario.","owner":"sdd-verify"}]},{"id":"archive","number":9,"title":"Archivo","status":"pending","lead":"sdd-archive","tasks":[{"id":"ARC-01","title":"Archivar el cambio SDD cuando la verificación esté lista","status":"pending","tag":"Archive","note":"Archivar únicamente después de la verificación independiente y de resolver los bloqueos del flujo.","owner":"sdd-archive"}]}],"todos":[{"id":"TODO-01","text":"Aclarar si sdd-ORCHETATOR es literal o un typo antes de corregirlo","priority":"P0","done":false},{"id":"TODO-02","text":"Aclarar límites concretos de ancho y alto para ventanas y diálogos","priority":"P1","done":false},{"id":"TODO-03","text":"Aclarar tratamiento de agentes runtime no incluidos en el listado solicitado","priority":"P1","done":false},{"id":"TODO-04","text":"Aclarar si mensajes de error, ayuda y accesibilidad también deben traducirse","priority":"P1","done":false},{"id":"TODO-05","text":"Aclarar la representación exacta del listado en la sección fallback","priority":"P1","done":false},{"id":"TODO-06","text":"Aclarar la reapertura del selector de esfuerzo al reelegir el mismo modelo","priority":"P1","done":false},{"id":"TODO-07","text":"Preguntar estrategia de PR si el riesgo supera el presupuesto de 400 líneas","priority":"P1","done":false}]}citamente","status":"pending","tag":"Aclaración","note":"Comprobar que las decisiones ambiguas estén respaldadas por una decisión explícita del usuario.","owner":"sdd-verify"}]},{"id":"archive","number":9,"title":"Archivo","status":"pending","lead":"sdd-archive","tasks":[{"id":"ARC-01","title":"Archivar el cambio SDD cuando la verificación esté lista","status":"pending","tag":"Archive","note":"Archivar únicamente después de la verificación independiente y de resolver los bloqueos del flujo.","owner":"sdd-archive"}]}],"todos":[{"id":"TODO-01","text":"Aclarar si sdd-ORCHETATOR es literal o un typo antes de corregirlo","priority":"P0","done":false},{"id":"TODO-02","text":"Aclarar límites concretos de ancho y alto para ventanas y diálogos","priority":"P1","done":false},{"id":"TODO-03","text":"Aclarar tratamiento de agentes runtime no incluidos en el listado solicitado","priority":"P1","done":false},{"id":"TODO-04","text":"Aclarar si mensajes de error, ayuda y accesibilidad también deben traducirse","priority":"P1","done":false},{"id":"TODO-05","text":"Aclarar la representación exacta del listado en la sección fallback","priority":"P1","done":false},{"id":"TODO-06","text":"Aclarar la reapertura del selector de esfuerzo al reelegir el mismo modelo","priority":"P1","done":false},{"id":"TODO-07","text":"Preguntar estrategia de PR si el riesgo supera el presupuesto de 400 líneas","priority":"P1","done":false}]}erificación independiente y de resolver los bloqueos del flujo.","owner":"sdd-archive"}]}],"todos":[{"id":"TODO-01","text":"Aclarar si sdd-ORCHETATOR es literal o un typo antes de corregirlo","priority":"P0","done":false},{"id":"TODO-02","text":"Aclarar límites concretos de ancho y alto para ventanas y diálogos","priority":"P1","done":false},{"id":"TODO-03","text":"Aclarar tratamiento de agentes runtime no incluidos en el listado solicitado","priority":"P1","done":false},{"id":"TODO-04","text":"Aclarar si mensajes de error, ayuda y accesibilidad también deben traducirse","priority":"P1","done":false},{"id":"TODO-05","text":"Aclarar la representación exacta del listado en la sección fallback","priority":"P1","done":false},{"id":"TODO-06","text":"Aclarar la reapertura del selector de esfuerzo al reelegir el mismo modelo","priority":"P1","done":false},{"id":"TODO-07","text":"Preguntar estrategia de PR si el riesgo supera el presupuesto de 400 líneas","priority":"P1","done":false}]}erificación independiente y de resolver los bloqueos del flujo.","owner":"sdd-archive"}]}],"todos":[{"id":"TODO-01","text":"Aclarar si sdd-ORCHETATOR es literal o un typo antes de corregirlo","priority":"P0","done":false},{"id":"TODO-02","text":"Aclarar límites concretos de ancho y alto para ventanas y diálogos","priority":"P1","done":false},{"id":"TODO-03","text":"Aclarar tratamiento de agentes runtime no incluidos en el listado solicitado","priority":"P1","done":false},{"id":"TODO-04","text":"Aclarar si mensajes de error, ayuda y accesibilidad también deben traducirse","priority":"P1","done":false},{"id":"TODO-05","text":"Aclarar la representación exacta del listado en la sección fallback","priority":"P1","done":false},{"id":"TODO-06","text":"Aclarar la reapertura del selector de esfuerzo al reelegir el mismo modelo","priority":"P1","done":false},{"id":"TODO-07","text":"Preguntar estrategia de PR si el riesgo supera el presupuesto de 400 líneas","priority":"P1","done":false}]}erificación independiente y de resolver los bloqueos del flujo.","owner":"sdd-archive"}]}],"todos":[{"id":"TODO-01","text":"Aclarar si sdd-ORCHETATOR es literal o un typo antes de corregirlo","priority":"P0","done":false},{"id":"TODO-02","text":"Aclarar límites concretos de ancho y alto para ventanas y diálogos","priority":"P1","done":false},{"id":"TODO-03","text":"Aclarar tratamiento de agentes runtime no incluidos en el listado solicitado","priority":"P1","done":false},{"id":"TODO-04","text":"Aclarar si mensajes de error, ayuda y accesibilidad también deben traducirse","priority":"P1","done":false},{"id":"TODO-05","text":"Aclarar la representación exacta del listado en la sección fallback","priority":"P1","done":false},{"id":"TODO-06","text":"Aclarar la reapertura del selector de esfuerzo al reelegir el mismo modelo","priority":"P1","done":false},{"id":"TODO-07","text":"Preguntar estrategia de PR si el riesgo supera el presupuesto de 400 líneas","priority":"P1","done":false}]}citamente","status":"pending","tag":"Aclaración","note":"Comprobar que las decisiones ambiguas estén respaldadas por una decisión explícita del usuario.","owner":"sdd-verify"}]},{"id":"archive","number":9,"title":"Archivo","status":"pending","lead":"sdd-archive","tasks":[{"id":"ARC-01","title":"Archivar el cambio SDD cuando la verificación esté lista","status":"pending","tag":"Archive","note":"Archivar únicamente después de la verificación independiente y de resolver los bloqueos del flujo.","owner":"sdd-archive"}]}],"todos":[{"id":"TODO-01","text":"Aclarar si sdd-ORCHETATOR es literal o un typo antes de corregirlo","priority":"P0","done":false},{"id":"TODO-02","text":"Aclarar límites concretos de ancho y alto para ventanas y diálogos","priority":"P1","done":false},{"id":"TODO-03","text":"Aclarar tratamiento de agentes runtime no incluidos en el listado solicitado","priority":"P1","done":false},{"id":"TODO-04","text":"Aclarar si mensajes de error, ayuda y accesibilidad también deben traducirse","priority":"P1","done":false},{"id":"TODO-05","text":"Aclarar la representación exacta del listado en la sección fallback","priority":"P1","done":false},{"id":"TODO-06","text":"Aclarar la reapertura del selector de esfuerzo al reelegir el mismo modelo","priority":"P1","done":false},{"id":"TODO-07","text":"Preguntar estrategia de PR si el riesgo supera el presupuesto de 400 líneas","priority":"P1","done":false}]}erificación independiente y de resolver los bloqueos del flujo.","owner":"sdd-archive"}]}],"todos":[{"id":"TODO-01","text":"Aclarar si sdd-ORCHETATOR es literal o un typo antes de corregirlo","priority":"P0","done":false},{"id":"TODO-02","text":"Aclarar límites concretos de ancho y alto para ventanas y diálogos","priority":"P1","done":false},{"id":"TODO-03","text":"Aclarar tratamiento de agentes runtime no incluidos en el listado solicitado","priority":"P1","done":false},{"id":"TODO-04","text":"Aclarar si mensajes de error, ayuda y accesibilidad también deben traducirse","priority":"P1","done":false},{"id":"TODO-05","text":"Aclarar la representación exacta del listado en la sección fallback","priority":"P1","done":false},{"id":"TODO-06","text":"Aclarar la reapertura del selector de esfuerzo al reelegir el mismo modelo","priority":"P1","done":false},{"id":"TODO-07","text":"Preguntar estrategia de PR si el riesgo supera el presupuesto de 400 líneas","priority":"P1","done":false}]}erificación independiente y de resolver los bloqueos del flujo.","owner":"sdd-archive"}]}],"todos":[{"id":"TODO-01","text":"Aclarar si sdd-ORCHETATOR es literal o un typo antes de corregirlo","priority":"P0","done":false},{"id":"TODO-02","text":"Aclarar límites concretos de ancho y alto para ventanas y diálogos","priority":"P1","done":false},{"id":"TODO-03","text":"Aclarar tratamiento de agentes runtime no incluidos en el listado solicitado","priority":"P1","done":false},{"id":"TODO-04","text":"Aclarar si mensajes de error, ayuda y accesibilidad también deben traducirse","priority":"P1","done":false},{"id":"TODO-05","text":"Aclarar la representación exacta del listado en la sección fallback","priority":"P1","done":false},{"id":"TODO-06","text":"Aclarar la reapertura del selector de esfuerzo al reelegir el mismo modelo","priority":"P1","done":false},{"id":"TODO-07","text":"Preguntar estrategia de PR si el riesgo supera el presupuesto de 400 líneas","priority":"P1","done":false}]}citamente","status":"pending","tag":"Aclaración","note":"Comprobar que las decisiones ambiguas estén respaldadas por una decisión explícita del usuario.","owner":"sdd-verify"}]},{"id":"archive","number":9,"title":"Archivo","status":"pending","lead":"sdd-archive","tasks":[{"id":"ARC-01","title":"Archivar el cambio SDD cuando la verificación esté lista","status":"pending","tag":"Archive","note":"Archivar únicamente después de la verificación independiente y de resolver los bloqueos del flujo.","owner":"sdd-archive"}]}],"todos":[{"id":"TODO-01","text":"Aclarar si sdd-ORCHETATOR es literal o un typo antes de corregirlo","priority":"P0","done":false},{"id":"TODO-02","text":"Aclarar límites concretos de ancho y alto para ventanas y diálogos","priority":"P1","done":false},{"id":"TODO-03","text":"Aclarar tratamiento de agentes runtime no incluidos en el listado solicitado","priority":"P1","done":false},{"id":"TODO-04","text":"Aclarar si mensajes de error, ayuda y accesibilidad también deben traducirse","priority":"P1","done":false},{"id":"TODO-05","text":"Aclarar la representación exacta del listado en la sección fallback","priority":"P1","done":false},{"id":"TODO-06","text":"Aclarar la reapertura del selector de esfuerzo al reelegir el mismo modelo","priority":"P1","done":false},{"id":"TODO-07","text":"Preguntar estrategia de PR si el riesgo supera el presupuesto de 400 líneas","priority":"P1","done":false}]}erificación independiente y de resolver los bloqueos del flujo.","owner":"sdd-archive"}]}],"todos":[{"id":"TODO-01","text":"Aclarar si sdd-ORCHETATOR es literal o un typo antes de corregirlo","priority":"P0","done":false},{"id":"TODO-02","text":"Aclarar límites concretos de ancho y alto para ventanas y diálogos","priority":"P1","done":false},{"id":"TODO-03","text":"Aclarar tratamiento de agentes runtime no incluidos en el listado solicitado","priority":"P1","done":false},{"id":"TODO-04","text":"Aclarar si mensajes de error, ayuda y accesibilidad también deben traducirse","priority":"P1","done":false},{"id":"TODO-05","text":"Aclarar la representación exacta del listado en la sección fallback","priority":"P1","done":false},{"id":"TODO-06","text":"Aclarar la reapertura del selector de esfuerzo al reelegir el mismo modelo","priority":"P1","done":false},{"id":"TODO-07","text":"Preguntar estrategia de PR si el riesgo supera el presupuesto de 400 líneas","priority":"P1","done":false}]}citamente","status":"pending","tag":"Aclaración","note":"Comprobar que las decisiones ambiguas estén respaldadas por una decisión explícita del usuario.","owner":"sdd-verify"}]},{"id":"archive","number":9,"title":"Archivo","status":"pending","lead":"sdd-archive","tasks":[{"id":"ARC-01","title":"Archivar el cambio SDD cuando la verificación esté lista","status":"pending","tag":"Archive","note":"Archivar únicamente después de la verificación independiente y de resolver los bloqueos del flujo.","owner":"sdd-archive"}]}],"todos":[{"id":"TODO-01","text":"Aclarar si sdd-ORCHETATOR es literal o un typo antes de corregirlo","priority":"P0","done":false},{"id":"TODO-02","text":"Aclarar límites concretos de ancho y alto para ventanas y diálogos","priority":"P1","done":false},{"id":"TODO-03","text":"Aclarar tratamiento de agentes runtime no incluidos en el listado solicitado","priority":"P1","done":false},{"id":"TODO-04","text":"Aclarar si mensajes de error, ayuda y accesibilidad también deben traducirse","priority":"P1","done":false},{"id":"TODO-05","text":"Aclarar la representación exacta del listado en la sección fallback","priority":"P1","done":false},{"id":"TODO-06","text":"Aclarar la reapertura del selector de esfuerzo al reelegir el mismo modelo","priority":"P1","done":false},{"id":"TODO-07","text":"Preguntar estrategia de PR si el riesgo supera el presupuesto de 400 líneas","priority":"P1","done":false}]}erificación independiente y de resolver los bloqueos del flujo.","owner":"sdd-archive"}]}],"todos":[{"id":"TODO-01","text":"Aclarar si sdd-ORCHETATOR es literal o un typo antes de corregirlo","priority":"P0","done":false},{"id":"TODO-02","text":"Aclarar límites concretos de ancho y alto para ventanas y diálogos","priority":"P1","done":false},{"id":"TODO-03","text":"Aclarar tratamiento de agentes runtime no incluidos en el listado solicitado","priority":"P1","done":false},{"id":"TODO-04","text":"Aclarar si mensajes de error, ayuda y accesibilidad también deben traducirse","priority":"P1","done":false},{"id":"TODO-05","text":"Aclarar la representación exacta del listado en la sección fallback","priority":"P1","done":false},{"id":"TODO-06","text":"Aclarar la reapertura del selector de esfuerzo al reelegir el mismo modelo","priority":"P1","done":false},{"id":"TODO-07","text":"Preguntar estrategia de PR si el riesgo supera el presupuesto de 400 líneas","priority":"P1","done":false}]}erificación independiente y de resolver los bloqueos del flujo.","owner":"sdd-archive"}]}],"todos":[{"id":"TODO-01","text":"Aclarar si sdd-ORCHETATOR es literal o un typo antes de corregirlo","priority":"P0","done":false},{"id":"TODO-02","text":"Aclarar límites concretos de ancho y alto para ventanas y diálogos","priority":"P1","done":false},{"id":"TODO-03","text":"Aclarar tratamiento de agentes runtime no incluidos en el listado solicitado","priority":"P1","done":false},{"id":"TODO-04","text":"Aclarar si mensajes de error, ayuda y accesibilidad también deben traducirse","priority":"P1","done":false},{"id":"TODO-05","text":"Aclarar la representación exacta del listado en la sección fallback","priority":"P1","done":false},{"id":"TODO-06","text":"Aclarar la reapertura del selector de esfuerzo al reelegir el mismo modelo","priority":"P1","done":false},{"id":"TODO-07","text":"Preguntar estrategia de PR si el riesgo supera el presupuesto de 400 líneas","priority":"P1","done":false}]}citamente","status":"pending","tag":"Aclaración","note":"Comprobar que las decisiones ambiguas estén respaldadas por una decisión explícita del usuario.","owner":"sdd-verify"}]},{"id":"archive","number":9,"title":"Archivo","status":"pending","lead":"sdd-archive","tasks":[{"id":"ARC-01","title":"Archivar el cambio SDD cuando la verificación esté lista","status":"pending","tag":"Archive","note":"Archivar únicamente después de la verificación independiente y de resolver los bloqueos del flujo.","owner":"sdd-archive"}]}],"todos":[{"id":"TODO-01","text":"Aclarar si sdd-ORCHETATOR es literal o un typo antes de corregirlo","priority":"P0","done":false},{"id":"TODO-02","text":"Aclarar límites concretos de ancho y alto para ventanas y diálogos","priority":"P1","done":false},{"id":"TODO-03","text":"Aclarar tratamiento de agentes runtime no incluidos en el listado solicitado","priority":"P1","done":false},{"id":"TODO-04","text":"Aclarar si mensajes de error, ayuda y accesibilidad también deben traducirse","priority":"P1","done":false},{"id":"TODO-05","text":"Aclarar la representación exacta del listado en la sección fallback","priority":"P1","done":false},{"id":"TODO-06","text":"Aclarar la reapertura del selector de esfuerzo al reelegir el mismo modelo","priority":"P1","done":false},{"id":"TODO-07","text":"Preguntar estrategia de PR si el riesgo supera el presupuesto de 400 líneas","priority":"P1","done":false}]}ument(doc) {
+    try {
+      var island = doc.getElementById('tm-state');
+      if (!island) {
+        return { error: 'Island #tm-state not found', validation: { ok: false, errors: ['Island not found'], warnings: [] } };
+      }
+      // Check raw text contains no unescaped closing script tag (split to avoid HTML parser breaking)
+      var raw = island.textContent || '';
+      if (raw.includes('<' + '/script>')) {
+        // This should have been escaped; treat as error
+        return { error: 'Island contains raw <' + '/script> (must be \\u003c/script\\u003e)', validation: { ok: false, errors: ['Raw <' + '/script>'], warnings: [] } };
+      }
+      var parsed = parseIsland(raw);
+      var validation = validateState(parsed);
+      if (!validation.ok) {
+        return { error: validation.errors.join('; '), validation: validation, state: parsed };
+      }
+      return { state: parsed, validation: validation };
+    } catch (e) {
+      return { error: e && e.message ? e.message : String(e), validation: { ok: false, errors: [String(e)], warnings: [] } };
+    }
+  }
+
+  // Public API
+  var TMCore = {
+    parseIsland: parseIsland,
+    validateState: validateState,
+    escapeHtml: escapeHtml,
+    escapeIslandJson: escapeIslandJson,
+    isEnabled: isEnabled,
+    deriveMetrics: deriveMetrics,
+    deriveInsights: deriveInsights,
+    matchesTask: matchesTask,
+    getStateFromDocument: getStateFromDocument,
+    _normalizeStatus: normalizeStatus
+  };
+
+  // Attach to global for classic script usage
+  try {
+    if (typeof window !== 'undefined') window.TMCore = TMCore;
+  } catch (_) {}
+  try {
+    if (typeof globalThis !== 'undefined') globalThis.TMCore = TMCore;
+  } catch (_) {}
+  try {
+    if (typeof global !== 'undefined') global.TMCore = TMCore;
+  } catch (_) {}
+
+  // Also for Node/CommonJS if required
+  try {
+    if (typeof module !== 'undefined' && module.exports) module.exports = TMCore;
+  } catch (_) {}
+
+})(typeof window !== 'undefined' ? window : typeof globalThis !== 'undefined' ? globalThis : typeof global !== 'undefined' ? global : this);
+
+</script>
+<script>
+// modules/03-header-hud.js — inlined
+// @ts-nocheck
+// modules/03-header-hud.js — Header + HUD renderers (PR3, classic script)
+// Depends on TMCore (parse/derive/escape). Pure DOM updates, no fetch.
+// English code, Spanish UI via meta.labels.es fallback.
+
+(function (global) {
+  'use strict';
+
+  function getCore() {
+    return (typeof window !== 'undefined' && window.TMCore) || (typeof globalThis !== 'undefined' && globalThis.TMCore) || (typeof global !== 'undefined' && global.TMCore) || null;
+  }
+
+  function esc(str) {
+    var c = getCore();
+    return c ? c.escapeHtml(str) : String(str == null ? '' : str).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/\"/g, '&quot;').replace(/'/g, '&#39;');
+  }
+
+  function finiteNumber(value, fallback) { value = Number(value); return isFinite(value) ? value : fallback; }
+  function clamp(value, min, max) { return Math.max(min, Math.min(max, finiteNumber(value, min))); }
+  function svgNumber(value) { return String(Math.round(clamp(value, -100000, 100000) * 100) / 100); }
+  function resolveInsights(state, metrics, core, supplied) {
+    return supplied || (core && state && typeof core.deriveInsights === 'function' ? core.deriveInsights(state) : {
+      metrics: metrics, tasks: [], dimensions: { owner: {}, tag: {} }, blockers: { total: 0 }, history: [],
+      forecast: { available: false, label: 'Forecast unavailable', reason: 'No history data' }
+    });
+  }
+  function renderStatusSvg(insights) {
+    var d = insights && insights.metrics && insights.metrics.distribution || {};
+    var values = [
+      ['Completed', d.completed, 'var(--accent-green)'], ['In progress', d['in-progress'] != null ? d['in-progress'] : d.inprogress, 'var(--accent-blue)'],
+      ['Pending', d.pending, 'var(--accent-amber)'], ['Blocked', d.blocked, 'var(--accent-red)']
+    ];
+    var total = values.reduce(function (sum, item) { return sum + Math.max(0, finiteNumber(item[1], 0)); }, 0), cursor = 0;
+    var html = '<svg class="insight-status-chart" width="240" height="18" viewBox="0 0 240 18" role="img" aria-labelledby="insight-status-title"><title id="insight-status-title">Task status composition</title>';
+    values.forEach(function (item) {
+      var value = Math.max(0, finiteNumber(item[1], 0)), segment = total ? clamp(value / total * 240, 0, 240 - cursor) : 0;
+      html += '<rect x="' + svgNumber(cursor) + '" y="0" width="' + svgNumber(segment) + '" height="18" fill="' + item[2] + '"><title>' + esc(item[0] + ': ' + Math.round(value)) + '</title></rect>';
+      cursor = clamp(cursor + segment, 0, 240);
+    });
+    return html + '</svg>';
+  }
+  function renderTrend(insights) {
+    var history = insights && Array.isArray(insights.history) ? insights.history : [];
+    if (!history.length) return '';
+    var points = history.map(function (point, index) {
+      var total = Math.max(0, finiteNumber(point && point.total, 0)), done = clamp(point && point.completed, 0, total);
+      return svgNumber(history.length === 1 ? 0 : 240 * index / (history.length - 1)) + ',' + svgNumber(44 - (total ? done / total * 44 : 0));
+    });
+    var last = history[history.length - 1] || {}, forecast = insights.forecast || {};
+    var text = forecast.available && forecast.range ? forecast.label + ' — ' + Math.round(forecast.range.min) + '–' + Math.round(forecast.range.max) + ' sessions' : (forecast.label || 'Forecast unavailable') + ' — ' + (forecast.reason || 'Insufficient trend data');
+    return '<div class="insight-trend"><svg class="insight-trend-chart" width="240" height="44" viewBox="0 0 240 44" role="img" aria-labelledby="insight-trend-title"><title id="insight-trend-title">Bounded completion trend</title><polyline points="' + points.join(' ') + '" fill="none" stroke="var(--accent-purple)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"></polyline></svg><div class="insight-trend-copy">History: ' + history.length + ' points · latest ' + Math.round(finiteNumber(last.completed, 0)) + '/' + Math.round(Math.max(0, finiteNumber(last.total, 0))) + '</div><div class="insight-forecast">' + esc(text) + '</div></div>';
+  }
+  function renderDimensionLines(map) {
+    var keys = Object.keys(map || {});
+    var lines = keys.length ? keys.map(function (key) { var bucket = map[key] || {}; return '<span class="insight-dimension-line"><strong>' + esc(key) + '</strong> ' + Math.round(finiteNumber(bucket.completed, 0)) + '/' + Math.round(Math.max(0, finiteNumber(bucket.total, 0))) + '</span>'; }).join('') : '<span class="insight-empty">No task data</span>';
+    return '<div class="insight-dimension-list">' + lines + '</div>';
+  }
+  function riskCount(insights, level) {
+    return (insights && Array.isArray(insights.tasks) ? insights.tasks : []).filter(function (task) { return task && task.risk === level; }).length;
+  }
+
+  function label(key, state, fallback) {
+    if (state && state.meta && state.meta.labels && state.meta.labels.es && typeof state.meta.labels.es[key] === 'string' && state.meta.labels.es[key]) {
+      return state.meta.labels.es[key];
+    }
+    return fallback;
+  }
+
+  /**
+   * Render header panel from state.
+   * Updates #project-title, #project-subtitle, header-meta badges.
+   * @param {object} state
+   * @param {Document} doc
+   */
+  function renderHeader(state, doc) {
+    doc = doc || (typeof document !== 'undefined' ? document : null);
+    if (!doc || !state || !state.meta) return;
+    var meta = state.meta;
+
+    // Title: projectName + version badge
+    var titleEl = doc.getElementById('project-title');
+    if (titleEl) {
+      var nameRaw = meta.projectName || 'Proyecto';
+      var versionRaw = meta.version || '';
+      var spans = titleEl.querySelectorAll('span');
+      if (spans.length >= 2) {
+        spans[0].textContent = nameRaw;
+        spans[1].textContent = versionRaw ? 'v' + versionRaw.replace(/^v/, '') : '';
+        spans[1].style.display = versionRaw ? '' : 'none';
+      } else {
+        titleEl.innerHTML = '<span>' + esc(nameRaw) + '</span> ' + (versionRaw ? '<span class="badge">v' + esc(versionRaw.replace(/^v/, '')) + '</span>' : '');
+      }
+    }
+
+    // Subtitle: use meta.description or fallback
+    var subtitleEl = doc.getElementById('project-subtitle');
+    if (subtitleEl) {
+      var subtitle = meta.description || label('headerSubtitle', state, 'Obsidian Technical Cockpit — sincronizado con orquestador IA');
+      subtitleEl.textContent = subtitle;
+    }
+
+    // Header meta: branch · commit and sync status
+    var headerMeta = doc.querySelector('.header-meta');
+    if (headerMeta) {
+      var branchRaw = meta.branch || (state.git && state.git.branch) || '';
+      var commitRaw = meta.commit || (state.git && state.git.commits && state.git.commits[0] && state.git.commits[0].hash) || '';
+      commitRaw = commitRaw ? commitRaw.substring(0, 7) : '';
+      var syncRaw = meta.syncStatus || (state.git && state.git.syncStatus) || '';
+
+      var badges = headerMeta.querySelectorAll('.badge');
+      if (badges.length >= 1) {
+        var branchCommitText = '';
+        if (branchRaw || commitRaw) {
+          branchCommitText = (branchRaw ? branchRaw : '—') + (commitRaw ? ' · ' + commitRaw : '');
+        } else {
+          branchCommitText = '—';
+        }
+        var firstBadge = badges[0];
+        var dot = firstBadge.querySelector('.badge-dot');
+        if (dot) {
+          var toRemove = [];
+          firstBadge.childNodes.forEach(function (n) {
+            if (n !== dot && n.nodeType === 3) toRemove.push(n);
+          });
+          toRemove.forEach(function (n) { firstBadge.removeChild(n); });
+          firstBadge.appendChild(doc.createTextNode(' ' + branchCommitText));
+        } else {
+          firstBadge.textContent = branchCommitText;
+        }
+      }
+      if (badges.length >= 2) {
+        var syncBadge = badges[1];
+        var syncText = syncRaw ? syncRaw : '—';
+        var dot2 = syncBadge.querySelector('.badge-dot');
+        if (dot2) {
+          var removes = [];
+          syncBadge.childNodes.forEach(function (n) { if (n !== dot2 && n.nodeType === 3) removes.push(n); });
+          removes.forEach(function (n) { syncBadge.removeChild(n); });
+          syncBadge.appendChild(doc.createTextNode(' ' + syncText));
+        } else {
+          syncBadge.textContent = syncText;
+        }
+      }
+    }
+  }
+
+  /**
+   * Render HUD metrics. Pure derived from state+metrics, updates #metrics-overview.
+   * Overwrites legacy hardcoded 68% etc.
+   * @param {object} state
+   * @param {{overallPct:number,total:number,completed:number,distribution:object,perPhase:Array}} metrics
+   * @param {Document} doc
+   * @param {object} suppliedInsights
+   */
+  function renderHud(state, metrics, doc, suppliedInsights) {
+    doc = doc || (typeof document !== 'undefined' ? document : null);
+    if (!doc) return;
+    var core = getCore();
+    if (!metrics && core && state) {
+      metrics = core.deriveMetrics(state);
+    }
+    if (!metrics) metrics = { overallPct: 0, total: 0, completed: 0, distribution: { completed: 0, pending: 0, inprogress: 0, blocked: 0 }, perPhase: [] };
+    var insights = resolveInsights(state, metrics, core, suppliedInsights);
+
+    var overallLabel = label('overallProgress', state, 'Progreso Global');
+    var hud = doc.getElementById('metrics-overview');
+    if (!hud) hud = doc.querySelector('.metrics-grid');
+    if (!hud) return;
+
+    var total = Math.max(0, Math.round(finiteNumber(metrics.total, 0)));
+    var completed = clamp(Math.round(finiteNumber(metrics.completed, 0)), 0, total);
+    var overallPct = clamp(Math.round(finiteNumber(metrics.overallPct, 0)), 0, 100);
+    var dist = metrics.distribution || { completed: 0, pending: 0, inprogress: 0, blocked: 0 };
+    var pending = dist.pending || 0;
+    var inprog = dist.inprogress || dist['in-progress'] || 0;
+    var blocked = dist.blocked || 0;
+    var done = dist.completed || 0;
+
+    // Determine current focus phase: first in-progress, else first pending, else last completed, else placeholder
+    var focusTitle = 'Sin fase';
+    var focusPhase = null;
+    var focusPct = 0;
+    if (state && Array.isArray(state.phases) && state.phases.length) {
+      for (var i = 0; i < state.phases.length; i++) {
+        if (state.phases[i].status === 'in-progress') { focusPhase = state.phases[i]; break; }
+      }
+      if (!focusPhase) {
+        for (var j = 0; j < state.phases.length; j++) {
+          if (state.phases[j].status === 'pending') { focusPhase = state.phases[j]; break; }
+        }
+      }
+      if (!focusPhase) focusPhase = state.phases[state.phases.length - 1];
+      if (focusPhase) {
+        focusTitle = esc(focusPhase.title || ('Fase ' + (focusPhase.number || '')));
+        var matchedPer = metrics.perPhase.find(function(p){ return p.id === focusPhase.id; });
+        focusPct = matchedPer ? clamp(matchedPer.pct, 0, 100) : 0;
+      }
+    }
+
+    var gitBranch = esc((state && state.meta && state.meta.branch) || (state && state.git && state.git.branch) || '—');
+    var statusOverallBadge = overallPct === 100 ? 'Completado' : overallPct > 0 ? 'En Progreso' : 'Pendiente';
+    var statusOverallClass = overallPct === 100 ? 'badge-completed' : overallPct > 0 ? 'badge-inprogress' : 'badge-pending';
+
+    var html = ''
+      + '<div class="metric-card accent-blue" id="metric-overall-card">'
+      + '<div class="panel-title metric-title-row">'
+      + '<span>' + esc(overallLabel) + '</span>'
+      + '<span class="badge ' + statusOverallClass + '">' + statusOverallBadge + '</span>'
+      + '</div>'
+      + '<div style="display:flex;align-items:baseline;justify-content:space-between;gap:8px;">'
+      + '<div style="font-size:28px;font-weight:700;color:#fff;font-family:var(--font-mono);letter-spacing:-0.02em;" id="overall-progress-num">' + overallPct + '%</div>'
+      + '<div style="font-size:12px;color:var(--text-tertiary);"><span id="stat-completed-count">' + completed + '</span> de <span id="stat-total-count">' + total + '</span> tareas</div>'
+      + '</div>'
+      + '<div class="progress-track"><div id="overall-progress-bar" class="progress-bar inprogress" style="width:' + overallPct + '%;"></div></div>'
+      + '<div style="font-size:11.5px;color:var(--text-tertiary);display:flex;justify-content:space-between;">'
+      + '<span>' + completed + ' completadas</span>'
+      + '<span>' + (total - completed) + ' restantes</span>'
+      + '</div>'
+      + '</div>'
+
+      + '<div class="metric-card accent-purple" id="metric-current-focus">'
+      + '<div class="panel-title metric-title-row">'
+      + '<span>Fase Actual</span>'
+      + (focusPhase && focusPhase.target ? '<span class="badge badge-tag">' + esc(focusPhase.target) + '</span>' : '')
+      + '</div>'
+      + '<div style="font-size:16px;font-weight:600;color:#fff;margin-top:2px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" id="current-focus-title">' + focusTitle + '</div>'
+      + '<div class="progress-track"><div style="width:' + focusPct + '%;height:100%;background:var(--accent-purple);border-radius:4px;transition:width 0.35s;"></div></div>'
+      + '<div style="font-size:11.5px;color:var(--text-tertiary);display:flex;justify-content:space-between;">'
+      + '<span>' + (focusPhase && focusPhase.lead ? 'Lead: ' + esc(focusPhase.lead) : 'Sprint activo') + '</span>'
+      + '<span style="font-family:var(--font-mono);">' + focusPct + '%</span>'
+      + '</div>'
+      + '</div>'
+
+      + '<div class="metric-card accent-green" id="metric-distribution">'
+      + '<div class="panel-title">Distribución</div>'
+      + '<div class="distribution-badges">'
+      + '<span class="badge badge-completed"><span class="badge-dot completed"></span> ' + done + ' Hechas</span>'
+      + '<span class="badge badge-inprogress"><span class="badge-dot inprogress"></span> ' + inprog + ' Activas</span>'
+      + '<span class="badge badge-pending"><span class="badge-dot pending"></span> ' + pending + ' Pendientes</span>'
+      + '<span class="badge badge-blocked"><span class="badge-dot blocked"></span> ' + blocked + ' Bloqueadas</span>'
+      + '</div>'
+      + (blocked > 0 ? '<div class="distribution-risk-warning" style="font-size:11.5px;color:var(--accent-red);margin-top:4px;display:flex;align-items:center;gap:4px;"><span class="badge-dot blocked"></span> ' + blocked + ' bloqueada(s) requiere(n) atención</div>' : '<div style="font-size:11.5px;color:var(--accent-green);margin-top:4px;">✓ Sin bloqueos activos</div>')
+      + '</div>'
+
+      + '<div class="metric-card accent-amber" id="metric-git">'
+      + '<div class="panel-title metric-title-row">'
+      + '<span>Git</span>'
+      + '<span class="badge badge-tag" style="color:var(--accent-amber);border-color:rgba(210,153,34,0.3);">' + ((state && state.git && state.git.syncStatus) || 'Synced') + '</span>'
+      + '</div>'
+      + '<div style="font-size:13px;color:#fff;font-family:var(--font-mono);margin-top:2px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">branch: ' + esc(gitBranch) + '</div>'
+      + '<div style="font-size:11.5px;color:var(--text-tertiary);margin-top:2px;">' + total + ' tareas totales · ' + (state && state.phases ? state.phases.length : 0) + ' fases</div>'
+      + '</div>'
+
+      + '<div class="metric-card accent-blue metric-insights-band" id="metric-insights">'
+      + '<div class="panel-title" style="grid-column:1 / -1;">Insights</div>'
+      + '<div class="insight-band-grid">'
+      + '<div class="insight-band-region insight-status-region"><span class="insight-region-label">Status composition</span>' + renderStatusSvg(insights) + '</div>'
+      + '<div class="insight-band-region insight-risk-region"><span class="insight-region-label">Risk & blockers</span><div class="insight-risk-values"><span>Blockers: ' + Math.round(Math.max(0, finiteNumber(insights.blockers && insights.blockers.total, 0))) + '</span><span>High risk: ' + riskCount(insights, 'high') + '</span><span>Med risk: ' + riskCount(insights, 'med') + '</span></div></div>'
+      + '<div class="insight-band-region insight-owners"><span class="insight-region-label">Owners</span>' + renderDimensionLines(insights.dimensions && insights.dimensions.owner) + '</div>'
+      + '<div class="insight-band-region insight-tags"><span class="insight-region-label">Tags</span>' + renderDimensionLines(insights.dimensions && insights.dimensions.tag) + '</div>'
+      + '<div class="insight-band-region insight-trend-region"><span class="insight-region-label">Bounded trend</span>' + renderTrend(insights) + '</div>'
+      + '</div>'
+      + '</div>';
+
+    hud.innerHTML = html;
+  }
+
+  /**
+   * Setup Navigation Tabs & Global Search events
+   * @param {Document} doc
+   */
+  function setupNavTabs(doc) {
+    doc = doc || (typeof document !== 'undefined' ? document : null);
+    if (!doc) return;
+
+    var tabButtons = doc.querySelectorAll('.tab-btn[data-target-view]');
+    var initialTarget = doc.querySelector('.tab-btn.active[data-target-view]');
+    var initialOverview = !initialTarget || initialTarget.getAttribute('data-target-view') === 'view-overview';
+    var initialHud = doc.getElementById('metrics-overview');
+    if (initialHud) {
+      initialHud.hidden = !initialOverview;
+      initialHud.style.display = initialOverview ? '' : 'none';
+    }
+    tabButtons.forEach(function (btn) {
+      if (btn.getAttribute('data-tab-bound') === '1') return;
+      btn.setAttribute('data-tab-bound', '1');
+
+      btn.addEventListener('click', function () {
+        var targetId = btn.getAttribute('data-target-view');
+        tabButtons.forEach(function (b) {
+          b.classList.remove('active');
+          b.setAttribute('aria-selected', 'false');
+        });
+        btn.classList.add('active');
+        btn.setAttribute('aria-selected', 'true');
+
+        var views = doc.querySelectorAll('.view-container');
+        views.forEach(function (v) {
+          if (v.id === targetId) {
+            v.removeAttribute('hidden');
+            v.style.display = 'flex';
+          } else {
+            v.setAttribute('hidden', '');
+            v.style.display = 'none';
+          }
+        });
+        var hud = doc.getElementById('metrics-overview');
+        if (hud) {
+          var showHud = targetId === 'view-overview';
+          hud.hidden = !showHud;
+          hud.style.display = showHud ? '' : 'none';
+        }
+      });
+    });
+
+    // Global search input
+    var searchInput = doc.getElementById('global-search-input');
+    if (searchInput && searchInput.getAttribute('data-search-bound') !== '1') {
+      searchInput.setAttribute('data-search-bound', '1');
+      searchInput.addEventListener('input', function () {
+        var query = searchInput.value.trim().toLowerCase();
+        var phaseApi = (typeof window !== 'undefined' && window.TMPhases) || (typeof globalThis !== 'undefined' && globalThis.TMPhases);
+        if (phaseApi && typeof phaseApi.setFilter === 'function') phaseApi.setFilter({ text: query }, doc);
+        else doc.querySelectorAll('.task-item').forEach(function (item) {
+          item.style.display = !query || item.textContent.toLowerCase().indexOf(query) !== -1 ? '' : 'none';
+        });
+      });
+    }
+
+    // Keyboard shortcuts: 1-7 for tabs
+    if (typeof window !== 'undefined' && !window.__TM_KEYBOARD_BOUND__) {
+      window.__TM_KEYBOARD_BOUND__ = true;
+      doc.addEventListener('keydown', function (e) {
+        if (e.target && (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA')) return;
+        var num = parseInt(e.key, 10);
+        if (num >= 1 && num <= 7) {
+          var targetBtn = tabButtons[num - 1];
+          if (targetBtn) targetBtn.click();
+        } else if (e.key === 'e' || e.key === 'E') {
+          var expandBtn = doc.getElementById('btn-expand-all');
+          if (expandBtn) expandBtn.click();
+        } else if (e.key === '/') {
+          e.preventDefault();
+          if (searchInput) searchInput.focus();
+        }
+      });
+    }
+  }
+
+  /**
+   * Combined render for convenience
+   * @param {object} state
+   * @param {Document} doc
+   */
+  function renderAll(state, doc) {
+    doc = doc || (typeof document !== 'undefined' ? document : null);
+    if (!doc || !state) return;
+    var core = getCore();
+    var metrics = core ? core.deriveMetrics(state) : null;
+    var insights = core && typeof core.deriveInsights === 'function' ? core.deriveInsights(state) : null;
+    renderHeader(state, doc);
+    renderHud(state, metrics, doc, insights);
+    setupNavTabs(doc);
+  }
+
+  var TMHeaderHud = {
+    renderHeader: renderHeader,
+    renderHud: renderHud,
+    setupNavTabs: setupNavTabs,
+    renderAll: renderAll
+  };
+
+  try { if (typeof window !== 'undefined') window.TMHeaderHud = TMHeaderHud; } catch (_) {}
+  try { if (typeof globalThis !== 'undefined') globalThis.TMHeaderHud = TMHeaderHud; } catch (_) {}
+  try { if (typeof global !== 'undefined') global.TMHeaderHud = TMHeaderHud; } catch (_) {}
+  try { if (typeof module !== 'undefined' && module.exports) module.exports = TMHeaderHud; } catch (_) {}
+
+})(typeof window !== 'undefined' ? window : typeof globalThis !== 'undefined' ? globalThis : typeof global !== 'undefined' ? global : this);
+
+</script>
+<script>
+// modules/04-phases.js — inlined
+// @ts-nocheck
+// modules/04-phases.js — Phases accordion, tasks, filters & Kanban view (PR4, classic script)
+// Depends on TMCore. Classic script, no fetch/import.
+// English code, Spanish UI via esc + phase/task data.
+
+(function (global) {
+  'use strict';
+
+  function getCore() {
+    return (typeof window !== 'undefined' && window.TMCore) || (typeof globalThis !== 'undefined' && globalThis.TMCore) || (typeof global !== 'undefined' && global.TMCore) || null;
+  }
+  function esc(s) {
+    var c = getCore();
+    return c ? c.escapeHtml(s) : String(s == null ? '' : s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/\"/g,'&quot;').replace(/'/g,'&#39;');
+  }
+  function normalizeStatus(s) {
+    var c = getCore();
+    if (c && c._normalizeStatus) return c._normalizeStatus(s);
+    if (s === 'completed' || s === 'in-progress' || s === 'pending' || s === 'blocked') return s;
+    return 'pending';
+  }
+  function statusBadgeClass(status) {
+    var n = normalizeStatus(status);
+    if (n === 'completed') return 'badge-completed';
+    if (n === 'in-progress') return 'badge-inprogress';
+    if (n === 'blocked') return 'badge-blocked';
+    return 'badge-pending';
+  }
+  function statusDotClass(status) {
+    var n = normalizeStatus(status);
+    if (n === 'completed') return 'completed';
+    if (n === 'in-progress') return 'inprogress';
+    if (n === 'blocked') return 'blocked';
+    return 'pending';
+  }
+  function statusLabel(status) {
+    var n = normalizeStatus(status);
+    if (n === 'completed') return 'Completado';
+    if (n === 'in-progress') return 'En Progreso';
+    if (n === 'blocked') return 'Bloqueado';
+    return 'Pendiente';
+  }
+
+  function filterDefaults() {
+    return { text: '', status: 'all', owner: '', tag: '', phase: '' };
+  }
+
+  function taskKey(record) {
+    return String(record.phaseId || '') + '::' + String(record.id || '');
+  }
+
+  function taskRecordFromElement(el) {
+    return {
+      id: el.getAttribute('data-task-id') || '',
+      title: el.getAttribute('data-task-title') || '',
+      note: el.getAttribute('data-task-note') || '',
+      status: el.getAttribute('data-status') || 'pending',
+      owner: el.getAttribute('data-owner') || 'Unassigned',
+      tag: el.getAttribute('data-tag') || 'Untagged',
+      phaseId: el.getAttribute('data-phase-id') || '',
+      phaseTitle: el.getAttribute('data-phase-title') || ''
+    };
+  }
+
+  function filterOptions(state) {
+    var owners = Object.create(null);
+    var tags = Object.create(null);
+    var phases = Object.create(null);
+    var source = state && Array.isArray(state.phases) ? state.phases : [];
+    source.forEach(function (phase, phaseIndex) {
+      var phaseId = String(phase && phase.id || ('phase-' + phaseIndex));
+      phases[phaseId] = String(phase && phase.title || ('Phase ' + (phaseIndex + 1)));
+      (Array.isArray(phase && phase.tasks) ? phase.tasks : []).forEach(function (task) {
+        owners[String(task && task.owner || '').trim() || 'Unassigned'] = true;
+        tags[String(task && task.tag || '').trim() || 'Untagged'] = true;
+      });
+    });
+    return { owners: Object.keys(owners).sort(), tags: Object.keys(tags).sort(), phases: phases };
+  }
+
+  function setOptions(select, values, selected) {
+    if (!select) return;
+    var html = '<option value="">All</option>';
+    values.forEach(function (value) {
+      var label = typeof value === 'object' ? value.label : value;
+      var optionValue = typeof value === 'object' ? value.value : value;
+      html += '<option value="' + esc(optionValue) + '">' + esc(label) + '</option>';
+    });
+    select.innerHTML = html;
+    select.value = selected || '';
+  }
+
+  function setupFilterControls(doc, state) {
+    var current = doc.__tmFilterState || filterDefaults();
+    var options = filterOptions(state);
+    setOptions(doc.getElementById('task-filter-owner'), options.owners, current.owner);
+    setOptions(doc.getElementById('task-filter-tag'), options.tags, current.tag);
+    setOptions(doc.getElementById('task-filter-phase'), Object.keys(options.phases).sort().map(function (id) {
+      return { value: id, label: options.phases[id] };
+    }), current.phase);
+
+    var bindings = [
+      ['task-filter-text', 'text', 'input'],
+      ['task-filter-status', 'status', 'change'],
+      ['task-filter-owner', 'owner', 'change'],
+      ['task-filter-tag', 'tag', 'change'],
+      ['task-filter-phase', 'phase', 'change']
+    ];
+    bindings.forEach(function (binding) {
+      var control = doc.getElementById(binding[0]);
+      if (!control || control.getAttribute('data-filter-bound') === '1') return;
+      control.setAttribute('data-filter-bound', '1');
+      control.addEventListener(binding[2], function () {
+        var next = {};
+        next[binding[1]] = control.value;
+        setFilter(next, doc);
+      });
+    });
+    var reset = doc.getElementById('task-filter-reset');
+    if (reset && reset.getAttribute('data-filter-bound') !== '1') {
+      reset.setAttribute('data-filter-bound', '1');
+      reset.addEventListener('click', function () { setFilter(filterDefaults(), doc); });
+    }
+  }
+
+  /**
+   * Render Kanban Board into #kanban-board-mount
+   */
+  function renderKanban(state, doc) {
+    doc = doc || (typeof document !== 'undefined' ? document : null);
+    if (!doc) return;
+    var mount = doc.getElementById('kanban-board-mount');
+    if (!mount) return;
+
+    var phases = (state && Array.isArray(state.phases)) ? state.phases : [];
+    var allTasks = [];
+    phases.forEach(function (phase, pIdx) {
+      var tasks = Array.isArray(phase.tasks) ? phase.tasks : [];
+      tasks.forEach(function (task) {
+        allTasks.push({
+          task: task,
+          phaseId: phase.id || ('phase-' + (pIdx + 1)),
+          phaseTitle: phase.title || ('Fase ' + (pIdx + 1)),
+          phaseNumber: phase.number != null ? phase.number : (pIdx + 1)
+        });
+      });
+    });
+
+    var totalCounter = doc.getElementById('kanban-total-counter');
+    if (totalCounter) totalCounter.textContent = allTasks.length + ' tareas en flujo';
+
+    var columns = [
+      { key: 'pending', label: 'Pendiente', badgeClass: 'badge-pending', dotClass: 'pending', accent: 'var(--accent-amber)' },
+      { key: 'in-progress', label: 'En Progreso', badgeClass: 'badge-inprogress', dotClass: 'inprogress', accent: 'var(--accent-blue)' },
+      { key: 'blocked', label: 'Bloqueado', badgeClass: 'badge-blocked', dotClass: 'blocked', accent: 'var(--accent-red)' },
+      { key: 'completed', label: 'Completado', badgeClass: 'badge-completed', dotClass: 'completed', accent: 'var(--accent-green)' }
+    ];
+
+    var html = '';
+    columns.forEach(function (col) {
+      var colTasks = allTasks.filter(function (item) {
+        return normalizeStatus(item.task.status) === col.key;
+      });
+
+      html += '<div class="kanban-column" style="border-top: 3px solid ' + col.accent + ';">'
+        + '<div class="kanban-column-header">'
+        + '<span style="display:flex;align-items:center;gap:6px;color:#fff;"><span class="badge-dot ' + col.dotClass + '"></span> ' + col.label + '</span>'
+        + '<span class="badge ' + col.badgeClass + '">' + colTasks.length + '</span>'
+        + '</div>'
+        + '<div class="kanban-cards-list">';
+
+      if (colTasks.length === 0) {
+        html += '<div style="color:var(--text-muted);font-size:12px;text-align:center;padding:24px 8px;font-style:italic;">Sin tareas</div>';
+      } else {
+        colTasks.forEach(function (item) {
+          var t = item.task || {};
+          var tId = esc(t.id || 'T');
+          var tTitle = esc(t.title || 'Tarea');
+          var tag = esc(t.tag || '');
+          var note = esc(t.note || '');
+          var owner = esc(t.owner || '');
+          var commit = esc(t.commit || '');
+
+          html += '<div class="task-item status-' + (col.key === 'in-progress' ? 'inprogress' : col.key) + '" data-task-id="' + tId + '" data-status="' + normalizeStatus(t.status) + '" data-task-title="' + esc(t.title || 'Tarea') + '" data-task-note="' + note + '" data-owner="' + esc(t.owner || 'Unassigned') + '" data-tag="' + tag + '" data-phase-id="' + esc(item.phaseId) + '" data-phase-title="' + esc(item.phaseTitle) + '" style="background:var(--bg-surface-primary);">'
+            + '<div style="display:flex;justify-content:space-between;align-items:flex-start;gap:8px;">'
+            + '<span class="badge-tag" style="color:var(--text-secondary);font-size:10px;">Fase ' + item.phaseNumber + '</span>'
+            + (tag ? '<span class="badge-tag">' + tag + '</span>' : '')
+            + '</div>'
+            + '<div style="font-size:13px;font-weight:500;color:#fff;line-height:1.35;"><span class="task-id">' + tId + '</span> ' + tTitle + '</div>'
+            + (note ? '<div style="font-size:11.5px;color:var(--text-secondary);line-height:1.3;padding-left:4px;border-left:2px solid var(--border-subtle);">' + note + '</div>' : '')
+            + '<div style="display:flex;justify-content:space-between;align-items:center;font-size:11px;color:var(--text-tertiary);margin-top:2px;">'
+             + '<span>Owner: ' + (owner || '—') + '</span>'
+            + (commit ? '<span style="font-family:var(--font-mono);">' + commit.substring(0,7) + '</span>' : '')
+            + '</div>'
+            + '</div>';
+        });
+      }
+
+      html += '</div></div>';
+    });
+
+    mount.innerHTML = html;
+    applyFilter(doc);
+  }
+
+  function renderPhases(state, metrics, doc) {
+    doc = doc || (typeof document !== 'undefined' ? document : null);
+    if (!doc) return;
+    var core = getCore();
+    if (!metrics && core && state) metrics = core.deriveMetrics(state);
+    if (!metrics) metrics = { overallPct: 0, total: 0, completed: 0, perPhase: [] };
+
+    var container = doc.getElementById('phases-list') || doc.querySelector('.phases-container');
+    if (!container) return;
+
+    var phases = (state && Array.isArray(state.phases)) ? state.phases : [];
+
+    if (phases.length === 0) {
+      container.innerHTML = '<div style="color:#8b949e;font-size:13px;padding:12px;text-align:center;">Sin fases definidas — la IA creará las fases aquí</div>';
+      attachEvents(doc, state, metrics);
+      setupFilterControls(doc, state);
+      renderKanban(state, doc);
+      applyFilter(doc);
+      return;
+    }
+
+    var html = '';
+    for (var i = 0; i < phases.length; i++) {
+      var phase = phases[i];
+      var phaseId = esc(phase.id || ('phase-' + (i+1)));
+      var phaseNumber = phase.number != null ? phase.number : (i+1);
+      var phaseNumberStr = 'PHASE ' + String(phaseNumber).padStart(2, '0');
+      var title = esc(phase.title || ('Fase ' + phaseNumber));
+      var status = normalizeStatus(phase.status);
+      var badgeCls = statusBadgeClass(status);
+      var dotCls = statusDotClass(status);
+      var badgeLabel = statusLabel(status);
+
+      var per = null;
+      for (var k = 0; k < metrics.perPhase.length; k++) {
+        if (metrics.perPhase[k].id === phase.id) { per = metrics.perPhase[k]; break; }
+      }
+      if (!per && metrics.perPhase[i]) per = metrics.perPhase[i];
+      var pct = per ? per.pct : 0;
+      var total = per ? per.total : (Array.isArray(phase.tasks) ? phase.tasks.length : 0);
+      var completed = per ? per.completed : 0;
+
+      var target = esc(phase.target || '');
+      var lead = esc(phase.lead || '');
+
+      html += '<div class="phase-card" id="phase-' + esc(String(phase.number || i+1)) + '" data-phase-id="' + phaseId + '" data-status="' + esc(status) + '">'
+        + '<button type=\"button\" class=\"phase-header\" aria-expanded=\"true\">'
+        + '<div class=\"phase-header-left\">'
+        + '<span class=\"phase-toggle-icon\"><svg width=\"18\" height=\"18\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\"><polyline points=\"6 9 12 15 18 9\"></polyline></svg></span>'
+        + '<span class=\"phase-number\">' + esc(phaseNumberStr) + '</span>'
+        + '<span class=\"phase-title-text\">' + title + '</span>'
+        + '</div>'
+        + '<div class=\"phase-header-right\">'
+        + '<span class=\"badge ' + badgeCls + ' phase-status-badge\"><span class=\"badge-dot ' + dotCls + '\"></span> ' + esc(badgeLabel) + '</span>'
+        + '<div class=\"phase-progress-info\"><div class=\"progress-track\"><div class=\"progress-bar ' + (status === 'completed' ? 'completed' : status === 'in-progress' ? 'inprogress' : status === 'blocked' ? 'blocked' : 'pending') + ' phase-bar\" style=\"width:' + pct + '%;\"></div></div><span class=\"phase-progress-pct\">' + pct + '%</span></div>'
+        + '</div>'
+        + '</button>'
+        + '<div class=\"phase-tasks-wrapper\">'
+        + '<div class=\"phase-meta-bar\"><span>' + (target ? 'Objetivo: ' + target + ' · ' : '') + (lead ? 'Responsable: ' + lead : '') + '</span><span class=\"phase-task-counter\">' + completed + ' / ' + total + ' tareas</span></div>';
+
+      var tasks = Array.isArray(phase.tasks) ? phase.tasks : [];
+      if (tasks.length === 0) {
+        html += '<div style=\"color:#8b949e;font-size:13px;padding:8px;text-align:center;\">Sin tareas en esta fase — 0%</div>';
+      } else {
+        for (var j = 0; j < tasks.length; j++) {
+          var task = tasks[j] || {};
+          var tId = esc(task.id || ('T' + (j+1)));
+          var tTitle = esc(task.title || 'Tarea sin título');
+          var tStatus = normalizeStatus(task.status);
+          var tBadgeCls = statusBadgeClass(tStatus);
+          var tDotCls = statusDotClass(tStatus);
+          var tBadgeLabel = statusLabel(tStatus);
+          var tag = esc(task.tag || '');
+          var note = esc(task.note || '');
+          var owner = esc(task.owner || '');
+          var commit = esc(task.commit || '');
+          var checked = tStatus === 'completed' ? ' checked' : '';
+          var itemStatusClass = tStatus === 'in-progress' ? 'status-inprogress' : 'status-' + tStatus;
+          var taskItemCls = 'task-item ' + itemStatusClass;
+
+          html += '<div class=\"' + taskItemCls + '\" data-task-id=\"' + tId + '\" data-status=\"' + tStatus + '\" data-task-title=\"' + esc(task.title || '') + '\" data-task-note=\"' + note + '\" data-owner=\"' + esc(task.owner || 'Unassigned') + '\" data-tag=\"' + tag + '\" data-phase-id=\"' + phaseId + '\" data-phase-title=\"' + title + '\">'
+            + '<div class=\"task-main-row\">'
+            + '<div class=\"task-checkbox-wrap\">'
+            + '<input type=\"checkbox\" class=\"custom-checkbox task-check\" id=\"chk-' + tId + '\"' + checked + ' disabled />'
+            + '<label for=\"chk-' + tId + '\" class=\"task-title\"><span class=\"task-id\">' + tId + '</span> ' + tTitle + '</label>'
+            + '</div>'
+            + '<div class=\"task-badges\">'
+            + (tag ? '<span class=\"badge-tag\">' + tag + '</span>' : '')
+            + '<span class=\"badge ' + tBadgeCls + '\"><span class=\"badge-dot ' + tDotCls + '\"></span> ' + tBadgeLabel + '</span>'
+            + '</div>'
+            + '</div>'
+            + (note ? '<p class=\"task-note\">' + note + '</p>' : '')
+            + '<div class=\"task-footer-row\"><span class=\"task-owner-pill\">👤 ' + (owner || '—') + '</span><span>' + (commit ? 'commit <code>' + commit.substring(0,7) + '</code>' : '') + '</span></div>'
+            + '</div>';
+        }
+      }
+
+      html += '</div></div>';
+    }
+
+    container.innerHTML = html;
+
+    attachEvents(doc, state, metrics);
+    setupFilterControls(doc, state);
+    applyFilterFromStorage(doc);
+    renderKanban(state, doc);
+    applyFilter(doc);
+  }
+
+  function attachEvents(doc, state, metrics) {
+    // Accordion toggles
+    var headers = doc.querySelectorAll('.phase-header');
+    headers.forEach(function (btn) {
+      if (btn.getAttribute('data-phases-bound') === '1') return;
+      btn.setAttribute('data-phases-bound', '1');
+      btn.addEventListener('click', function () {
+        var card = btn.closest('.phase-card');
+        if (!card) return;
+        var isCollapsed = card.classList.contains('collapsed');
+        if (isCollapsed) {
+          card.classList.remove('collapsed');
+          btn.setAttribute('aria-expanded', 'true');
+        } else {
+          card.classList.add('collapsed');
+          btn.setAttribute('aria-expanded', 'false');
+        }
+      });
+    });
+
+    // Expand All button
+    var expandBtn = doc.getElementById('btn-expand-all');
+    if (expandBtn && expandBtn.getAttribute('data-phases-bound') !== '1') {
+      expandBtn.setAttribute('data-phases-bound', '1');
+      expandBtn.addEventListener('click', function () {
+        var cards = doc.querySelectorAll('.phase-card');
+        var anyCollapsed = false;
+        cards.forEach(function (c) { if (c.classList.contains('collapsed')) anyCollapsed = true; });
+        cards.forEach(function (c) {
+          if (anyCollapsed) {
+            c.classList.remove('collapsed');
+            var b = c.querySelector('.phase-header');
+            if (b) b.setAttribute('aria-expanded', 'true');
+          } else {
+            c.classList.add('collapsed');
+            var b2 = c.querySelector('.phase-header');
+            if (b2) b2.setAttribute('aria-expanded', 'false');
+          }
+        });
+        expandBtn.textContent = anyCollapsed ? 'Collapse All' : 'Expand All';
+      });
+    }
+
+    // Filter buttons
+    var btnAll = doc.getElementById('btn-filter-all');
+    var btnActive = doc.getElementById('btn-filter-active');
+    if (btnAll && btnAll.getAttribute('data-phases-bound') !== '1') {
+      btnAll.setAttribute('data-phases-bound', '1');
+      btnAll.addEventListener('click', function () {
+        setFilter({ status: 'all' }, doc);
+      });
+    }
+    if (btnActive && btnActive.getAttribute('data-phases-bound') !== '1') {
+      btnActive.setAttribute('data-phases-bound', '1');
+      btnActive.addEventListener('click', function () {
+        setFilter({ status: 'active' }, doc);
+      });
+    }
+
+    var current = doc.__tmFilterState || { status: getStoredFilter() };
+    updateFilterButtons(doc, current.status);
+  }
+
+  function getStoredFilter() {
+    try {
+      if (typeof localStorage !== 'undefined') {
+        var v = localStorage.getItem('tm-filter');
+        if (v === 'active' || v === 'all') return v;
+      }
+    } catch (_) {}
+    try {
+      if (typeof window !== 'undefined' && window.localStorage) {
+        var wv = window.localStorage.getItem('tm-filter');
+        if (wv === 'active' || wv === 'all') return wv;
+      }
+    } catch (_) {}
+    return 'all';
+  }
+
+  function setStoredFilter(val) {
+    try { if (typeof localStorage !== 'undefined') localStorage.setItem('tm-filter', val); } catch (_) {}
+    try { if (typeof window !== 'undefined' && window.localStorage) window.localStorage.setItem('tm-filter', val); } catch (_) {}
+  }
+
+  function updateFilterButtons(doc, filter) {
+    var btnAll = doc.getElementById('btn-filter-all');
+    var btnActive = doc.getElementById('btn-filter-active');
+    if (btnAll) btnAll.classList.toggle('active', filter === 'all');
+    if (btnActive) btnActive.classList.toggle('active', filter === 'active');
+  }
+
+  function setFilter(filter, doc) {
+    doc = doc || (typeof document !== 'undefined' ? document : null);
+    if (!doc) return;
+    var next = doc.__tmFilterState || filterDefaults();
+    if (typeof filter === 'string') next = Object.assign(next, { status: filter });
+    else next = Object.assign(next, filter || {});
+    if (!next.status) next.status = 'all';
+    doc.__tmFilterState = next;
+    if (next.status === 'all' || next.status === 'active') setStoredFilter(next.status);
+    updateFilterButtons(doc, next.status);
+    var controls = {
+      text: doc.getElementById('task-filter-text'),
+      status: doc.getElementById('task-filter-status'),
+      owner: doc.getElementById('task-filter-owner'),
+      tag: doc.getElementById('task-filter-tag'),
+      phase: doc.getElementById('task-filter-phase')
+    };
+    Object.keys(controls).forEach(function (key) { if (controls[key]) controls[key].value = next[key] || ''; });
+    applyFilter(doc);
+  }
+
+  function applyFilterFromStorage(doc) {
+    var f = getStoredFilter();
+    setFilter({ status: f === 'active' ? 'active' : 'all' }, doc);
+  }
+
+  function applyFilter(doc) {
+    var current = doc.__tmFilterState || filterDefaults();
+    var core = getCore();
+    var visible = Object.create(null);
+    var total = Object.create(null);
+    var items = doc.querySelectorAll('.task-item');
+    items.forEach(function (el) {
+      var record = taskRecordFromElement(el);
+      var key = taskKey(record);
+      var matches = core && typeof core.matchesTask === 'function' ? core.matchesTask(record, current) : true;
+      total[key] = true;
+      if (matches) visible[key] = true;
+      el.style.display = matches ? '' : 'none';
+      if (matches) el.removeAttribute('data-filter-hidden');
+      else el.setAttribute('data-filter-hidden', '1');
+    });
+    var totalCount = Object.keys(total).length;
+    var visibleCount = Object.keys(visible).length;
+    var counter = doc.getElementById('filter-result-count');
+    if (counter) counter.textContent = visibleCount + ' / ' + totalCount + ' visible';
+    var empty = doc.getElementById('filter-empty-state');
+    if (empty) empty.hidden = !(totalCount > 0 && visibleCount === 0);
+  }
+
+  var TMPhases = {
+    renderPhases: renderPhases,
+    renderKanban: renderKanban,
+    setFilter: setFilter,
+    getStoredFilter: getStoredFilter,
+    getFilterState: function (doc) { return Object.assign(filterDefaults(), doc && doc.__tmFilterState || {}); },
+    applyFilter: applyFilter
+  };
+
+  try { if (typeof window !== 'undefined') window.TMPhases = TMPhases; } catch (_) {}
+  try { if (typeof globalThis !== 'undefined') globalThis.TMPhases = TMPhases; } catch (_) {}
+  try { if (typeof global !== 'undefined') global.TMPhases = TMPhases; } catch (_) {}
+  try { if (typeof module !== 'undefined' && module.exports) module.exports = TMPhases; } catch (_) {}
+
+})(typeof window !== 'undefined' ? window : typeof globalThis !== 'undefined' ? globalThis : typeof global !== 'undefined' ? global : this);
+
+</script>
+<script>
+// modules/05-panels.js — inlined
+// @ts-nocheck
+// modules/05-panels.js — Flag-gated optional panels: git, tree, codegraph (PR5, classic script)
+// Depends on TMCore. Classic script, no fetch/import. Containment try/catch per panel.
+
+(function (global) {
+  'use strict';
+
+  function getCore() {
+    return (typeof window !== 'undefined' && window.TMCore) || (typeof globalThis !== 'undefined' && globalThis.TMCore) || (typeof global !== 'undefined' && global.TMCore) || null;
+  }
+  function esc(s) {
+    var c = getCore();
+    return c ? c.escapeHtml(s) : String(s == null ? '' : s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/\"/g,'&quot;').replace(/'/g,'&#39;');
+  }
+  function isEnabled(feature, state) {
+    var c = getCore();
+    return c ? c.isEnabled(feature, state) : !!(state && state.meta && state.meta.features && state.meta.features[feature] === true);
+  }
+
+  function renderGit(state, doc) {
+    doc = doc || (typeof document !== 'undefined' ? document : null);
+    if (!doc) return;
+    var panel = doc.getElementById('git-details-panel');
+    if (!panel) return;
+    try {
+      if (!isEnabled('git', state)) {
+        panel.style.display = 'none';
+        panel.setAttribute('hidden', '');
+        return;
+      }
+      panel.style.display = '';
+      panel.removeAttribute('hidden');
+
+      var body = panel.querySelector('.panel-body');
+      if (!body) return;
+
+      var git = (state && state.git) ? state.git : null;
+      var gitBranch = git && git.branch ? git.branch : '';
+      var branch = gitBranch || (state && state.meta && state.meta.branch) || '';
+      var commits = (git && Array.isArray(git.commits)) ? git.commits : [];
+      var gitSync = git && git.syncStatus ? git.syncStatus : '';
+      var syncStatus = gitSync || (state && state.meta && state.meta.syncStatus) || '';
+
+      // Flag on but empty -> sin datos (check git data only, not meta fallback)
+      if (!gitBranch && commits.length === 0 && !gitSync) {
+        body.innerHTML = '<div style="color:#8b949e;font-size:13px;">sin datos — la IA copiará rama y commits al JSON si está disponible</div>';
+        return;
+      }
+
+      // Render snapshot verbatim, zero runtime calls
+      var html = '';
+      html += '<div style="display:flex;flex-direction:column;gap:12px;">';
+      if (branch) {
+        html += '<div style="display:flex;align-items:center;justify-content:space-between;background:var(--bg-surface-secondary);padding:8px 12px;border-radius:6px;border:1px solid var(--border-subtle);">'
+          + '<div style="display:flex;align-items:center;gap:8px;font-family:var(--font-mono);font-size:13px;color:#fff;"><span style="color:var(--text-tertiary);">branch:</span> <span style="color:var(--accent-blue);font-weight:600;">' + esc(branch) + '</span></div>'
+          + (syncStatus ? '<span class="badge" style="color:var(--accent-green);border-color:rgba(63,185,80,0.3);font-size:10px;"><span class="badge-dot completed"></span> ' + esc(syncStatus) + '</span>' : '')
+          + '</div>';
+      }
+      if (commits.length > 0) {
+        html += '<div style="display:flex;flex-direction:column;gap:8px;position:relative;margin-top:4px;">';
+        for (var i = 0; i < commits.length; i++) {
+          var c = commits[i] || {};
+          var hash = esc(c.hash || '');
+          var msg = esc(c.message || c.msg || '');
+          var short = hash ? hash.substring(0, 7) : '';
+          html += '<div style="display:flex;gap:12px;align-items:flex-start;position:relative;padding:8px 10px;background:var(--bg-surface-secondary);border:1px solid var(--border-subtle);border-radius:6px;">'
+            + '<div style="width:14px;height:14px;border-radius:50%;background:var(--bg-surface-primary);border:2px solid var(--accent-purple);flex-shrink:0;margin-top:3px;box-shadow:0 0 8px rgba(188,140,255,0.4);"></div>'
+            + '<div style="flex:1;display:flex;flex-direction:column;gap:3px;min-width:0;">'
+            + '<div style="font-size:12.5px;color:#fff;font-weight:500;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">' + (msg || '<span style="color:#8b949e;">sin mensaje</span>') + '</div>'
+            + '<div style="display:flex;align-items:center;gap:8px;font-size:11px;color:var(--text-tertiary);font-family:var(--font-mono);">'
+            + '<span style="background:rgba(255,255,255,0.06);padding:1px 5px;border-radius:3px;color:var(--accent-purple);">' + esc(short) + '</span>'
+            + '</div>'
+            + '</div></div>';
+        }
+        html += '</div>';
+      } else {
+        html += '<div style="color:#8b949e;font-size:13px;margin-top:8px;">sin commits</div>';
+      }
+      html += '</div>';
+      body.innerHTML = html;
+
+      // Also mirror to #full-git-mount if available
+      var fullGit = doc.getElementById('full-git-mount');
+      if (fullGit) {
+        fullGit.innerHTML = '<div class="panel-card">'
+          + '<div class="panel-header"><div class="panel-title"><span>🌿 Git Commit Timeline & Activity</span></div><span class="badge" style="color:var(--accent-purple);">' + commits.length + ' commits</span></div>'
+          + '<div class="panel-body">' + html + '</div>'
+          + '</div>';
+      }
+    } catch (e) {
+      try {
+        var b = panel.querySelector('.panel-body');
+        if (b) b.innerHTML = '<div style="color:#8b949e;font-size:13px;">sin datos — error contenido</div>';
+        panel.style.display = '';
+        panel.removeAttribute('hidden');
+      } catch (_) {}
+    }
+  }
+
+  function renderTree(state, doc) {
+    doc = doc || (typeof document !== 'undefined' ? document : null);
+    if (!doc) return;
+    var panel = doc.getElementById('project-structure-panel');
+    if (!panel) return;
+    try {
+      if (!isEnabled('tree', state)) {
+        panel.style.display = 'none';
+        panel.setAttribute('hidden', '');
+        return;
+      }
+      panel.style.display = '';
+      panel.removeAttribute('hidden');
+
+      var body = panel.querySelector('.panel-body');
+      if (!body) return;
+
+      var tree = state && state.tree;
+      if (!Array.isArray(tree)) {
+        if (tree != null && typeof tree !== 'undefined') {
+          body.innerHTML = '<div style="color:#8b949e;font-size:13px;">sin datos — formato de árbol inválido contenido</div>';
+          return;
+        }
+        tree = [];
+      }
+
+      if (tree.length === 0) {
+        body.innerHTML = '<div style="color:#8b949e;font-size:13px;">sin datos — árbol del proyecto aparecerá aquí</div>';
+        return;
+      }
+
+      var html = '<div class="tree-view" style="font-family:var(--font-mono);font-size:12px;color:#a0a0a0;line-height:1.8;background:#12161d;border:1px solid #30363d;border-radius:6px;padding:14px 16px;max-height:380px;overflow-y:auto;">';
+      for (var i = 0; i < tree.length; i++) {
+        var node = tree[i];
+        if (!node || typeof node !== 'object' || typeof node.name !== 'string') {
+          continue;
+        }
+        var name = esc(node.name);
+        var depth = typeof node.depth === 'number' && node.depth >= 0 ? node.depth : 0;
+        var type = node.type === 'dir' ? 'dir' : 'file';
+        var indent = depth * 14;
+        var icon = type === 'dir' ? '📁' : '📄';
+        var cls = type === 'dir' ? 'tree-node dir' : 'tree-node';
+        html += '<div class="' + cls + '" style="display:flex;align-items:center;gap:6px;padding-left:' + indent + 'px;">' + esc(icon) + ' ' + name + '</div>';
+      }
+      if (html === '<div class="tree-view"') {
+        html += '<div style="color:#8b949e;">sin datos</div>';
+      }
+      html += '</div>';
+      body.innerHTML = html;
+
+      var fullTree = doc.getElementById('full-tree-mount');
+      if (fullTree) {
+        fullTree.innerHTML = '<div class="panel-card">'
+          + '<div class="panel-header"><div class="panel-title"><span>📁 Estructura del Repositorio & Blueprint</span></div><span class="badge">' + tree.length + ' elementos</span></div>'
+          + '<div class="panel-body">' + html + '</div>'
+          + '</div>';
+      }
+    } catch (e) {
+      try {
+        var b2 = panel.querySelector('.panel-body');
+        if (b2) b2.innerHTML = '<div style="color:#8b949e;font-size:13px;">sin datos — error contenido</div>';
+        panel.style.display = '';
+        panel.removeAttribute('hidden');
+      } catch (_) {}
+    }
+  }
+
+  function renderCodegraph(state, doc) {
+    doc = doc || (typeof document !== 'undefined' ? document : null);
+    if (!doc) return;
+    var panel = doc.getElementById('codegraph-panel');
+    if (!panel) return;
+    try {
+      if (!isEnabled('codegraph', state)) {
+        panel.style.display = 'none';
+        panel.setAttribute('hidden', '');
+        return;
+      }
+      panel.style.display = '';
+      panel.removeAttribute('hidden');
+
+      var body = panel.querySelector('.panel-body');
+      if (!body) return;
+
+      var cg = state && state.codegraph;
+      var nodes = (cg && Array.isArray(cg.nodes)) ? cg.nodes : [];
+      var edges = (cg && Array.isArray(cg.edges)) ? cg.edges : [];
+
+      if (nodes.length === 0 && edges.length === 0) {
+        body.innerHTML = '<div style="color:#8b949e;font-size:13px;">sin datos — grafo de dependencias</div>';
+        return;
+      }
+
+      var svgW = Math.max(320, nodes.length * 80);
+      var svgH = 230;
+      var html = '<div class="codegraph-container" style="background:#12161d;border:1px solid #30363d;border-radius:6px;padding:14px;overflow-x:auto;">';
+      html += '<svg class="codegraph-svg" viewBox="0 0 ' + svgW + ' ' + svgH + '\" width="100%" height="' + svgH + '" style="display:block;min-width:320px;">';
+
+      for (var e = 0; e < edges.length; e++) {
+        var edge = edges[e];
+        if (!edge || typeof edge.from !== 'string' || typeof edge.to !== 'string') continue;
+        var fromIdx = -1, toIdx = -1;
+        for (var n = 0; n < nodes.length; n++) {
+          if (nodes[n].id === edge.from) fromIdx = n;
+          if (nodes[n].id === edge.to) toIdx = n;
+        }
+        if (fromIdx === -1 || toIdx === -1) continue;
+        var x1 = 40 + fromIdx * 80;
+        var y1 = svgH / 2;
+        var x2 = 40 + toIdx * 80;
+        var y2 = svgH / 2;
+        html += '<line x1="' + x1 + '" y1="' + y1 + '" x2="' + x2 + '" y2="' + y2 + '" stroke="#58a6ff" stroke-width="1.5" stroke-opacity="0.4" stroke-dasharray="3,3" />';
+      }
+      for (var i = 0; i < nodes.length; i++) {
+        var node = nodes[i];
+        if (!node || typeof node.id !== 'string') continue;
+        var label = esc(node.label || node.id);
+        var cx = 40 + i * 80;
+        var cy = svgH / 2;
+        html += '<g class="graph-node" transform="translate(' + cx + ',' + cy + ')" style="cursor:pointer;">'
+          + '<circle r="20" fill="#161b22" stroke="#58a6ff" stroke-width="2" style="filter:drop-shadow(0 0 6px rgba(88,166,255,0.4));" />'
+          + '<text text-anchor="middle" dy="4" font-family="var(--font-mono)" font-size="10.5" font-weight="600" fill="#fff">' + esc(String(label).substring(0, 6)) + '</text>'
+          + '</g>';
+      }
+      html += '</svg>';
+      html += '<div class="graph-legend" style="display:flex;flex-wrap:wrap;gap:12px;margin-top:10px;padding-top:10px;border-top:1px solid #30363d;font-size:11px;color:#8b949e;">'
+        + '<div class="legend-item" style="display:flex;align-items:center;gap:5px;"><span style="width:10px;height:10px;border-radius:50%;background:#58a6ff;display:inline-block;box-shadow:0 0 6px #58a6ff;"></span> Nodo Módulo</div>'
+        + '<div class="legend-item" style="display:flex;align-items:center;gap:5px;"><span style="width:16px;height:2px;background:#58a6ff;display:inline-block;"></span> Dependencia</div>'
+        + '<div class="legend-item"> ' + nodes.length + ' nodos · ' + edges.length + ' aristas</div>'
+        + '</div>';
+      html += '</div>';
+      body.innerHTML = html;
+
+      var fullCg = doc.getElementById('full-codegraph-mount');
+      if (fullCg) {
+        fullCg.innerHTML = '<div class="panel-card">'
+          + '<div class="panel-header"><div class="panel-title"><span>🕸️ Codegraph & Arquitectura de Dependencias</span></div><span class="badge" style="color:var(--accent-blue);">' + nodes.length + ' módulos</span></div>'
+          + '<div class="panel-body">' + html + '</div>'
+          + '</div>';
+      }
+    } catch (e) {
+      try {
+        var b3 = panel.querySelector('.panel-body');
+        if (b3) b3.innerHTML = '<div style="color:#8b949e;font-size:13px;">sin datos — error contenido</div>';
+        panel.style.display = '';
+        panel.removeAttribute('hidden');
+      } catch (_) {}
+    }
+  }
+
+  function renderAllPanels(state, doc) {
+    renderGit(state, doc);
+    renderTree(state, doc);
+    renderCodegraph(state, doc);
+  }
+
+  var TMPanel = {
+    renderGit: renderGit,
+    renderTree: renderTree,
+    renderCodegraph: renderCodegraph,
+    renderAllPanels: renderAllPanels
+  };
+
+  try { if (typeof window !== 'undefined') window.TMPanel = TMPanel; } catch (_) {}
+  try { if (typeof globalThis !== 'undefined') globalThis.TMPanel = TMPanel; } catch (_) {}
+  try { if (typeof global !== 'undefined') global.TMPanel = TMPanel; } catch (_) {}
+  try { if (typeof module !== 'undefined' && module.exports) module.exports = TMPanel; } catch (_) {}
+
+})(typeof window !== 'undefined' ? window : typeof globalThis !== 'undefined' ? globalThis : typeof global !== 'undefined' ? global : this);
+
+</script>
+<script>
+// modules/06-todo-help.js — inlined
+// @ts-nocheck
+// modules/06-todo-help.js — Todo scratchpad + Help tab & AI Console (PR6, classic script)
+// Depends on TMCore. Classic script, no fetch.
+
+(function (global) {
+  'use strict';
+
+  function getCore() {
+    return (typeof window !== 'undefined' && window.TMCore) || (typeof globalThis !== 'undefined' && globalThis.TMCore) || (typeof global !== 'undefined' && global.TMCore) || null;
+  }
+  function esc(s) {
+    var c = getCore();
+    return c ? c.escapeHtml(s) : String(s == null ? '' : s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/\"/g,'&quot;').replace(/'/g,'&#39;');
+  }
+  function label(key, state, fallback) {
+    if (state && state.meta && state.meta.labels && state.meta.labels.es && typeof state.meta.labels.es[key] === 'string' && state.meta.labels.es[key]) {
+      return state.meta.labels.es[key];
+    }
+    return fallback;
+  }
+
+  function priorityBadgeClass(priority) {
+    if (priority === 'P0') return 'badge-blocked';
+    if (priority === 'P1') return 'badge-completed';
+    if (priority === 'P2') return 'badge-pending';
+    return 'badge-tag';
+  }
+  function priorityLabel(priority) {
+    if (priority === 'P0') return 'P0 Urgente';
+    if (priority === 'P1') return 'P1 Alta';
+    if (priority === 'P2') return 'P2 Normal';
+    return priority || '—';
+  }
+
+  function readState(doc) {
+    var island = doc && doc.getElementById('tm-state');
+    var raw = island ? (island.textContent || '') : '';
+    var core = getCore();
+    var parsed = null;
+    var validation = { ok: false, errors: [], warnings: [] };
+    try {
+      parsed = core && typeof core.parseIsland === 'function' ? core.parseIsland(raw) : JSON.parse(raw);
+      validation = core && typeof core.validateState === 'function' ? core.validateState(parsed) : validation;
+    } catch (e) {
+      validation.errors.push(e && e.message ? e.message : String(e));
+    }
+    if (core && parsed && typeof core.deriveInsights === 'function') {
+      var insights = core.deriveInsights(parsed, validation);
+      validation.errors = insights.diagnostics.errors;
+      validation.warnings = insights.diagnostics.warnings;
+    }
+    return { island: island, raw: raw, parsed: parsed, validation: validation };
+  }
+
+  function formatStateValue(source) {
+    try { return JSON.stringify(source, null, 2); } catch (_) { return String(source == null ? '' : source); }
+  }
+
+  function projectFileName(state) {
+    var name = state && state.meta && state.meta.projectName || 'drop-in-task-manager';
+    name = String(name).trim().replace(/[^a-z0-9]+/gi, '-').replace(/^-+|-+$/g, '').slice(0, 80);
+    return (name || 'drop-in-task-manager') + '-state.json';
+  }
+
+  function setFeedback(root, selector, message, error) {
+    var el = root && root.querySelector(selector);
+    if (el) { el.textContent = message; el.setAttribute('data-state-feedback', error ? 'error' : 'ok'); }
+  }
+
+  function copyText(doc, text, done) {
+    var win = doc && doc.defaultView || (typeof window !== 'undefined' ? window : global);
+    var clipboard = win && win.navigator && win.navigator.clipboard;
+    function fallback() {
+      var ta = doc.createElement('textarea');
+      ta.value = text;
+      ta.setAttribute('data-copy-fallback', '1');
+      ta.setAttribute('aria-hidden', 'true');
+      ta.style.position = 'fixed'; ta.style.opacity = '0';
+      doc.body.appendChild(ta); ta.select();
+      var ok = false;
+      try { ok = doc.execCommand('copy'); } catch (_) {}
+      if (ta.parentNode) ta.parentNode.removeChild(ta);
+      done(ok);
+    }
+    if (clipboard && typeof clipboard.writeText === 'function') {
+      try { Promise.resolve(clipboard.writeText(text)).then(function () { done(true); }, fallback); } catch (_) { fallback(); }
+    } else fallback();
+  }
+
+  function exportState(doc, state, text) {
+    var win = doc && doc.defaultView || (typeof window !== 'undefined' ? window : global);
+    var name = projectFileName(state);
+    var url = '';
+    var link = doc.createElement('a');
+    try {
+      if (win && typeof win.Blob === 'function' && win.URL && typeof win.URL.createObjectURL === 'function') {
+        try { url = win.URL.createObjectURL(new win.Blob([text], { type: 'application/json' })); } catch (_) {}
+      } else {
+        url = 'data:application/json;charset=utf-8,' + encodeURIComponent(text);
+      }
+      if (!url) url = 'data:application/json;charset=utf-8,' + encodeURIComponent(text);
+      link.href = url; link.download = name; link.style.display = 'none';
+      doc.body.appendChild(link); link.click();
+      if (link.parentNode) link.parentNode.removeChild(link);
+      if (win && win.URL && typeof win.URL.revokeObjectURL === 'function' && url.indexOf('blob:') === 0) win.URL.revokeObjectURL(url);
+      return true;
+    } catch (_) { if (link.parentNode) link.parentNode.removeChild(link); return false; }
+  }
+
+  function renderStateTools(state, doc, validation, mountId) {
+    var mount = doc.getElementById(mountId || 'state-inspection-mount');
+    if (!mount) return;
+    var snapshot = readState(doc);
+    var info = validation || {};
+    var errorList = (snapshot.validation.errors || []).concat(Array.isArray(info.errors) ? info.errors : []);
+    var warningList = (snapshot.validation.warnings || []).concat(Array.isArray(info.warnings) ? info.warnings : []);
+    var source = snapshot.parsed || snapshot.raw;
+    var text = snapshot.parsed ? formatStateValue(source) : snapshot.raw;
+    var errors = errorList.filter(function (item, index, list) { return list.indexOf(item) === index; });
+    var warnings = warningList.filter(function (item, index, list) { return list.indexOf(item) === index; });
+    var diagnostics = errors.concat(warnings);
+    var errorHtml = errors.length ? '<strong>Errors</strong><ul>' + errors.map(function (item) { return '<li>' + esc(item) + '</li>'; }).join('') + '</ul>' : '';
+    var warningHtml = warnings.length ? '<strong>Warnings</strong><ul>' + warnings.map(function (item) { return '<li>' + esc(item) + '</li>'; }).join('') + '</ul>' : '';
+    var diagnosticHtml = diagnostics.length ? errorHtml + warningHtml : '<strong>Health</strong><p>No diagnostics</p>';
+    mount.innerHTML = '<section class="state-tools" aria-labelledby="state-tools-title">'
+      + '<h4 id="state-tools-title">State diagnostics & inspection</h4>'
+      + '<div id="tm-diagnostics" role="status"><strong>' + (errors.length ? 'Errors' : 'Health') + '</strong><ul>' + diagnosticHtml + '</ul></div>'
+      + '<pre id="tm-state-json" aria-label="Read-only state JSON">' + esc(text) + '</pre>'
+      + '<div class="state-tools-actions">'
+      + '<button type="button" class="btn btn-secondary btn-sm" data-state-copy>Copy State JSON</button>'
+      + '<button type="button" class="btn btn-secondary btn-sm" data-state-export>Export JSON</button>'
+      + '<span data-state-copy-feedback aria-live="polite"></span><span data-state-export-feedback aria-live="polite"></span>'
+      + '</div></section>';
+    var copy = mount.querySelector('[data-state-copy]');
+    var exportButton = mount.querySelector('[data-state-export]');
+    if (copy) copy.addEventListener('click', function () { copyText(doc, text, function (ok) { setFeedback(mount, '[data-state-copy-feedback]', ok ? 'Copied' : 'Copy failed', !ok); }); });
+    if (exportButton) exportButton.addEventListener('click', function () { var ok = exportState(doc, snapshot.parsed || state, text); setFeedback(mount, '[data-state-export-feedback]', ok ? 'Exported' : 'Export failed', !ok); });
+  }
+
+  function renderTodo(state, doc) {
+    doc = doc || (typeof document !== 'undefined' ? document : null);
+    if (!doc) return;
+    var container = doc.getElementById('todo-items-container') || doc.querySelector('.todo-list');
+    if (!container) return;
+
+    var todos = (state && Array.isArray(state.todos)) ? state.todos : [];
+
+    // Update todo count badge in header if exists
+    var countBadge = doc.getElementById('todo-count-badge');
+    if (countBadge) {
+      countBadge.textContent = todos.length + ' items';
+    }
+
+    if (todos.length === 0) {
+      container.innerHTML = '<div style="color:#8b949e;font-size:13px;padding:8px;text-align:center;">Sin tareas rápidas — la IA las añadirá aquí</div>';
+      return;
+    }
+
+    var html = '';
+    for (var i = 0; i < todos.length; i++) {
+      var td = todos[i] || {};
+      var id = esc(td.id || ('td-' + (i+1)));
+      var text = esc(td.text || '');
+      var priority = td.priority || 'P2';
+      var done = !!td.done;
+      var badgeCls = priorityBadgeClass(priority);
+      var pLabel = esc(priorityLabel(priority));
+
+      html += '<div class="todo-item' + (done ? ' done' : '') + '" data-id="' + id + '">'
+        + '<div class="todo-left">'
+        + '<input type="checkbox" class="custom-checkbox todo-check" id="chk-' + id + '"' + (done ? ' checked' : '') + ' disabled />'
+        + '<label for="chk-' + id + '" class="todo-text">' + text + '</label>'
+        + '</div>'
+        + '<div style="display:flex;gap:6px;align-items:center;">'
+        + '<span class="badge ' + badgeCls + '">' + pLabel + '</span>'
+        + '<button class="btn-icon btn-todo-del" title="Remove" style="cursor:pointer;border:none;background:transparent;color:var(--text-tertiary);">✕</button>'
+        + '</div>'
+        + '</div>';
+    }
+    container.innerHTML = html;
+  }
+
+  function renderHelp(state, doc, validation) {
+    doc = doc || (typeof document !== 'undefined' ? document : null);
+    if (!doc) return;
+    var panel = doc.getElementById('help-panel');
+    if (!panel) return;
+
+    // Respect features.help flag if present (default true)
+    var core = getCore();
+    if (core && state && state.meta && state.meta.features && state.meta.features.help === false) {
+      panel.style.display = 'none';
+      panel.setAttribute('hidden', '');
+      return;
+    }
+    panel.style.display = '';
+    panel.removeAttribute('hidden');
+
+    var todoTitle = label('todoTitle', state, 'Tareas Rápidas');
+    var helpTitle = label('helpTitle', state, 'Ayuda — Cómo usar este archivo');
+    var filterAll = label('filterAll', state, 'Todas');
+    var filterActive = label('filterActive', state, 'Activas');
+
+    var helpHtml = ''
+      + '<h3 style="color:#fff;margin-bottom:8px;">' + esc(helpTitle) + '</h3>'
+      + '<p style="font-size:13px;color:#a0a0a0;margin-bottom:8px;">Este es un archivo HTML <strong>drop-in</strong>. Cópialo a cualquier carpeta de proyecto y ábrelo con doble clic (<code style="background:#12161d;padding:2px 6px;border-radius:4px;">file://</code>). No necesita servidor ni instalación.</p>'
+      + '<div style="background:#12161d;border:1px solid #30363d;border-radius:8px;padding:12px;margin-bottom:12px;">'
+      + '<h4 style="color:#fff;font-size:13px;margin-bottom:6px;">📋 Cómo copiar</h4>'
+      + '<ol style="font-size:13px;color:#a0a0a0;padding-left:18px;display:flex;flex-direction:column;gap:4px;">'
+      + '<li>Copia <code style="background:#1c222b;padding:2px 6px;border-radius:4px;">drop-in-task-manager.html</code> a la raíz del proyecto</li>'
+      + '<li>Doble clic para abrir en el navegador (file://)</li>'
+      + '<li>Verás fases, tareas, progreso y paneles opcionales</li>'
+      + '</ol>'
+      + '</div>'
+
+      + '<div style="background:#12161d;border:1px solid #30363d;border-radius:8px;padding:12px;margin-bottom:12px;">'
+      + '<h4 style="color:#fff;font-size:13px;margin-bottom:6px;">🤖 Cómo la IA actualiza</h4>'
+      + '<p style="font-size:13px;color:#a0a0a0;margin-bottom:6px;">La IA orquestadora actualiza <strong>SOLO</strong> el bloque <code style="background:#1c222b;padding:2px 6px;border-radius:4px;">#tm-state</code> en JSON. Todo lo visual se recalcula desde ahí.</p>'
+      + '<ul style="font-size:13px;color:#a0a0a0;padding-left:18px;display:flex;flex-direction:column;gap:4px;">'
+      + '<li>Asigna una IA: &quot;actualiza el task manager según avances en el proyecto&quot;</li>'
+      + '<li>La IA edita solo el JSON island y guarda el HTML</li>'
+      + '<li>Recarga el archivo en el navegador para ver progreso</li>'
+      + '<li>Esquema: <code style="background:#1c222b;padding:2px 6px;border-radius:4px;">meta</code> + <code style="background:#1c222b;padding:2px 6px;border-radius:4px;">phases[]</code> + <code style="background:#1c222b;padding:2px 6px;border-radius:4px;">todos[]</code> + <code style="background:#1c222b;padding:2px 6px;border-radius:4px;">git/tree/codegraph</code></li>'
+      + '</ul>'
+      + '</div>'
+
+      + '<div style="background:#12161d;border:1px solid #30363d;border-radius:8px;padding:12px;margin-bottom:12px;">'
+      + '<h4 style="color:#fff;font-size:13px;margin-bottom:6px;">📐 Esquema</h4>'
+      + '<pre style="font-family:var(--font-mono);font-size:11px;color:#a0a0a0;overflow-x:auto;background:#0b0e14;padding:8px;border-radius:4px;">{'
+      + '\n  &quot;schemaVersion&quot;: &quot;1.0&quot;,'
+      + '\n  &quot;meta&quot;: { &quot;projectName&quot;, &quot;version&quot;, &quot;branch&quot;, &quot;labels&quot;: {&quot;es&quot;:{}}, &quot;features&quot;: {&quot;git&quot;, &quot;tree&quot;, &quot;codegraph&quot;} },'
+      + '\n  &quot;phases&quot;: [{ &quot;id&quot;, &quot;title&quot;, &quot;status&quot;, &quot;tasks&quot;: [{&quot;id&quot;, &quot;title&quot;, &quot;status&quot;}] }],'
+      + '\n  &quot;todos&quot;: [{&quot;id&quot;, &quot;text&quot;, &quot;priority&quot;, &quot;done&quot;}],'
+      + '\n  &quot;git&quot;, &quot;tree&quot;, &quot;codegraph&quot;'
+      + '\n}</pre>'
+      + '</div>'
+
+      + '<div id="ai-instructions" style="background:rgba(88,166,255,0.08);border:1px solid #58a6ff;border-radius:8px;padding:12px;">'
+      + '<h4 style="color:#58a6ff;font-size:13px;margin-bottom:6px;">🧠 Instrucciones para IA Orquestadora (AI-EDITABLE)</h4>'
+      + '<ul style="font-size:12px;color:#a0a0a0;padding-left:18px;display:flex;flex-direction:column;gap:4px;">'
+      + '<li><strong>SOLO</strong> edita el bloque <code style="background:#1c222b;padding:1px 4px;border-radius:3px;">&lt;script type=&quot;application/json&quot; id=&quot;tm-state&quot;&gt;</code> — nunca toques el HTML fuera del island</li>'
+      + '<li>Mantén <code>schemaVersion</code> como <code>&quot;1.0&quot;</code> siempre</li>'
+      + '<li>Escapa <code>&lt;/script&gt;</code> como <code>\\u003c/script\\u003e</code> dentro de cualquier texto de tarea/nota para no romper el HTML</li>'
+      + '<li>Usa <code>status</code> solo con: <code>pending</code>, <code>in-progress</code>, <code>completed</code>, <code>blocked</code> — desconocidos se mapean a <code>pending</code></li>'
+      + '<li>No hagas <code>fetch</code>, <code>XML' + 'HttpRequest</code>, <code>import</code> ni leas <code>.git</code> en runtime — todo es estático</li>'
+      + '<li>Ejemplo válido: <code style="background:#1c222b;padding:1px 4px;border-radius:3px;">{&quot;id&quot;:&quot;T1-01&quot;,&quot;title&quot;:&quot;Definir esquema&quot;,&quot;status&quot;:&quot;completed&quot;}</code></li>'
+      + '</ul>'
+      + '<p style="font-size:11px;color:#8b949e;margin-top:8px;">Filtros: ' + esc(filterAll) + ' / ' + esc(filterActive) + ' · Todo: ' + esc(todoTitle) + ' · Código en inglés, UI en español vía <code>meta.labels.es</code></p>'
+      + '</div>'
+
+      + '<div id="prompt-inicial" style="background:#12161d;border:1px solid #3fb950;border-radius:8px;padding:12px;margin-top:12px;">'
+      + '<h4 style="color:#3fb950;font-size:13px;margin-bottom:6px;display:flex;align-items:center;gap:6px;">📋 Prompt inicial para la IA — Copiar y pegar</h4>'
+      + '<p style="font-size:12px;color:#8b949e;margin-bottom:8px;">Copia este prompt y envíaselo a tu IA orquestadora al iniciar cada sesión. Reemplaza los <code>[...]</code> con tu contexto:</p>'
+      + '<pre id="initial-prompt-text" style="font-family:var(--font-mono);font-size:11px;color:#c9d1d9;background:#0b0e14;padding:10px;border-radius:6px;overflow-x:auto;white-space:pre-wrap;word-break:break-word;border:1px solid #30363d;line-height:1.5;max-height:280px;overflow-y:auto;">Usa la skill task-tracker-manager.\n\nMantén actualizado el archivo ./drop-in-task-manager.html según avances en el proyecto.\n\nReglas obligatorias:\n- Edita SOLO el bloque &lt;script type=&quot;application/json&quot; id=&quot;tm-state&quot;&gt;\n- Mantén schemaVersion: &quot;1.0&quot;\n- Escapa &lt;/script&gt; como \\u003c/script\\u003e\n- Usa solo status: pending | in-progress | completed | blocked (desconocidos → pending)\n- No uses fetch, XHR, import ni leas .git en runtime\n- No hardcodees overallPct — se deriva automáticamente\n\nContexto actual:\n- Proyecto: [nombre del proyecto]\n- Tarea completada: [describe qué hiciste]\n- Próxima tarea: [qué sigue]\n\nActualiza las fases/tareas correspondientes, guarda el archivo y dime el nuevo progreso global (ej: 8/14 → 57%).</pre>'
+      + '<button id="btn-copy-prompt" type="button" style="margin-top:8px;background:#238636;border:1px solid #3fb950;color:#fff;padding:6px 12px;border-radius:6px;cursor:pointer;font-size:13px;display:inline-flex;align-items:center;gap:6px;">📋 Copiar prompt</button>'
+      + '<span id="copy-feedback" style="margin-left:8px;font-size:12px;color:#3fb950;display:none;">¡Copiado!</span>'
+      + '</div>'
+
+      + '<p style="font-size:11px;color:#8b949e;margin-top:12px;border-top:1px solid #30363d;padding-top:8px;">Documentación completa en <code>openspec/changes/drop-in-task-manager/</code> · Tokens verbatim del prototipo · <code>file://</code> compatible</p>';
+
+    panel.innerHTML = helpHtml + '<div id="state-inspection-mount"></div>';
+
+    // Also mirror to #full-help-mount
+    var fullHelp = doc.getElementById('full-help-mount');
+    if (fullHelp) {
+      fullHelp.innerHTML = '<div class="panel-card">'
+        + '<div class="panel-header"><div class="panel-title"><span>⚡ Consola IA & Guía de Orquestación</span></div></div>'
+        + '<div class="panel-body">' + helpHtml + '<div id="state-inspection-mount-full"></div></div>'
+        + '</div>';
+    }
+    renderStateTools(state, doc, validation, 'state-inspection-mount');
+    renderStateTools(state, doc, validation, 'state-inspection-mount-full');
+
+    // Attach copy handler for prompt (file:// compatible, no inline script)
+    (function(){
+      var btn = doc.getElementById('btn-copy-prompt');
+      var pre = doc.getElementById('initial-prompt-text');
+      var fb = doc.getElementById('copy-feedback');
+      if (!btn || !pre) return;
+      btn.addEventListener('click', function(){
+        var text = pre.textContent;
+        function ok(){ if(fb){fb.style.display='inline'; btn.textContent='✓ Copiado!'; setTimeout(function(){if(fb)fb.style.display='none'; btn.textContent='📋 Copiar prompt';},1800);} }
+        function fallback(){
+          var ta = doc.createElement('textarea');
+          ta.value = text;
+          ta.style.position='fixed';
+          ta.style.opacity='0';
+          doc.body.appendChild(ta);
+          ta.select();
+          try{ doc.execCommand('copy'); ok(); }catch(e){ window.prompt('Copia manualmente:', text); }
+          doc.body.removeChild(ta);
+        }
+        if(navigator.clipboard && window.isSecureContext){
+          navigator.clipboard.writeText(text).then(ok).catch(fallback);
+        } else {
+          fallback();
+        }
+      });
+    })();
+  }
+
+  function renderAllTodoHelp(state, doc, validation) {
+    renderTodo(state, doc);
+    renderHelp(state, doc, validation);
+  }
+
+  var TMTodoHelp = {
+    renderTodo: renderTodo,
+    renderHelp: renderHelp,
+    renderAllTodoHelp: renderAllTodoHelp,
+    renderStateTools: renderStateTools,
+    copyText: copyText,
+    exportState: exportState
+  };
+
+  try { if (typeof window !== 'undefined') window.TMTodoHelp = TMTodoHelp; } catch (_) {}
+  try { if (typeof globalThis !== 'undefined') globalThis.TMTodoHelp = TMTodoHelp; } catch (_) {}
+  try { if (typeof global !== 'undefined') global.TMTodoHelp = TMTodoHelp; } catch (_) {}
+  try { if (typeof module !== 'undefined' && module.exports) module.exports = TMTodoHelp; } catch (_) {}
+
+})(typeof window !== 'undefined' ? window : typeof globalThis !== 'undefined' ? globalThis : typeof global !== 'undefined' ? global : this);
+
+</script>
+<script>
+// Bootstrap — single init on DOMContentLoaded, never white-screen
+document.addEventListener('DOMContentLoaded', function() {
+  try {
+    var core = window.TMCore;
+    var banner = document.getElementById('tm-error-banner');
+    var result = null;
+    try {
+      result = core.getStateFromDocument(document);
+    } catch (e) {
+      result = { error: (e && e.message) ? e.message : String(e), validation: { ok: false, errors: [String(e)], warnings: [] } };
+    }
+    if (result && result.error) {
+      if (banner) {
+        banner.textContent = '⚠️ Error en JSON del Task Manager: ' + result.error + ' — Revisa el bloque #tm-state. El dashboard sigue visible.';
+        banner.hidden = false;
+        banner.style.display = 'block';
+        banner.removeAttribute('hidden');
+      }
+      // Try to still render with state if available (partial), else fallback to minimal
+      var state = result.state || null;
+      if (state) {
+        try {
+          var metrics = core.deriveMetrics(state);
+          if (window.TMHeaderHud) window.TMHeaderHud.renderAll(state, document);
+          if (window.TMPhases) window.TMPhases.renderPhases(state, metrics, document);
+          if (window.TMPanel) window.TMPanel.renderAllPanels(state, document);
+          if (window.TMTodoHelp) window.TMTodoHelp.renderAllTodoHelp(state, document, result.validation);
+        } catch (e2) { console.error('Render after error failed', e2); }
+      }
+      if (!state && window.TMTodoHelp) {
+        try { window.TMTodoHelp.renderAllTodoHelp(null, document, result.validation); } catch (e3) { console.error('Help fallback render failed', e3); }
+      }
+      return;
+    }
+    // Success path
+    if (banner) { banner.hidden = true; banner.style.display = 'none'; banner.setAttribute('hidden',''); }
+    var state = result.state;
+    var metrics = core.deriveMetrics(state);
+    if (window.TMHeaderHud) window.TMHeaderHud.renderAll(state, document);
+    if (window.TMPhases) window.TMPhases.renderPhases(state, metrics, document);
+    if (window.TMPanel) window.TMPanel.renderAllPanels(state, document);
+    if (window.TMTodoHelp) window.TMTodoHelp.renderAllTodoHelp(state, document, result.validation);
+    // Expose for debugging
+    window.__TM_STATE__ = state;
+    window.__TM_METRICS__ = metrics;
+  } catch (e) {
+    console.error('Bootstrap failed', e);
+    var b = document.getElementById('tm-error-banner');
+    if (b) { b.textContent = 'Error crítico: ' + (e.message || String(e)); b.hidden = false; b.style.display = 'block'; b.removeAttribute('hidden'); }
+  }
+});
+</script>
+</body>
+</html>
