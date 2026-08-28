@@ -1,11 +1,19 @@
 import type {
   AgentFamily,
+  AssignmentField,
   CatalogGroup,
+  CatalogEntry,
+  ConfigurableProfileTarget,
   DialogCatalogRow,
   PersistibleAgentKey,
+  ProfileData,
+  RuntimeAgentInventoryItem,
 } from "./types";
 import {
+  isEditablePrimaryAgent,
   isFallbackEligibleSddAgent,
+  isPrimarySddAgent,
+  RESERVED_RUNTIME_AGENT_NAMES,
 } from "./utils";
 
 const CATALOG_AGENT_GROUPS = [
@@ -166,6 +174,10 @@ const FAMILY_ORDER: readonly AgentFamily[] = [
   "Custom",
 ];
 
+const KNOWN_PRESENTATION_INDEX = new Map(
+  KNOWN_PRESENTATION_ORDER.map((name, index) => [name, index] as const)
+);
+
 export function isValidAgentKey(k: unknown): boolean {
   if (typeof k !== "string") return false;
   if (k.length < 1 || k.length > 64) return false;
@@ -193,4 +205,117 @@ export function classifyFamily(e: { displayName: string; isFallback: boolean; ba
   if (e.displayName.startsWith("jd-")) return "JD";
   if (e.displayName.startsWith("review-")) return "Review";
   return "Custom";
+}
+
+function isRuntimeConfigRecord(config: unknown): config is { agent?: Record<string, unknown> } {
+  return Boolean(config && typeof config === "object" && !Array.isArray(config));
+}
+
+function getKnownIndex(name: string): number | null {
+  return KNOWN_PRESENTATION_INDEX.get(name) ?? null;
+}
+
+function isRuntimeFallbackName(name: string): boolean {
+  return name.endsWith("-fallback");
+}
+
+function runtimeProfileKey(name: string, isFallback: boolean): string {
+  return isFallback ? name.slice(0, -9) : name;
+}
+
+function classifyRuntimeFamily(name: string, isFallback: boolean, knownIndex: number | null): AgentFamily {
+  return classifyFamily({
+    displayName: name,
+    isFallback,
+    base: knownIndex !== null,
+  });
+}
+
+export function classifyRuntimeAgent(name: string): RuntimeAgentInventoryItem | null {
+  if (!isValidAgentKey(name) || RESERVED_RUNTIME_AGENT_NAMES.has(name)) return null;
+
+  const isFallback = isRuntimeFallbackName(name);
+  if (!isFallback && !isEditablePrimaryAgent(name)) return null;
+  const knownIndex = getKnownIndex(name);
+  const family = classifyRuntimeFamily(name, isFallback, knownIndex);
+  const primaryName = runtimeProfileKey(name, isFallback);
+
+  return {
+    runtimeName: name,
+    profileKey: primaryName,
+    field: isFallback ? "fallback" : "model",
+    classification: isFallback ? "fallback" : "primary",
+    order: { family, knownIndex },
+    managedSdd: !isFallback && isPrimarySddAgent(name),
+    fallbackEligible: !isFallback && isFallbackEligibleSddAgent(name),
+  };
+}
+
+function compareInventory(a: RuntimeAgentInventoryItem, b: RuntimeAgentInventoryItem): number {
+  const familyDifference = FAMILY_ORDER.indexOf(a.order.family) - FAMILY_ORDER.indexOf(b.order.family);
+  if (familyDifference !== 0) return familyDifference;
+
+  if (a.order.knownIndex !== null && b.order.knownIndex !== null) {
+    return a.order.knownIndex - b.order.knownIndex;
+  }
+  if (a.order.knownIndex !== null) return -1;
+  if (b.order.knownIndex !== null) return 1;
+  return a.runtimeName.localeCompare(b.runtimeName);
+}
+
+export function collectRuntimeAgentInventory(config: unknown): RuntimeAgentInventoryItem[] {
+  const agentConfig = isRuntimeConfigRecord(config) &&
+    config.agent &&
+    typeof config.agent === "object" &&
+    !Array.isArray(config.agent)
+    ? config.agent
+    : {};
+
+  return Object.keys(agentConfig)
+    .map(classifyRuntimeAgent)
+    .filter((entry): entry is RuntimeAgentInventoryItem => entry !== null)
+    .sort(compareInventory);
+}
+
+/** Projects runtime definitions into target-aware profile fields eligible for a bulk overwrite. */
+export function collectConfigurableProfileTargets(
+  config: unknown,
+  target: "primary" | "fallback" = "primary",
+): ConfigurableProfileTarget[] {
+  if (target === "fallback") {
+    return CANONICAL_FALLBACK_ORDER
+      .map(deriveFallbackProfileKey)
+      .filter((profileKey): profileKey is string => profileKey !== null)
+      .map((profileKey) => ({ field: "fallback" as const, profileKey }));
+  }
+
+  const seen = new Set<string>();
+  return collectRuntimeAgentInventory(config)
+    .filter((entry) => entry.classification === "primary" && entry.field === "model")
+    .filter((entry) => {
+      const key = `${entry.field}:${entry.profileKey}`;
+      if (seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    })
+    .map(({ field, profileKey }) => ({ field, profileKey }));
+}
+
+export function buildCatalogSections(config: unknown, _profileData?: ProfileData | null): Map<AgentFamily, CatalogEntry[]> {
+  const map = new Map<AgentFamily, CatalogEntry[]>(FAMILY_ORDER.map((family) => [family, []]));
+
+  for (const item of collectRuntimeAgentInventory(config)) {
+    const entry: CatalogEntry = {
+      displayName: item.runtimeName,
+      profileKey: item.profileKey,
+      field: item.field as AssignmentField,
+      family: item.order.family,
+      base: item.order.knownIndex !== null,
+      isFallback: item.classification === "fallback",
+      orderIndex: item.order.knownIndex ?? Number.POSITIVE_INFINITY,
+    };
+    map.get(entry.family)!.push(entry);
+  }
+
+  return map;
 }
