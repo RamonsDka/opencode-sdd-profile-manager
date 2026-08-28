@@ -387,6 +387,43 @@ export function buildFallbackSubmenuOptions(profileData: any, sections: any, api
   return [...options.filter((option): option is NonNullable<typeof option> => option !== null), buildBackOption()];
 }
 
+export function sanitizeMemoryDisplayText(value: string): string {
+  return value
+    .replace(/\*\*(.*?)\*\*/g, "$1")
+    .replace(/`([^`]+)`/g, "$1")
+    .replace(/[“”]/g, '"')
+    .replace(/[‘’]/g, "'")
+    .replace(/→/g, "->");
+}
+
+export function wrapDisplayText(value: string, max = 80): string[] {
+  if (!value) return [" "];
+  const sanitized = sanitizeMemoryDisplayText(value);
+  const words = sanitized.split(/\s+/).filter(Boolean);
+  if (words.length === 0) return [" "];
+
+  const lines: string[] = [];
+  let current = "";
+
+  for (const word of words) {
+    if (!current) {
+      current = word;
+      continue;
+    }
+
+    if (`${current} ${word}`.length <= max) {
+      current = `${current} ${word}`;
+      continue;
+    }
+
+    lines.push(current);
+    current = word;
+  }
+
+  if (current) lines.push(current);
+  return lines.length > 0 ? lines : [value];
+}
+
 /**
  * Displays a detailed view of a specific memory observation
  * 
@@ -394,54 +431,13 @@ export function buildFallbackSubmenuOptions(profileData: any, sections: any, api
  * @param memory - The memory object to display
  */
 function showMemoryDetail(api: any, memory: any) {
-  /**
-   * Cleans text for better display in the TUI
-   */
-  const sanitizeMemoryDisplayText = (value: string): string =>
-    value
-      .replace(/\*\*(.*?)\*\*/g, "$1")
-      .replace(/`([^`]+)`/g, "$1")
-      .replace(/[“”]/g, '"')
-      .replace(/[‘’]/g, "'")
-      .replace(/→/g, "->");
-
-  /**
-   * Wraps long text lines to fit within the dialog width
-   */
-  const wrapDisplayText = (value: string, max = 52): string[] => {
-    if (!value) return [" "];
-    const words = sanitizeMemoryDisplayText(value).split(/\s+/).filter(Boolean);
-    if (words.length === 0) return [" "];
-
-    const lines: string[] = [];
-    let current = "";
-
-    for (const word of words) {
-      if (!current) {
-        current = word;
-        continue;
-      }
-
-      if (`${current} ${word}`.length <= max) {
-        current = `${current} ${word}`;
-        continue;
-      }
-
-      lines.push(current);
-      current = word;
-    }
-
-    if (current) lines.push(current);
-    return lines.length > 0 ? lines : [value];
-  };
-
   const title = memory.title || memory.topic_key || `Memory #${memory.id}`;
   const metadata = `[${(memory.type || "manual").toUpperCase()}] ${formatMemoryDate(
     memory.updated_at || memory.created_at
   )} · ${memory.scope || "project"}`;
   const contentLines = (memory.content || "No content")
     .split("\n")
-    .flatMap((line: string) => wrapDisplayText(line || " "));
+    .flatMap((line: string) => wrapDisplayText(line || " ", 80));
 
   api.ui.dialog.replace(() => (
     <api.ui.DialogSelect

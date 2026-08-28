@@ -3,7 +3,7 @@ import { BULK_ASSIGNMENT_MODE, BULK_ASSIGNMENT_TARGET, PROFILE_VERSION_SOURCE } 
 import { buildBulkProfileActionOptions, buildProfileVersionListOption, createFallbackSubmenuDialogProps, createPrimarySubmenuDialogProps, createReasoningSubmenuDialogProps, formatProfileVersionPreviewLines } from './dialogs';
 import { buildProfileAgentRows, buildProfileListOptions, createProfileListDialogProps, resolvePersistedActiveProfileFile } from './dialogs';
 import { buildProfileDetailAgentSections, resolveRuntimeOrchestratorPolicy, buildReasoningRowForAgent, buildReasoningBlockedMessage } from './dialogs';
-import { resolveProfileDetailSelectionAction } from './dialogs';
+import { resolveProfileDetailSelectionAction, wrapDisplayText, sanitizeMemoryDisplayText } from './dialogs';
 import {
   buildModelMutationContext,
   buildBulkModelMutationContext,
@@ -546,6 +546,32 @@ describe('dialog pure builders', () => {
     it('routes unconfigured primary and fallback selections to assign actions (T19, T20)', () => {
       expect(resolveProfileDetailSelectionAction('model:sdd-spec')).toEqual({ action: 'model', agentName: 'sdd-spec' });
       expect(resolveProfileDetailSelectionAction('fallback:sdd-spec')).toEqual({ action: 'fallback', agentName: 'sdd-spec' });
+    });
+
+    it('wraps memory text at >=80 at xlarge and preserves empty lines (T29)', () => {
+      const text = 'word '.repeat(24); // 120 chars
+      const lines80 = wrapDisplayText(text, 80);
+      const lines52 = wrapDisplayText(text, 52);
+
+      expect(lines80.length).toBeLessThan(lines52.length);
+      expect(lines80).toHaveLength(2);
+      expect(wrapDisplayText('')).toEqual([' ']);
+    });
+
+    it('does not truncate continuous 200-char string with ellipsis (T30)', () => {
+      const longWord = 'x'.repeat(200);
+      const wrapped = wrapDisplayText(longWord, 80);
+
+      expect(wrapped).toEqual([longWord]);
+      expect(wrapped[0]).not.toContain('…');
+      expect(wrapped[0]).not.toContain('...');
+    });
+
+    it('sanitizes markdown tokens and wraps correctly (T31)', () => {
+      const input = '`code` **bold** -> target';
+      expect(sanitizeMemoryDisplayText(input)).toBe('code bold -> target');
+      const wrapped = wrapDisplayText(input, 80);
+      expect(wrapped[0]).toBe('code bold -> target');
     });
 
     it('uses native categories in exact catalog order without synthetic separator options', () => {
