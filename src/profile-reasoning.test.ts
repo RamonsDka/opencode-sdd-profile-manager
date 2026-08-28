@@ -2,7 +2,12 @@ import { describe, expect, it } from "vitest";
 import {
   applyProfileReasoningEffort,
   buildReasoningEditState,
+  DEFAULT_REASONING_EFFORT_LABEL,
+  PROVIDER_DEFAULT_REASONING_EFFORT,
+  getReasoningEffortOptions,
   normalizeProfileConfigs,
+  pruneProfileReasoningEffort,
+  resolveReasoningEffortSelection,
   updateProfileReasoningEffort,
 } from "./profile-reasoning";
 import { getOrchestratorPolicy } from "./orchestrator";
@@ -48,12 +53,58 @@ describe("profile reasoning helpers", () => {
       expect(state).toEqual({ kind: "missing-model", agentName: "sdd-apply" });
     });
 
-    it("returns unsupported when model disables reasoning or lacks effort variants", () => {
+    it("offers provider default when model disables reasoning or lacks effort variants", () => {
       const disabled = buildReasoningEditState(providers as any, "sdd-apply", "openai/gpt-4.1");
-      expect(disabled).toEqual({ kind: "unsupported", agentName: "sdd-apply", modelId: "openai/gpt-4.1" });
+      expect(disabled).toEqual({
+        kind: "provider-default",
+        agentName: "sdd-apply",
+        modelId: "openai/gpt-4.1",
+        options: [PROVIDER_DEFAULT_REASONING_EFFORT],
+        optionLabel: DEFAULT_REASONING_EFFORT_LABEL,
+      });
 
       const noMetadata = buildReasoningEditState(providers as any, "sdd-apply", "openai/unknown");
-      expect(noMetadata).toEqual({ kind: "unsupported", agentName: "sdd-apply", modelId: "openai/unknown" });
+      expect(noMetadata).toEqual({
+        kind: "provider-default",
+        agentName: "sdd-apply",
+        modelId: "openai/unknown",
+        options: [PROVIDER_DEFAULT_REASONING_EFFORT],
+        optionLabel: DEFAULT_REASONING_EFFORT_LABEL,
+      });
+    });
+
+    it("resolves provider default without producing a persisted literal", () => {
+      expect(resolveReasoningEffortSelection(providers as any, "openai/gpt-4.1", PROVIDER_DEFAULT_REASONING_EFFORT)).toEqual({
+        kind: "provider-default",
+        value: undefined,
+        option: PROVIDER_DEFAULT_REASONING_EFFORT,
+        label: DEFAULT_REASONING_EFFORT_LABEL,
+      });
+      expect(resolveReasoningEffortSelection(providers as any, "openai/gpt-4.1", DEFAULT_REASONING_EFFORT_LABEL)).toEqual({
+        kind: "provider-default",
+        value: undefined,
+        option: PROVIDER_DEFAULT_REASONING_EFFORT,
+        label: DEFAULT_REASONING_EFFORT_LABEL,
+      });
+    });
+
+    it("rejects custom effort when the selected model exposes only provider default", () => {
+      expect(() => resolveReasoningEffortSelection(providers as any, "openai/gpt-4.1", "high"))
+        .toThrow("not available");
+    });
+
+    it("does not expose provider-default tokens as a saved current effort", () => {
+      expect(buildReasoningEditState(
+        providers as any,
+        "sdd-apply",
+        "openai/gpt-5",
+        PROVIDER_DEFAULT_REASONING_EFFORT,
+      )).toEqual({
+        kind: "selectable",
+        agentName: "sdd-apply",
+        modelId: "openai/gpt-5",
+        options: ["high", "low"],
+      });
     });
   });
 
@@ -62,7 +113,6 @@ describe("profile reasoning helpers", () => {
       const normalized = normalizeProfileConfigs({
         "sdd-apply": { reasoningEffort: " high " },
         "sdd-apply-fallback": { reasoningEffort: "low" },
-        "non-sdd": { reasoningEffort: "medium" },
         "sdd-init": { unknown: "x", reasoningEffort: "" },
       } as any);
 
@@ -76,15 +126,20 @@ describe("profile reasoning helpers", () => {
       expect(normalizeProfileConfigs({ "sdd-apply": { reasoningEffort: "   " } } as any)).toBeUndefined();
     });
 
+    it("normalizes provider-default labels and tokens to an absent persisted value", () => {
+      expect(normalizeProfileConfigs({
+        "sdd-apply": { reasoningEffort: PROVIDER_DEFAULT_REASONING_EFFORT },
+        "sdd-spec": { reasoningEffort: DEFAULT_REASONING_EFFORT_LABEL },
+      } as any)).toBeUndefined();
+    });
+
     it("canonicalizes orchestrator aliases to gentle-orchestrator in updated runtime policy", () => {
       const policy = getOrchestratorPolicy(["gentle-orchestrator", "sdd-init"]);
       const normalized = normalizeProfileConfigs({
         "sdd-orchestrator": { reasoningEffort: "high" },
       } as any, policy);
 
-      expect(normalized).toEqual({
-        "gentle-orchestrator": { reasoningEffort: "high" },
-      });
+      expect(normalized).toEqual({ "gentle-orchestrator": { reasoningEffort: "high" } });
     });
 
     it("canonicalizes orchestrator aliases to sdd-orchestrator in legacy runtime policy", () => {
@@ -93,8 +148,52 @@ describe("profile reasoning helpers", () => {
         "gentle-orchestrator": { reasoningEffort: "low" },
       } as any, policy);
 
+      expect(normalized).toEqual({ "sdd-orchestrator": { reasoningEffort: "low" } });
+    });
+
+    it("accepts editable custom primaries while rejecting reserved and fallback owners", () => {
+      const normalized = normalizeProfileConfigs({
+        "security-auditor": { reasoningEffort: " high " },
+        "sdd-orchestrator": { reasoningEffort: "high" },
+        "security-auditor-fallback": { reasoningEffort: "low" },
+      });
+
       expect(normalized).toEqual({
-        "sdd-orchestrator": { reasoningEffort: "low" },
+        "security-auditor": { reasoningEffort: "high" },
+      });
+    });
+
+    it("preserves a valid fallback effort only when its eligible owner has a fallback model", () => {
+      const normalized = normalizeProfileConfigs(
+        {
+          "sdd-init": { reasoningEffort: "high" },
+          "sdd-init-fallback": { reasoningEffort: "low" },
+        },
+        undefined,
+        false,
+        { "sdd-init": "openai/gpt-5" },
+      );
+
+      expect(normalized).toEqual({
+        "sdd-init": { reasoningEffort: "high" },
+        "sdd-init-fallback": { reasoningEffort: "low" },
+      });
+    });
+
+    it("prunes orphan and reserved fallback efforts while retaining provider-default for valid fallback owners", () => {
+      const normalized = normalizeProfileConfigs(
+        {
+          "sdd-init-fallback": { reasoningEffort: PROVIDER_DEFAULT_REASONING_EFFORT },
+          "unknown-fallback": { reasoningEffort: "high" },
+          "summary-fallback": { reasoningEffort: "low" },
+        },
+        undefined,
+        true,
+        { "sdd-init": "anthropic/claude-3-5-sonnet" },
+      );
+
+      expect(normalized).toEqual({
+        "sdd-init-fallback": { reasoningEffort: PROVIDER_DEFAULT_REASONING_EFFORT },
       });
     });
   });
@@ -121,6 +220,69 @@ describe("profile reasoning helpers", () => {
       } as any, "sdd-apply", "   ");
 
       expect(updated).toEqual({ models: { "sdd-apply": "openai/gpt-5" } });
+    });
+  });
+
+  describe("reasoning model compatibility", () => {
+    const providers = [
+      {
+        id: "openai",
+        models: {
+          "gpt-5": {
+            capabilities: { reasoning: true },
+            variants: {
+              low: { reasoningEffort: "low" },
+              high: { reasoningEffort: "high" },
+            },
+          },
+          "gpt-4.1": { capabilities: { reasoning: false } },
+        },
+      },
+    ];
+
+    it("exposes supported options and prunes incompatible or unsupported saved effort", () => {
+      expect(getReasoningEffortOptions(providers as any, "openai/gpt-5")).toEqual(["high", "low"]);
+      expect(getReasoningEffortOptions(providers as any, "openai/gpt-4.1")).toEqual([]);
+
+      const compatible = pruneProfileReasoningEffort(
+        { models: { "security-auditor": "openai/gpt-5" }, configs: { "security-auditor": { reasoningEffort: "high" } } },
+        "security-auditor",
+        "openai/gpt-5",
+        providers as any,
+      );
+      expect(compatible.configs?.["security-auditor"]?.reasoningEffort).toBe("high");
+
+      const incompatible = pruneProfileReasoningEffort(
+        { models: { "security-auditor": "openai/gpt-5" }, configs: { "security-auditor": { reasoningEffort: "max" } } },
+        "security-auditor",
+        "openai/gpt-5",
+        providers as any,
+      );
+      expect(incompatible.configs).toBeUndefined();
+
+      const unsupported = pruneProfileReasoningEffort(
+        { models: { "security-auditor": "openai/gpt-5" }, configs: { "security-auditor": { reasoningEffort: "high" } } },
+        "security-auditor",
+        "openai/gpt-4.1",
+        providers as any,
+      );
+      expect(unsupported.configs).toBeUndefined();
+    });
+
+    it("prunes a legacy orchestrator effort when the runtime policy identifies its alias", () => {
+      const policy = getOrchestratorPolicy(["sdd-orchestrator"]);
+      const pruned = (pruneProfileReasoningEffort as any)(
+        {
+          models: { "sdd-orchestrator": "openai/gpt-5" },
+          configs: { "sdd-orchestrator": { reasoningEffort: "max" } },
+        },
+        "sdd-orchestrator",
+        "openai/gpt-5",
+        providers as any,
+        policy,
+      );
+
+      expect(pruned.configs).toBeUndefined();
     });
   });
 
@@ -191,7 +353,7 @@ describe("profile reasoning helpers", () => {
       expect(missingMetadata.clearedAgents).toEqual(["sdd-apply"]);
       expect(missingMetadata.config.agent["sdd-apply"].reasoningEffort).toBeUndefined();
       expect(missingMetadata.config.agent["sdd-apply"].options.reasoningEffort).toBeUndefined();
-      expect(missingMetadata.warnings[0]).toContain("metadata");
+      expect(missingMetadata.warnings[0]).toContain("missing runtime metadata");
     });
 
     it("applies orchestrator reasoning effort using updated runtime canonical alias", () => {
