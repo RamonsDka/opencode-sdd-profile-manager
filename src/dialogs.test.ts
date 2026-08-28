@@ -21,13 +21,44 @@ import {
   buildReasoningSubmenuOptions,
   returnToProfileDetailTarget,
   resolveProfileDetailNavigationAction,
+  registerDialogCallbacks,
+  showProfileDetail,
+  showMemoryDetail,
+  showModelPickerForBulkProfilePhases,
+  showModelPickerForAgent,
+  showProfileDetailSubmenuPrimary,
+  showProfileDetailSubmenuReasoning,
+  showProfileDetailSubmenuFallback,
+  showReasoningEffortPicker,
+  showBulkProfileActions,
+  showProviderPickerForBulkProfilePhases,
+  showProfileVersions,
+  showProfileVersionPreview,
+  showProviderPickerForAgent,
+  showProjectMemoriesMenu,
+  showProfilesMenu,
+  showProfileList,
+  showCreateProfile,
+  showRenameProfile,
+  showDeleteProfile,
+  showConfirmRestoreProfileVersion,
+  handleActivateProfile,
+  showDeleteMemory,
 } from './dialogs';
+import type { DialogSize } from './types';
+import * as profiles from './profiles';
 import { getOrchestratorPolicy } from './orchestrator';
 import { buildCatalogSections, CATALOG_GROUPS, VISIBLE_CATALOG_ROWS } from './catalog';
 
 describe('dialog pure builders', () => {
   beforeEach(() => {
     vi.restoreAllMocks();
+    registerDialogCallbacks({
+      showProfilesMenu,
+      showProfileList,
+      showProfileDetail,
+      showProjectMemoriesMenu,
+    });
   });
 
   it('shows canonical orchestrator row for updated runtime', () => {
@@ -572,6 +603,80 @@ describe('dialog pure builders', () => {
       expect(sanitizeMemoryDisplayText(input)).toBe('code bold -> target');
       const wrapped = wrapDisplayText(input, 80);
       expect(wrapped[0]).toBe('code bold -> target');
+    });
+
+    const sampleProfileOpt = { title: 'team', value: 'team.json' };
+    const sampleMemory = { id: 1, title: 'Memory 1', content: 'test memory', type: 'manual', scope: 'project' };
+    const sampleProvider = { id: 'test-prov', name: 'Test Provider', models: { 'model-a': { name: 'Model A' } } };
+    const sampleBulkAction = {
+      title: 'Bulk Action',
+      value: 'bulk:fill-only:primary',
+      operation: { target: BULK_ASSIGNMENT_TARGET.PRIMARY, mode: BULK_ASSIGNMENT_MODE.FILL_ONLY },
+      requiresConfirmation: false,
+    };
+
+    const TIER_MAP: Array<[string, (api: any) => Promise<any> | any, DialogSize]> = [
+      // xlarge dense selectors
+      ['showProfileList', (api) => showProfileList(api), 'xlarge'],
+      ['showProfileDetail', (api) => showProfileDetail(api, sampleProfileOpt), 'xlarge'],
+      ['showProfileDetailSubmenuPrimary', (api) => showProfileDetailSubmenuPrimary(api, sampleProfileOpt, { models: {} }), 'xlarge'],
+      ['showProfileDetailSubmenuReasoning', (api) => showProfileDetailSubmenuReasoning(api, sampleProfileOpt, { models: {} }), 'xlarge'],
+      ['showProfileDetailSubmenuFallback', (api) => showProfileDetailSubmenuFallback(api, sampleProfileOpt, { models: {} }), 'xlarge'],
+      ['showBulkProfileActions', (api) => showBulkProfileActions(api, sampleProfileOpt), 'xlarge'],
+      ['showProviderPickerForBulkProfilePhases', (api) => showProviderPickerForBulkProfilePhases(api, sampleProfileOpt, sampleBulkAction), 'xlarge'],
+      ['showMemoryDetail', (api) => showMemoryDetail(api, sampleMemory), 'xlarge'],
+      ['showModelPickerForBulkProfilePhases', (api) => showModelPickerForBulkProfilePhases(api, sampleProfileOpt, sampleProvider, sampleBulkAction), 'xlarge'],
+      ['showProfileVersions', (api) => showProfileVersions(api, sampleProfileOpt), 'xlarge'],
+      ['showProfileVersionPreview', (api) => showProfileVersionPreview(api, sampleProfileOpt, 'team.json/2026-04-26T10-00-00-000Z-a.json'), 'xlarge'],
+      ['showProviderPickerForAgent', (api) => showProviderPickerForAgent(api, sampleProfileOpt, 'sdd-init', 'model'), 'xlarge'],
+      ['showModelPickerForAgent', (api) => showModelPickerForAgent(api, sampleProfileOpt, 'sdd-init', sampleProvider, 'model'), 'xlarge'],
+
+      // large
+      ['showProjectMemoriesMenu', (api) => showProjectMemoriesMenu(api), 'large'],
+
+      // medium prompts and confirmations
+      ['showProfilesMenu', (api) => showProfilesMenu(api), 'medium'],
+      ['showCreateProfile', (api) => showCreateProfile(api), 'medium'],
+      ['showReasoningEffortPicker', (api) => showReasoningEffortPicker(api, sampleProfileOpt, 'sdd-init'), 'medium'],
+      ['showRenameProfile', (api) => showRenameProfile(api, sampleProfileOpt), 'medium'],
+      ['showDeleteProfile', (api) => showDeleteProfile(api, sampleProfileOpt), 'medium'],
+      ['showConfirmRestoreProfileVersion', (api) => showConfirmRestoreProfileVersion(api, sampleProfileOpt, 'team.json/2026-04-26T10-00-00-000Z-a.json'), 'medium'],
+      ['handleActivateProfile', (api) => handleActivateProfile(api, '/mock/team.json', 'team'), 'medium'],
+      ['showDeleteMemory', (api) => showDeleteMemory(api, sampleMemory), 'medium'],
+    ];
+
+    it.each(TIER_MAP)('sets tiered dialog size on entry for %s -> %s (T25)', async (_, showFn, expectedTier) => {
+      const api = createMockApi({ 'sdd-apply': {} });
+      vi.spyOn(profiles, 'activateProfileFile').mockResolvedValue({ agent: {} });
+      await showFn(api);
+      expect(api.ui.dialog.setSize).toHaveBeenCalledWith(expectedTier);
+    });
+
+    it('resets dialog size across xlarge -> large -> medium -> back/cancel 5x without leak (T26)', async () => {
+      const api = createMockApi({ 'sdd-apply': {} });
+      vi.spyOn(profiles, 'activateProfileFile').mockResolvedValue({ agent: {} });
+
+      for (let i = 0; i < 5; i++) {
+        // xlarge hub
+        showProfileDetail(api, sampleProfileOpt);
+        expect(api.ui.dialog.setSize).toHaveBeenLastCalledWith('xlarge');
+
+        // xlarge submenu
+        showProfileDetailSubmenuPrimary(api, sampleProfileOpt, { models: {} });
+        expect(api.ui.dialog.setSize).toHaveBeenLastCalledWith('xlarge');
+
+        // back to xlarge bulk selector
+        showBulkProfileActions(api, sampleProfileOpt);
+        expect(api.ui.dialog.setSize).toHaveBeenLastCalledWith('xlarge');
+
+        // back to xlarge hub
+        showProfileDetail(api, sampleProfileOpt);
+        expect(api.ui.dialog.setSize).toHaveBeenLastCalledWith('xlarge');
+
+        // back to medium root menu
+        showProfilesMenu(api);
+        expect(api.ui.dialog.setSize).toHaveBeenLastCalledWith('medium');
+      }
     });
 
     it('uses native categories in exact catalog order without synthetic separator options', () => {

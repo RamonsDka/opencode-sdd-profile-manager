@@ -33,6 +33,7 @@ import {
   isPrimarySddAgent,
 } from "./utils";
 import { buildCatalogSections, CATALOG_GROUPS, collectConfigurableProfileTargets, isFallbackCatalogAgent } from "./catalog";
+import { safeSetDialogSize } from "./host-compat";
 import { resolveEngramProjectName, resolvePaths, ensureProfilesDir, resolveProjectName } from "./config";
 import {
   listProfileFiles,
@@ -430,7 +431,8 @@ export function wrapDisplayText(value: string, max = 80): string[] {
  * @param api - The TUI API instance
  * @param memory - The memory object to display
  */
-function showMemoryDetail(api: any, memory: any) {
+export function showMemoryDetail(api: any, memory: any) {
+  safeSetDialogSize(api, "xlarge");
   const title = memory.title || memory.topic_key || `Memory #${memory.id}`;
   const metadata = `[${(memory.type || "manual").toUpperCase()}] ${formatMemoryDate(
     memory.updated_at || memory.created_at
@@ -471,7 +473,9 @@ function showMemoryDetail(api: any, memory: any) {
  * @param api - The TUI API instance
  * @param memory - The memory object to delete
  */
-function showDeleteMemory(api: any, memory: any) {
+export function showDeleteMemory(api: any, memory: any) {
+  safeSetDialogSize(api, "medium");
+  safeSetDialogSize(api, "medium");
   const title = memory.title || memory.topic_key || `Memory #${memory.id}`;
 
   api.ui.dialog.replace(() => (
@@ -570,6 +574,8 @@ export function registerDialogCallbacks(callbacks: {
  * @param api - The TUI API instance
  */
 export function showProfilesMenu(api: any) {
+  safeSetDialogSize(api, "medium");
+  safeSetDialogSize(api, "medium");
   api.ui.dialog.replace(() => (
     <api.ui.DialogSelect
       title="SDD Profile Management"
@@ -636,6 +642,8 @@ export function showProfilesMenu(api: any) {
  * @param api - The TUI API instance
  */
 export function showCreateProfile(api: any) {
+  safeSetDialogSize(api, "medium");
+  safeSetDialogSize(api, "medium");
   const { configPath, profilesDir } = resolvePaths();
   ensureProfilesDir();
 
@@ -733,6 +741,8 @@ export function createProfileListDialogProps(
 }
 
 export function showProfileList(api: any) {
+  safeSetDialogSize(api, "xlarge");
+  safeSetDialogSize(api, "xlarge");
   ensureProfilesDir();
 
   const files = listProfileFiles();
@@ -767,6 +777,8 @@ export function showProfileList(api: any) {
  * @param profileOpt - Selected profile option containing title and value (filename)
  */
 export function showProfileDetail(api: any, profileOpt: any) {
+  safeSetDialogSize(api, "xlarge");
+  safeSetDialogSize(api, "xlarge");
   const { profilesDir } = resolvePaths();
   try {
     const profilePath = path.join(profilesDir, profileOpt.value);
@@ -842,17 +854,23 @@ export function createProfileDetailDialogProps(
   };
 }
 
-function showProfileDetailSubmenuPrimary(api: any, profileOpt: any, profileData: any, sections?: any) {
+export function showProfileDetailSubmenuPrimary(api: any, profileOpt: any, profileData: any, sections?: any) {
+  safeSetDialogSize(api, "xlarge");
+  safeSetDialogSize(api, "xlarge");
   const resolvedSections = sections || buildProfileDetailAgentSections(api.state.config, profileData);
   api.ui.dialog.replace(() => (<api.ui.DialogSelect {...createPrimarySubmenuDialogProps(api, profileOpt, profileData, resolvedSections)} />));
 }
 
-function showProfileDetailSubmenuReasoning(api: any, profileOpt: any, profileData: any, sections?: any) {
+export function showProfileDetailSubmenuReasoning(api: any, profileOpt: any, profileData: any, sections?: any) {
+  safeSetDialogSize(api, "xlarge");
+  safeSetDialogSize(api, "xlarge");
   const resolvedSections = sections || buildProfileDetailAgentSections(api.state.config, profileData);
   api.ui.dialog.replace(() => (<api.ui.DialogSelect {...createReasoningSubmenuDialogProps(api, profileOpt, profileData, resolvedSections)} />));
 }
 
-function showProfileDetailSubmenuFallback(api: any, profileOpt: any, profileData: any, sections?: any) {
+export function showProfileDetailSubmenuFallback(api: any, profileOpt: any, profileData: any, sections?: any) {
+  safeSetDialogSize(api, "xlarge");
+  safeSetDialogSize(api, "xlarge");
   const resolvedSections = sections || buildProfileDetailAgentSections(api.state.config, profileData);
   api.ui.dialog.replace(() => (<api.ui.DialogSelect {...createFallbackSubmenuDialogProps(api, profileOpt, profileData, resolvedSections)} />));
 }
@@ -1082,6 +1100,7 @@ export function createReasoningEffortPickerDialogProps(api: any, profileOpt: any
 }
 
 export function showReasoningEffortPicker(api: any, profileOpt: any, agentName: string, returnTarget: ProfileDetailReturnTarget = "hub", flow?: ReasoningFlow) {
+  safeSetDialogSize(api, "medium");
   const { profilesDir } = resolvePaths(), profilePath = path.join(profilesDir, profileOpt.value);
   try {
     const profile = readProfileData(profilePath), modelId = flow?.pending?.modelId || profile?.models?.[agentName], current = profile?.configs?.[agentName]?.reasoningEffort;
@@ -1100,15 +1119,15 @@ export function showReasoningEffortPicker(api: any, profileOpt: any, agentName: 
     });
     api.ui.dialog.replace(() => <api.ui.DialogSelect {...pickerProps} />);
   } catch (e: any) {
-    showReasoningEffortError(api, agentName, e);
-    returnToProfileDetailTarget(api, profileOpt, returnTarget);
+    log.error(`showReasoningEffortEditor: failed to update ${agentName}`, e);
+    api.ui.toast({ title: UI_TEXT.error, message: `No se pudo actualizar el esfuerzo de razonamiento: ${e.message}`, variant: "error" });
   }
 }
 
 /**
  * Handles the activation of a profile and updates global state
  */
-async function handleActivateProfile(api: any, profilePath: string, profileName: string) {
+export async function handleActivateProfile(api: any, profilePath: string, profileName: string) {
   const updatedConfig = await activateProfileFile(api, profilePath, profileName);
   if (!updatedConfig) return;
 
@@ -1122,6 +1141,7 @@ async function handleActivateProfile(api: any, profilePath: string, profileName:
   const next = parseActiveProfileFromRaw(JSON.stringify(updatedConfig), api);
   setActiveProfile(next ? { ...next, profileName } : next);
 
+  safeSetDialogSize(api, "medium");
   api.ui.dialog.replace(() => (
     <api.ui.DialogConfirm
       title="Profile Activated"
@@ -1135,7 +1155,9 @@ async function handleActivateProfile(api: any, profilePath: string, profileName:
 /**
  * Displays a confirmation dialog before deleting a profile
  */
-function showDeleteProfile(api: any, profileOpt: any) {
+export function showDeleteProfile(api: any, profileOpt: any) {
+  safeSetDialogSize(api, "medium");
+  safeSetDialogSize(api, "medium");
   api.ui.dialog.replace(() => (
     <api.ui.DialogConfirm
       title="Delete Profile"
@@ -1159,7 +1181,9 @@ function showDeleteProfile(api: any, profileOpt: any) {
 /**
  * Displays a prompt to rename an existing profile
  */
-function showRenameProfile(api: any, profileOpt: any) {
+export function showRenameProfile(api: any, profileOpt: any) {
+  safeSetDialogSize(api, "medium");
+  safeSetDialogSize(api, "medium");
   api.ui.dialog.replace(() => (
     <api.ui.DialogPrompt
       title="Rename Profile"
@@ -1202,6 +1226,8 @@ function showRenameProfile(api: any, profileOpt: any) {
  * Displays bulk assignment actions for the selected profile.
  */
 export function showBulkProfileActions(api: any, profileOpt: any) {
+  safeSetDialogSize(api, "xlarge");
+  safeSetDialogSize(api, "xlarge");
   const options = buildBulkProfileActionOptions();
 
   api.ui.dialog.replace(() => (
@@ -1232,6 +1258,8 @@ export function showBulkProfileActions(api: any, profileOpt: any) {
  * Displays a menu to select a provider for bulk phase assignment.
  */
 export function showProviderPickerForBulkProfilePhases(api: any, profileOpt: any, action: BulkProfileActionOption) {
+  safeSetDialogSize(api, "xlarge");
+  safeSetDialogSize(api, "xlarge");
   const providers = (api.state.provider || []).filter((p: any) => Object.keys(p.models || {}).length > 0);
 
   if (providers.length === 0) {
@@ -1298,6 +1326,8 @@ export function createBulkModelPickerDialogProps(
 }
 
 export function showModelPickerForBulkProfilePhases(api: any, profileOpt: any, provider: any, action: BulkProfileActionOption) {
+  safeSetDialogSize(api, "xlarge");
+  safeSetDialogSize(api, "xlarge");
   api.ui.dialog.replace(() => (
     <api.ui.DialogSelect {...createBulkModelPickerDialogProps(api, profileOpt, provider, action, {
       onModelSelected: (modelId) => createBulkModelSelectionHandler(api, profileOpt, modelId, action.target || "primary")(),
@@ -1316,7 +1346,9 @@ export function showBulkReasoningEffortPicker(
   ));
 }
 
-function showProfileVersions(api: any, profileOpt: any) {
+export function showProfileVersions(api: any, profileOpt: any) {
+  safeSetDialogSize(api, "xlarge");
+  safeSetDialogSize(api, "xlarge");
   try {
     const versions = listProfileVersions(profileOpt.value);
 
@@ -1347,7 +1379,9 @@ function showProfileVersions(api: any, profileOpt: any) {
   }
 }
 
-function showProfileVersionPreview(api: any, profileOpt: any, versionId: string) {
+export function showProfileVersionPreview(api: any, profileOpt: any, versionId: string) {
+  safeSetDialogSize(api, "xlarge");
+  safeSetDialogSize(api, "xlarge");
   try {
     const version = readProfileVersion(versionId);
     const lines = formatProfileVersionPreviewLines(version);
@@ -1375,7 +1409,9 @@ function showProfileVersionPreview(api: any, profileOpt: any, versionId: string)
   }
 }
 
-function showConfirmRestoreProfileVersion(api: any, profileOpt: any, versionId: string) {
+export function showConfirmRestoreProfileVersion(api: any, profileOpt: any, versionId: string) {
+  safeSetDialogSize(api, "medium");
+  safeSetDialogSize(api, "medium");
   api.ui.dialog.replace(() => (
     <api.ui.DialogConfirm
       title="Restore profile version"
@@ -1399,13 +1435,14 @@ function showConfirmRestoreProfileVersion(api: any, profileOpt: any, versionId: 
 /**
  * Displays a menu to select a provider for a specific agent in the profile
  */
-function showProviderPickerForAgent(
+export function showProviderPickerForAgent(
   api: any,
   profileOpt: any,
   agentName: string,
   mode: "model" | "fallback",
   returnTarget: ProfileDetailReturnTarget = "hub"
 ) {
+  safeSetDialogSize(api, "xlarge");
   const providers = (api.state.provider || []).filter((p: any) => Object.keys(p.models || {}).length > 0);
 
   if (providers.length === 0) {
@@ -1441,6 +1478,7 @@ function showProviderPickerForAgent(
  * Displays a menu to select a model from a provider for a specific agent
  */
 export function showModelPickerForAgent(api: any, profileOpt: any, agentName: string, provider: any, mode: "model" | "fallback", returnTarget: ProfileDetailReturnTarget = "hub") {
+  safeSetDialogSize(api, "xlarge");
   api.ui.dialog.replace(() => <api.ui.DialogSelect {...createModelPickerDialogProps(api, profileOpt, agentName, provider, mode === "fallback" ? "fallback" : "model", returnTarget)} />);
 }
 
@@ -1457,6 +1495,7 @@ function updateAgentModel(api: any, profileOpt: any, agentName: string, fullMode
  * @param api - The TUI API instance
  */
 export async function showProjectMemoriesMenu(api: any) {
+  safeSetDialogSize(api, "large");
   const projectName = resolveEngramProjectName(api) || resolveProjectName(api) || "project";
 
   try {
