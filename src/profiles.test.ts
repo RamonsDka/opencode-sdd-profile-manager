@@ -627,6 +627,124 @@ describe('profiles logic', () => {
       
       expect(firstPass).toEqual(secondPass);
     });
+    it('applies a persisted suffixed fallback effort without contaminating the primary agent', () => {
+      const config = {
+        agent: {
+          'sdd-init': { model: 'openai/gpt-5', reasoningEffort: 'high', options: { reasoningEffort: 'high' } },
+          'sdd-init-fallback': { model: 'old/model', reasoningEffort: 'medium', options: { reasoningEffort: 'medium' } },
+        },
+      };
+
+      const synced = (syncSddFallbackAgents as any)(
+        config,
+        { 'sdd-init': 'openai/gpt-5-mini' },
+        { 'sdd-init-fallback': { reasoningEffort: 'low' } },
+      );
+
+      expect(synced.agent['sdd-init']).toEqual(config.agent['sdd-init']);
+      expect(synced.agent['sdd-init-fallback']).toMatchObject({
+        model: 'openai/gpt-5-mini',
+        reasoningEffort: 'low',
+        options: { reasoningEffort: 'low' },
+      });
+    });
+
+    it('clears fallback-only runtime effort when the persisted fallback effort is provider-default or absent', () => {
+      const config = {
+        agent: {
+          'sdd-init': { model: 'openai/gpt-5', reasoningEffort: 'high', options: { reasoningEffort: 'high' } },
+          'sdd-init-fallback': { model: 'old/model', reasoningEffort: 'medium', options: { reasoningEffort: 'medium' } },
+        },
+      };
+
+      const providerDefault = (syncSddFallbackAgents as any)(
+        config,
+        { 'sdd-init': 'anthropic/claude-3-5-sonnet' },
+        { 'sdd-init-fallback': { reasoningEffort: 'provider-default' } },
+      );
+      expect(providerDefault.agent['sdd-init-fallback']).toMatchObject({ model: 'anthropic/claude-3-5-sonnet' });
+      expect(providerDefault.agent['sdd-init-fallback'].reasoningEffort).toBeUndefined();
+      expect(providerDefault.agent['sdd-init-fallback'].options.reasoningEffort).toBeUndefined();
+
+      const absent = (syncSddFallbackAgents as any)(
+        config,
+        { 'sdd-init': 'anthropic/claude-3-5-sonnet' },
+        {},
+      );
+      expect(absent.agent['sdd-init-fallback'].reasoningEffort).toBeUndefined();
+      expect(absent.agent['sdd-init-fallback'].options.reasoningEffort).toBeUndefined();
+      expect(absent.agent['sdd-init'].reasoningEffort).toBe('high');
+    });
+
+    it('does not synthesize fallback for dynamic primary when profile fallback is omitted (RED)', () => {
+      const config = {
+        agent: {
+          'sdd-future': { model: 'future/model' },
+        },
+      };
+      const synced = syncSddFallbackAgents(config, {});
+      expect(synced.agent['sdd-future-fallback']).toBeUndefined();
+    });
+
+    it('preserves existing dynamic fallback when profile fallback omits it (RED)', () => {
+      const config = {
+        agent: {
+          'sdd-future': { model: 'future/model' },
+          'sdd-future-fallback': { model: 'old/fallback', other: 'keep' },
+        },
+      };
+      const synced = syncSddFallbackAgents(config, {});
+      expect(synced.agent['sdd-future-fallback']).toEqual({
+        model: 'old/fallback',
+        other: 'keep',
+      });
+    });
+
+    it('still syncs canonical 19 base fallbacks when profile fallback is empty (RED)', () => {
+      const config = {
+        agent: {
+          'sdd-init': { model: 'base/init' },
+          'sdd-apply': { model: 'base/apply' },
+          'jd-fix-agent': { model: 'base/fix' },
+          'review-risk': { model: 'base/risk' },
+        },
+      };
+      const synced = syncSddFallbackAgents(config, {});
+      expect(synced.agent['sdd-init-fallback']?.model).toBe('base/init');
+      expect(synced.agent['sdd-apply-fallback']?.model).toBe('base/apply');
+      expect(synced.agent['jd-fix-agent-fallback']?.model).toBe('base/fix');
+      expect(synced.agent['review-risk-fallback']?.model).toBe('base/risk');
+    });
+
+    it('exhaustively syncs all 19 canonical base fallbacks with distinct models', () => {
+      const expectedFallbackNames = [
+        'jd-fix-agent-fallback', 'jd-judge-a-fallback', 'jd-judge-b-fallback',
+        'review-readability-fallback', 'review-refuter-fallback', 'review-reliability-fallback',
+        'review-resilience-fallback', 'review-risk-fallback', 'review-validator-fallback',
+        'sdd-apply-fallback', 'sdd-archive-fallback', 'sdd-design-fallback',
+        'sdd-explore-fallback', 'sdd-init-fallback', 'sdd-onboard-fallback',
+        'sdd-propose-fallback', 'sdd-spec-fallback', 'sdd-tasks-fallback', 'sdd-verify-fallback',
+      ] as const;
+      const baseNames = expectedFallbackNames.map((name) => name.replace(/-fallback$/, ''));
+      const config = {
+        agent: Object.fromEntries(baseNames.map((baseName, index) => [
+          baseName,
+          { model: `provider/exhaustive-${String(index + 1).padStart(2, '0')}` },
+        ])),
+      };
+
+      expect(expectedFallbackNames).toHaveLength(19);
+      expect(baseNames).toHaveLength(19);
+      expect(Object.keys(config.agent)).toHaveLength(19);
+
+      const synced = syncSddFallbackAgents(config, {});
+      for (const [index, baseName] of baseNames.entries()) {
+        const fallback = synced.agent[`${baseName}-fallback`];
+        expect(fallback).toBeDefined();
+        expect(fallback.model).toBe(`provider/exhaustive-${String(index + 1).padStart(2, '0')}`);
+      }
+    });
+
   });
 
   describe('applyProfileDataToConfig', () => {
@@ -2346,6 +2464,211 @@ describe('profiles logic', () => {
   });
 
   describe('persisted profile maps and custom preservation (T04-T09, T21, T22)', () => {
+    it('T04: covers approved fallback persistence and runtime eligibility filtering', () => {
+      const fallback = Object.fromEntries([
+        'sdd-ORCHETATOR',
+        'sdd-propose',
+        'sdd-design',
+        'sdd-apply',
+        'sdd-verify',
+        'sdd-spec',
+        'sdd-onboard',
+        'sdd-explore',
+        'sdd-init',
+        'sdd-tasks',
+        'sdd-archive',
+        'jd-judge-a',
+        'jd-judge-b',
+        'jd-fix-agent',
+        'review-readability',
+        'review-reliability',
+        'review-resilience',
+        'review-validator',
+        'review-refuter',
+        'review-risk',
+        'gentle-ai-windows-validator',
+        'compaction',
+        'summary',
+        'title',
+      ].map((name) => [name, `fallback/${name}`]));
+      const profile = { models: { 'sdd-apply': 'primary/model' }, fallback } as ProfileData;
+      vi.mocked(fs.readFileSync).mockReturnValue(JSON.stringify(profile));
+
+      expect(readProfileData('/mock/profiles/all-fallbacks.json').fallback).toEqual(fallback);
+      writeProfileData('/mock/profiles/all-fallbacks.json', profile);
+      expect(JSON.parse(String(vi.mocked(fs.writeFileSync).mock.calls[0]?.[1])).fallback).toEqual(fallback);
+
+      const synced = syncSddFallbackAgents({
+        agent: {
+          'sdd-apply': { model: 'primary/model' },
+          'gentle-ai-windows-validator': { model: 'validator/model' },
+          compaction: { model: 'compaction/model' },
+          summary: { model: 'summary/model' },
+          title: { model: 'title/model' },
+        },
+      }, fallback);
+
+      expect(synced.agent['sdd-apply-fallback']?.model).toBe('fallback/sdd-apply');
+      expect(synced.agent['gentle-ai-windows-validator-fallback']?.model).toBe('fallback/gentle-ai-windows-validator');
+      expect(synced.agent['compaction-fallback']).toBeUndefined();
+      expect(synced.agent['summary-fallback']).toBeUndefined();
+      expect(synced.agent['title-fallback']).toBeUndefined();
+      expect(synced.agent['sdd-ORCHETATOR-fallback']).toBeUndefined();
+    });
+
+    it('T04: preserves an existing runtime-ineligible fallback while refusing to synthesize it', () => {
+      const currentConfig = {
+        agent: {
+          compaction: { model: 'runtime/compaction' },
+          'compaction-fallback': { model: 'runtime/old-compaction', custom: true },
+        },
+      };
+
+      const synced = syncSddFallbackAgents(currentConfig, {
+        compaction: 'profile/compaction',
+      });
+
+      expect(synced.agent['compaction-fallback']).toEqual(currentConfig.agent['compaction-fallback']);
+      expect(synced.agent['compaction-fallback']?.model).toBe('runtime/old-compaction');
+    });
+
+    it('T04: validates runtime-eligible catalog fallbacks without rejecting stored-only catalog intent', () => {
+      const errors = validateProfileFallbackMapping({
+        agent: {
+          'gentle-ai-windows-validator': { model: 'runtime/validator' },
+        },
+      }, {
+        'gentle-ai-windows-validator': 'profile/validator',
+        'sdd-ORCHETATOR': 'profile/orchestrator',
+        compaction: 'profile/compaction',
+        summary: 'profile/summary',
+        title: 'profile/title',
+      });
+
+      expect(errors).toEqual([]);
+      expect(validateProfileFallbackMapping({ agent: { 'sdd-apply': { model: 'runtime/apply' } } }, {
+        'sdd-apply': 'profile/apply',
+        compaction: 'profile/compaction',
+      })).toEqual([]);
+    });
+
+    it('T09: syncSddFallbackAgents never synthesizes fallback for ineligible/custom primaries', () => {
+      const synced = syncSddFallbackAgents({ agent: { 'my-agent': { model: 'p/m' }, 'sdd-init': { model: 'p/m' } } }, {});
+      expect(synced.agent['sdd-init-fallback']).toBeDefined();
+      expect(synced.agent['my-agent-fallback']).toBeUndefined();
+    });
+
+    it('T17: updateProfilePhaseModel validates fallback eligibility and stores profileKey', () => {
+      const profilePath = '/mock/profiles/test.json';
+      vi.mocked(fs.readFileSync).mockReturnValue(JSON.stringify({ models: { 'sdd-apply': 'old/m' } }));
+
+      const resBase = updateProfilePhaseModel(profilePath, 'sdd-apply', 'fallback', 'provider/apply-fb');
+      expect(resBase.profile.fallback?.['sdd-apply']).toBe('provider/apply-fb');
+      expect(resBase.profile.fallback?.['sdd-apply-fallback']).toBeUndefined();
+
+      const resFuture = updateProfilePhaseModel(profilePath, 'sdd-future', 'fallback', 'provider/future-fb');
+      expect(resFuture.profile.fallback?.['sdd-future']).toBe('provider/future-fb');
+
+      expect(() => updateProfilePhaseModel(profilePath, 'model-audit', 'fallback', 'p/fb')).toThrow(/not eligible/);
+      expect(() => updateProfilePhaseModel(profilePath, 'sdd-orchestrator', 'fallback', 'p/fb')).toThrow();
+      expect(() => updateProfilePhaseModel(profilePath, 'my-agent', 'fallback', 'p/fb')).toThrow();
+    });
+
+    it('T34: syncSddFallbackAgents requires an explicit model-audit override and excludes auxiliaries/custom agents', () => {
+      const config = {
+        agent: {
+          'sdd-init': { model: 'p/init' },
+          'sdd-future': { model: 'p/future' },
+          'model-audit': { model: 'p/audit', description: 'Review provider output' },
+          'my-agent': { model: 'p/custom' },
+          compaction: { model: 'p/compaction' },
+          summary: { model: 'p/summary' },
+          title: { model: 'p/title' },
+        }
+      };
+      const fallbackWithoutModelAuditOverride = {
+        'sdd-init': 'p/init-fb',
+        'sdd-future': 'p/future-fb',
+      };
+      const withoutModelAuditOverride = syncSddFallbackAgents(config, fallbackWithoutModelAuditOverride);
+      expect(withoutModelAuditOverride.agent['model-audit-fallback']).toBeUndefined();
+
+      const retainedWithoutModelAuditOverride = syncSddFallbackAgents({
+        agent: {
+          ...config.agent,
+          'model-audit-fallback': { model: 'p/audit-existing', description: 'Preserve this definition' },
+        }
+      }, fallbackWithoutModelAuditOverride);
+      expect(retainedWithoutModelAuditOverride.agent['model-audit-fallback']).toEqual({
+        model: 'p/audit-existing',
+        description: 'Preserve this definition',
+      });
+
+      const fallback = {
+        'sdd-init': 'p/init-fb',
+        'sdd-future': 'p/future-fb',
+        'model-audit': 'p/audit-fb',
+        'my-agent': 'p/custom-fb',
+        compaction: 'p/compaction-fb',
+        summary: 'p/summary-fb',
+        title: 'p/title-fb',
+      };
+      const synced = syncSddFallbackAgents(config, fallback);
+      expect(synced.agent['sdd-init-fallback'].model).toBe('p/init-fb');
+      expect(synced.agent['sdd-future-fallback'].model).toBe('p/future-fb');
+      expect(synced.agent['model-audit-fallback']).toEqual({
+        model: 'p/audit-fb',
+        description: 'Review provider output',
+      });
+      expect(synced.agent['my-agent-fallback']).toBeUndefined();
+      expect(synced.agent['compaction-fallback']).toBeUndefined();
+      expect(synced.agent['summary-fallback']).toBeUndefined();
+      expect(synced.agent['title-fallback']).toBeUndefined();
+    });
+
+    it('T34: applyProfileDataToConfig and activation preserves explicit future pairs and external agents', () => {
+      const currentConfig = {
+        agent: {
+          'external-agent': { model: 'ext/m', provider: 'other' },
+          'sdd-init': { model: 'old/init' },
+        }
+      };
+      const profile: ProfileData = {
+        models: { 'sdd-init': 'new/init', 'sdd-future': 'new/future' },
+        fallback: { 'sdd-init': 'new/init-fb', 'sdd-future': 'new/future-fb' },
+      };
+      const next = applyProfileDataToConfig(currentConfig, profile);
+      expect(next.agent['external-agent']).toEqual(currentConfig.agent['external-agent']);
+      expect(next.agent['sdd-init'].model).toBe('new/init');
+      expect(next.agent['sdd-init-fallback'].model).toBe('new/init-fb');
+      expect(next.agent['sdd-future'].model).toBe('new/future');
+      expect(next.agent['sdd-future-fallback'].model).toBe('new/future-fb');
+    });
+
+    it('T21: bulk assignment updates only managed primary and eligible fallback agents', () => {
+      const profile: ProfileData = {
+        models: { 'sdd-init': 'old/m', 'sdd-future': 'old/m', 'model-audit': 'old/m', 'my-agent': 'old/m' },
+        fallback: { 'sdd-init': 'old/fb', 'sdd-future': 'old/fb', 'model-audit': 'old/fb', 'my-agent': 'old/fb' }
+      };
+      const res = applyBulkProfilePhaseAssignment(
+        profile,
+        ['sdd-init', 'sdd-future', 'model-audit', 'my-agent'],
+        'bulk/new',
+        { target: BULK_ASSIGNMENT_TARGET.BOTH, mode: BULK_ASSIGNMENT_MODE.OVERWRITE }
+      );
+      expect(res.profile.models).toEqual({
+        'sdd-init': 'bulk/new',
+        'sdd-future': 'bulk/new',
+        'model-audit': 'bulk/new',
+        'my-agent': 'old/m',
+      });
+      expect(res.profile.fallback).toEqual({
+        'sdd-init': 'bulk/new',
+        'sdd-future': 'bulk/new',
+        'model-audit': 'old/fb',
+        'my-agent': 'old/fb',
+      });
+    });
     it('T05: normalizes legacy aliases idempotently without dropping unknown valid assignments', () => {
       const legacy = {
         models: {

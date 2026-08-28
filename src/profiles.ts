@@ -52,8 +52,10 @@ import {
   isEditablePrimaryAgent,
   isPrimarySddAgent,
   isSddFallbackAgent,
+  isRuntimeSyncEligibleAgent,
+  isCatalogVisibleAgent,
 } from "./utils";
-import { deriveFallbackProfileKey, isValidAgentKey } from "./catalog";
+import { FALLBACK_SYNC_BASE_ORDER, deriveFallbackProfileKey, isValidAgentKey } from "./catalog";
 import { resolvePaths, ensureProfilesDir } from "./config";
 import {
   canonicalizeProfileModels,
@@ -1399,8 +1401,8 @@ export function detectActiveProfileFile(files: string[], api: any): string | und
   ), policy);
   const activeFallbackModels: ProfileFallbackModels = Object.fromEntries(
     Object.entries(activeAgents)
-      .filter(([name, value]: any) => isSddFallbackAgent(name) && typeof value?.model === "string" && value.model)
-      .map(([name, value]: any) => [name.replace(/-fallback$/, ""), value.model])
+      .map(([name, value]: any) => [deriveFallbackProfileKey(name), value?.model])
+      .filter(([derived, model]) => Boolean(derived) && typeof model === "string" && model)
   );
 
   const primaryMatches: Array<{ file: string; fallback: ProfileFallbackModels }> = [];
@@ -1471,12 +1473,13 @@ export function validateProfileFallbackMapping(config: any, fallback: ProfileFal
   const agents = config?.agent || {};
 
   for (const [baseAgentName, model] of Object.entries(fallback || {})) {
-    if (!isFallbackEligibleSddAgent(baseAgentName)) {
+    const isStoredOnlyCatalogKey = isCatalogVisibleAgent(baseAgentName);
+    if (!isFallbackEligibleSddAgent(baseAgentName) && !isStoredOnlyCatalogKey) {
       errors.push(`Invalid fallback target '${baseAgentName}'. Must be a managed base agent (sdd-*, review-*, jd-*, excluding sdd-orchestrator).`);
       continue;
     }
 
-    if (!agents[baseAgentName]) {
+    if (isFallbackEligibleSddAgent(baseAgentName) && !agents[baseAgentName]) {
       errors.push(`Fallback target '${baseAgentName}' does not exist in active config.`);
       continue;
     }
@@ -1495,24 +1498,48 @@ function normalizeForFallbackCompare(agentConfig: any): any {
   return clone;
 }
 
+function hasExplicitFallbackOverride(fallbackModels: ProfileFallbackModels, agentName: string): boolean {
+  const value = fallbackModels?.[agentName];
+  return typeof value === "string" && value.trim().length > 0;
+}
+
+function isFallbackSyncBaseAgent(agentName: string, fallbackModels: ProfileFallbackModels): boolean {
+  if (isFallbackEligibleSddAgent(agentName)) return true;
+  return isRuntimeSyncEligibleAgent(agentName) && hasExplicitFallbackOverride(fallbackModels, agentName);
+}
+
 /**
  * Ensures and reconciles *-fallback agents against managed base agents
  */
-export function syncSddFallbackAgents(currentConfig: any, fallbackModels: ProfileFallbackModels): any {
+export function syncSddFallbackAgents(
+  currentConfig: any,
+  fallbackModels: ProfileFallbackModels,
+  fallbackConfigs?: ProfileConfigs,
+): any {
   const nextConfig = JSON.parse(JSON.stringify(currentConfig || {}));
   if (!nextConfig.agent) nextConfig.agent = {};
 
-  const baseAgents = listFallbackEligibleSddAgents(nextConfig);
+  const baseAgents = Object.keys(nextConfig.agent).filter((name) => isFallbackSyncBaseAgent(name, fallbackModels));
+  const canonicalEligibleSet = new Set(
+    FALLBACK_SYNC_BASE_ORDER
+  );
 
   for (const baseAgentName of baseAgents) {
     const baseConfig = nextConfig.agent?.[baseAgentName];
     if (!baseConfig || typeof baseConfig !== "object") continue;
 
+    const isCanonical = canonicalEligibleSet.has(baseAgentName);
+    const hasExplicitOverride = hasExplicitFallbackOverride(fallbackModels, baseAgentName);
+
+    // Explicit-only gate: do not synthesize/override fallback for dynamic primary unless explicit in profile
+    if (!isCanonical && !hasExplicitOverride) {
+      continue;
+    }
+
     const fallbackAgentName = `${baseAgentName}-fallback`;
-    const resolvedFallbackModel =
-      (typeof fallbackModels?.[baseAgentName] === "string" && fallbackModels[baseAgentName].trim())
-        ? fallbackModels[baseAgentName]
-        : baseConfig?.model;
+    const resolvedFallbackModel = hasExplicitOverride
+      ? fallbackModels[baseAgentName].trim()
+      : baseConfig?.model;
 
     if (!resolvedFallbackModel) continue;
 
@@ -1520,6 +1547,19 @@ export function syncSddFallbackAgents(currentConfig: any, fallbackModels: Profil
       ...JSON.parse(JSON.stringify(baseConfig)),
       model: resolvedFallbackModel,
     };
+    const fallbackEffort = fallbackConfigs?.[fallbackAgentName]?.reasoningEffort;
+    if (fallbackEffort && fallbackEffort !== "provider-default") {
+      desiredFallbackConfig.reasoningEffort = fallbackEffort;
+      desiredFallbackConfig.options = {
+        ...(desiredFallbackConfig.options || {}),
+        reasoningEffort: fallbackEffort,
+      };
+    } else {
+      delete desiredFallbackConfig.reasoningEffort;
+      if (desiredFallbackConfig.options && typeof desiredFallbackConfig.options === "object") {
+        delete desiredFallbackConfig.options.reasoningEffort;
+      }
+    }
 
     const currentFallbackConfig = nextConfig.agent[fallbackAgentName];
 
@@ -1573,7 +1613,7 @@ function applyProfileModelsToConfig(currentConfig: any, profileModels: ProfileMo
 export function applyProfileDataToConfig(currentConfig: any, profile: ProfileData): any {
   const withPrimaryModels = applyProfileModelsToConfig(currentConfig, profile.models || {});
   const fallbackModels = profile.fallback || {};
-  const withFallback = syncSddFallbackAgents(withPrimaryModels, fallbackModels);
+  const withFallback = syncSddFallbackAgents(withPrimaryModels, fallbackModels, profile.configs);
   const policy = getOrchestratorPolicy(Object.keys(withFallback?.agent || {}), withFallback?.default_agent);
   return applyProfileReasoningEffort(withFallback, profile, [], policy).config;
 }
