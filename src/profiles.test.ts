@@ -33,6 +33,8 @@ import {
 } from './profiles';
 import { getOrchestratorPolicy } from './orchestrator';
 
+const toPosix = (p: any) => (typeof p === 'string' ? p.replace(/\\/g, '/') : p);
+
 vi.mock('node:fs');
 vi.mock('./config', () => ({
   resolvePaths: () => ({
@@ -1435,6 +1437,91 @@ describe('profiles logic', () => {
       expect(primaryNoOp.changed).toBe(false);
       expect(fallbackNoOp.changed).toBe(false);
       expect(fs.writeFileSync).not.toHaveBeenCalled();
+    });
+
+    it('clears old primary effort, creates one snapshot, and exposes its transaction context', () => {
+      const writes: Array<{ filePath: string; content: string }> = [];
+      vi.mocked(fs.existsSync).mockReturnValue(false);
+      vi.mocked(fs.readdirSync).mockReturnValue([] as any);
+      vi.mocked(fs.readFileSync).mockReturnValue(JSON.stringify({
+        models: { 'security-auditor': 'openai/old' },
+        configs: { 'security-auditor': { reasoningEffort: 'high' } },
+      }));
+      vi.mocked(fs.writeFileSync).mockImplementation((filePath: any, content: any) => {
+        writes.push({ filePath: toPosix(filePath), content: String(content) });
+      });
+
+      const context = {
+        providers: [] as unknown[],
+        runtimePrimaryNames: ['security-auditor'],
+        effortPolicy: 'interactive-clear',
+      } as const;
+      const result = updateProfilePhaseModel(
+        '/mock/profiles/team.json',
+        'security-auditor',
+        'primary',
+        'openai/new',
+        undefined,
+        context,
+      );
+
+      expect(result.changed).toBe(true);
+      expect(result.version?.id).toMatch(/^team\.json\//);
+      expect(result.versionId).toBe(result.version?.id);
+      expect(result.context).toEqual(context);
+      expect(result.profile.models['security-auditor']).toBe('openai/new');
+      expect(result.profile.configs).toBeUndefined();
+      expect(writes.filter(({ filePath }) => filePath.includes('/profile-versions/team.json/'))).toHaveLength(1);
+      expect(writes.filter(({ filePath }) => filePath === '/mock/profiles/team.json.tmp-' + filePath.split('/mock/profiles/team.json.tmp-')[1])).toHaveLength(1);
+    });
+
+    it('removes only the newly-created snapshot when the profile write fails', () => {
+      vi.mocked(fs.existsSync).mockReturnValue(false);
+      vi.mocked(fs.readdirSync).mockReturnValue([] as any);
+      vi.mocked(fs.readFileSync).mockReturnValue(JSON.stringify({
+        models: { 'security-auditor': 'openai/old' },
+        configs: { 'security-auditor': { reasoningEffort: 'high' } },
+      }));
+      vi.mocked(fs.writeFileSync).mockImplementation((filePath: any) => {
+        if (toPosix(filePath).includes('/mock/profiles/team.json.tmp-')) throw new Error('profile write failed');
+      });
+
+      expect(() => updateProfilePhaseModel(
+        '/mock/profiles/team.json',
+        'security-auditor',
+        'primary',
+        'openai/new',
+      )).toThrow('profile write failed');
+
+      expect(vi.mocked(fs.unlinkSync).mock.calls.some(([filePath]) =>
+        toPosix(filePath).includes('/profile-versions/team.json/')
+      )).toBe(true);
+      expect(vi.mocked(fs.unlinkSync).mock.calls.every(([filePath]) =>
+        toPosix(filePath).includes('/profile-versions/team.json/') || toPosix(filePath).includes('/mock/profiles/team.json.tmp-')
+      )).toBe(true);
+    });
+
+    it('aborts before the profile write when snapshot creation fails', () => {
+      vi.mocked(fs.existsSync).mockReturnValue(false);
+      vi.mocked(fs.readdirSync).mockReturnValue([] as any);
+      vi.mocked(fs.readFileSync).mockReturnValue(JSON.stringify({
+        models: { 'sdd-apply': 'openai/old' },
+      }));
+      vi.mocked(fs.writeFileSync).mockImplementation((filePath: any) => {
+        if (toPosix(filePath).includes('/profile-versions/team.json/')) {
+          throw new Error('snapshot write failed');
+        }
+      });
+
+      expect(() => updateProfilePhaseModel(
+        '/mock/profiles/team.json',
+        'sdd-apply',
+        'primary',
+        'openai/new',
+      )).toThrow('snapshot write failed');
+      expect(vi.mocked(fs.writeFileSync).mock.calls.some(([filePath]) =>
+        toPosix(filePath).includes('/profiles/team.json.tmp-')
+      )).toBe(false);
     });
 
     it('renames matching profile version history with migrated snapshot metadata', () => {

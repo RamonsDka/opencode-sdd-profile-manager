@@ -12,6 +12,7 @@ import { randomBytes } from "node:crypto";
 import { createLogger } from "./logger";
 import {
   applyProfileReasoningEffort,
+  pruneProfileReasoningEffort,
   normalizeProfileConfigs,
   updateProfileReasoningEffort,
 } from "./profile-reasoning";
@@ -33,14 +34,19 @@ import {
   ProfileVersion,
   ProfileVersionMetadata,
   ProfileVersionOperation,
+  ModelMutationContext,
+  ProfileWriteTransaction,
+  ProfileWriteOptions,
   UpdateProfilePhaseModelResult,
 } from "./types";
 import {
   isManagedSddAgent,
   isFallbackEligibleSddAgent,
+  isEditablePrimaryAgent,
   isPrimarySddAgent,
   isSddFallbackAgent,
 } from "./utils";
+import { deriveFallbackProfileKey } from "./catalog";
 import { resolvePaths, ensureProfilesDir } from "./config";
 import {
   canonicalizeProfileModels,
@@ -359,7 +365,12 @@ function readProfileDataFromRaw(rawContent: string): ProfileData {
 /**
  * Persists full profile data while preserving the existing profile payload shape.
  */
-export function writeProfileData(profilePath: string, profile: ProfileData, policy?: OrchestratorPolicy): void {
+export function writeProfileData(
+  profilePath: string,
+  profile: ProfileData,
+  policy?: OrchestratorPolicy,
+  options?: ProfileWriteOptions,
+): void {
   atomicWriteFile(profilePath, JSON.stringify(normalizePersistedProfileData(profile, policy), null, 2));
 }
 
@@ -751,6 +762,92 @@ function pruneProfileVersions(profileFile: string, retention: number): void {
   }
 }
 
+function removeCreatedProfileVersion(version?: ProfileVersion): void {
+  if (!version) return;
+  try {
+    fs.unlinkSync(resolveProfileVersionPath(version.id));
+  } catch (error) {
+    log.warn(`removeCreatedProfileVersion: failed to remove ${version.id}`, error);
+  }
+}
+
+function resolveModelMutationContext(
+  context: ModelMutationContext | undefined,
+  fallbackPolicy: ModelMutationContext["effortPolicy"],
+): ModelMutationContext {
+  return context || { providers: [], effortPolicy: fallbackPolicy };
+}
+
+function preparePrimaryModelMutation(
+  profile: ProfileData,
+  agentName: string,
+  modelId: string,
+  policy: OrchestratorPolicy,
+): { profile: ProfileData; agentName: string } {
+  if (!policy.aliasNames.includes(agentName as any)) {
+    return {
+      profile: {
+        ...profile,
+        models: { ...(profile.models || {}), [agentName]: modelId },
+      },
+      agentName,
+    };
+  }
+
+  const models = { ...(profile.models || {}) };
+  const configs = { ...(profile.configs || {}) };
+  for (const aliasName of policy.aliasNames) {
+    delete models[aliasName];
+    delete configs[aliasName];
+  }
+  models[policy.canonicalName] = modelId;
+  const { configs: _discardedConfigs, ...profileWithoutConfigs } = profile;
+
+  return {
+    profile: {
+      ...profileWithoutConfigs,
+      models,
+      ...(Object.keys(configs).length > 0 ? { configs } : {}),
+    },
+    agentName: policy.canonicalName,
+  };
+}
+
+function applyModelReasoningMutation(
+  profile: ProfileData,
+  agentName: string,
+  modelId: string,
+  context: ModelMutationContext,
+  runtimePolicy?: OrchestratorPolicy,
+): ProfileData {
+  if (context.effortPolicy === "interactive-clear") {
+    return updateProfileReasoningEffort(profile, agentName, "");
+  }
+
+  if (context.effortPolicy === "bulk-compatible-prune") {
+    return pruneProfileReasoningEffort(profile, agentName, modelId, context.providers as any[], runtimePolicy);
+  }
+
+  return profile;
+}
+
+function persistVersionedProfileMutation(
+  profilePath: string,
+  profile: ProfileData,
+  version: ProfileVersion,
+  policy?: OrchestratorPolicy,
+  options?: ProfileWriteOptions,
+): void {
+  try {
+    writeProfileData(profilePath, profile, policy, options);
+  } catch (error) {
+    removeCreatedProfileVersion(version);
+    atomicWriteFile(profilePath, version.beforeRaw);
+    throw error;
+  }
+}
+
+
 export function createProfileVersion(
   profilePath: string,
   operation: BulkAssignmentOperation | ProfileVersionOperation,
@@ -893,25 +990,30 @@ export function updateProfilePhaseModel(
   agentName: string,
   field: ProfilePhaseModelField,
   modelId: string,
-  runtimePolicy?: OrchestratorPolicy
-): UpdateProfilePhaseModelResult {
+  runtimePolicy?: OrchestratorPolicy,
+  context?: ModelMutationContext,
+): UpdateProfilePhaseModelResult & Partial<ProfileWriteTransaction> {
   const trimmedModelId = modelId?.trim();
   if (!trimmedModelId) {
     throw new Error("modelId must be a non-empty string");
   }
-  if (!isPrimarySddAgent(agentName) || isSddFallbackAgent(agentName)) {
+  if (field === PROFILE_PHASE_MODEL_FIELD.PRIMARY && !isEditablePrimaryAgent(agentName)) {
+    throw new Error("agentName must be an editable primary agent");
+  }
+  if (field === PROFILE_PHASE_MODEL_FIELD.FALLBACK && (!isPrimarySddAgent(agentName) || isSddFallbackAgent(agentName))) {
     throw new Error("agentName must be a primary SDD agent");
   }
-  if (field === PROFILE_PHASE_MODEL_FIELD.FALLBACK && !isFallbackEligibleSddAgent(agentName)) {
+  if (field === PROFILE_PHASE_MODEL_FIELD.FALLBACK && deriveFallbackProfileKey(`${agentName}-fallback`) === null) {
     throw new Error("agentName is not eligible for fallback models");
   }
 
   const profileData = readProfileData(profilePath);
+  const policy = runtimePolicy ?? getOrchestratorPolicy(Object.keys(profileData.models || {}));
   const currentValue = field === PROFILE_PHASE_MODEL_FIELD.FALLBACK
     ? profileData.fallback?.[agentName]
     : profileData.models?.[agentName];
   if (currentValue === trimmedModelId) {
-    return { profile: profileData, changed: false };
+    return { profile: profileData, changed: false, context: context || { providers: [], effortPolicy: "none" } };
   }
 
   const nextProfile: ProfileData = {
@@ -920,15 +1022,18 @@ export function updateProfilePhaseModel(
     fallback: { ...(profileData.fallback || {}) },
   };
 
+  const mutationContext = resolveModelMutationContext(
+    context,
+    field === PROFILE_PHASE_MODEL_FIELD.FALLBACK ? "none" : "interactive-clear",
+  );
+
   if (field === PROFILE_PHASE_MODEL_FIELD.FALLBACK) {
     nextProfile.fallback = { ...(nextProfile.fallback || {}), [agentName]: trimmedModelId };
   } else {
-    nextProfile.models = { ...(nextProfile.models || {}), [agentName]: trimmedModelId };
-    if (profileData?.configs?.[agentName]?.reasoningEffort) {
-      const previousReasoningEffort = profileData.configs[agentName].reasoningEffort;
-      const updatedReasoning = updateProfileReasoningEffort(nextProfile, agentName, previousReasoningEffort);
-      nextProfile.configs = updatedReasoning.configs;
-    }
+    const mutation = preparePrimaryModelMutation(nextProfile, agentName, trimmedModelId, policy);
+    const reasonedProfile = applyModelReasoningMutation(mutation.profile, mutation.agentName, trimmedModelId, mutationContext, policy);
+    delete nextProfile.configs;
+    Object.assign(nextProfile, reasonedProfile);
   }
 
   const operation: PhaseProfileVersionOperation = {
@@ -939,9 +1044,14 @@ export function updateProfilePhaseModel(
     changedPhases: 1,
   };
   const version = createProfileVersion(profilePath, operation, buildPhaseOperationSummary(agentName, field, trimmedModelId));
-  const policy = runtimePolicy ?? getOrchestratorPolicy(Object.keys(profileData.models || {}));
-  writeProfileData(profilePath, nextProfile, policy);
-  return { profile: nextProfile, changed: true, version };
+  persistVersionedProfileMutation(profilePath, nextProfile, version, policy);
+  return {
+    profile: nextProfile,
+    changed: true,
+    version,
+    versionId: version.id,
+    context: mutationContext,
+  };
 }
 
 /**

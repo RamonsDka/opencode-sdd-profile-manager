@@ -188,9 +188,31 @@ export type UpdateProfilePhaseModelResult = {
   profile: ProfileData;
   changed: boolean;
   version?: ProfileVersion;
+  versionId?: string;
+  context?: ModelMutationContext;
+};
+
+export type ProfileWriteOptions = {
+  preserveProviderDefaultReasoning?: boolean;
 };
 
 export type ProfileVersionMetadata = Omit<ProfileVersion, "beforeRaw">;
+
+export type ModelMutationEffortPolicy = "interactive-clear" | "bulk-compatible-prune" | "none";
+
+export type ModelMutationContext = {
+  providers: unknown[];
+  runtimePrimaryNames?: readonly string[];
+  effortPolicy: ModelMutationEffortPolicy;
+};
+
+export type ProfileWriteTransaction = {
+  profile: ProfileData;
+  changed: boolean;
+  version?: ProfileVersion;
+  versionId?: string;
+  context: ModelMutationContext;
+};
 
 /**
  * Represents the persistent state of profiles
