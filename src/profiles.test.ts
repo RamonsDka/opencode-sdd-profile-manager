@@ -1765,6 +1765,60 @@ describe('profiles logic', () => {
       expect(fs.readFileSync).toHaveBeenCalledWith('/mock/profiles/team.json', 'utf-8');
     });
 
+    it('prunes incompatible bulk efforts while retaining compatible efforts without prompts', () => {
+      const writes: Array<{ filePath: string; content: string }> = [];
+      const providers = [
+        {
+          id: 'openai',
+          models: {
+            'gpt-5': {
+              capabilities: { reasoning: true },
+              variants: {
+                low: { reasoningEffort: 'low' },
+                high: { reasoningEffort: 'high' },
+              },
+            },
+          },
+        },
+      ];
+      const bulkOperation = {
+        target: BULK_ASSIGNMENT_TARGET.PRIMARY,
+        mode: BULK_ASSIGNMENT_MODE.OVERWRITE,
+      } as const;
+
+      vi.mocked(fs.existsSync).mockReturnValue(false);
+      vi.mocked(fs.readdirSync).mockReturnValue([] as any);
+      vi.mocked(fs.readFileSync).mockReturnValue(JSON.stringify({
+        models: {
+          'sdd-spec': 'openai/old',
+          'sdd-tasks': 'openai/old',
+        },
+        configs: {
+          'sdd-spec': { reasoningEffort: 'high' },
+          'sdd-tasks': { reasoningEffort: 'max' },
+        },
+      }));
+      vi.mocked(fs.writeFileSync).mockImplementation((filePath: any, content: any) => {
+        writes.push({ filePath: toPosix(filePath), content: String(content) });
+      });
+
+      const result = (updateProfileWithBulkPhaseAssignment as any)(
+        '/mock/profiles/team.json',
+        ['sdd-spec', 'sdd-tasks'],
+        'openai/gpt-5',
+        bulkOperation,
+        undefined,
+        { providers, effortPolicy: 'bulk-compatible-prune' },
+      );
+
+      expect(result.assignment.modelsAssigned).toBe(2);
+      expect(result.assignment.profile.configs).toEqual({
+        'sdd-spec': { reasoningEffort: 'high' },
+      });
+      expect(writes.filter(({ filePath }) => filePath.includes('/profile-versions/team.json/'))).toHaveLength(1);
+      expect(writes.filter(({ filePath }) => filePath.includes('/profiles/team.json.tmp-'))).toHaveLength(1);
+    });
+
     it('stages a primary model selection and requests effort even when the model is unchanged', () => {
       const profile = {
         models: { 'sdd-apply': 'openai/gpt-5' },

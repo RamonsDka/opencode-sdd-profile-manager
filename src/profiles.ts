@@ -1081,12 +1081,24 @@ export function updateProfileWithBulkPhaseAssignment(
   primarySddAgentNames: string[],
   modelId: string,
   operation: BulkAssignmentOperation,
-  runtimePolicy?: OrchestratorPolicy
+  runtimePolicy?: OrchestratorPolicy,
+  context?: ModelMutationContext,
 ): { assignment: BulkProfilePhaseAssignmentResult; version?: ProfileVersion } {
   const beforeRaw = fs.readFileSync(profilePath, "utf-8").toString();
   const profileData = readProfileDataFromRaw(beforeRaw);
   const assignment = applyBulkProfilePhaseAssignment(profileData, primarySddAgentNames, modelId, operation);
   if (!assignment.changed) return { assignment };
+
+  const bulkReasoning = operation.target === BULK_ASSIGNMENT_TARGET.PRIMARY || operation.target === BULK_ASSIGNMENT_TARGET.BOTH;
+  if (bulkReasoning && context?.effortPolicy === "bulk-compatible-prune" && assignment.profile.configs) {
+    let nextProfile = assignment.profile;
+    for (const agentName of normalizePrimarySddAgentNames(primarySddAgentNames)) {
+      const currentModel = nextProfile.models?.[agentName];
+      if (!currentModel) continue;
+      nextProfile = pruneProfileReasoningEffort(nextProfile, agentName, currentModel, context.providers as any[], runtimePolicy);
+    }
+    assignment.profile = nextProfile;
+  }
 
   const version = createProfileVersion(
     profilePath,
@@ -1096,7 +1108,7 @@ export function updateProfileWithBulkPhaseAssignment(
     beforeRaw
   );
   const policy = runtimePolicy ?? getOrchestratorPolicy(primarySddAgentNames);
-  writeProfileData(profilePath, assignment.profile, policy);
+  persistVersionedProfileMutation(profilePath, assignment.profile, version, policy);
   return { assignment, version };
 }
 
