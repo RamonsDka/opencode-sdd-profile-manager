@@ -17,6 +17,8 @@ import {
   ProfileVersionMetadata,
   NAV_CATEGORY,
   type BadgeDisplayMode,
+  type CatalogEntry,
+  type AgentFamily,
 } from "./types";
 import {
   resolveModelInfo,
@@ -27,6 +29,7 @@ import {
   isFallbackEligibleSddAgent,
   isPrimarySddAgent,
 } from "./utils";
+import { buildCatalogSections, CATALOG_GROUPS, isFallbackCatalogAgent } from "./catalog";
 import { resolveEngramProjectName, resolvePaths, ensureProfilesDir, resolveProjectName } from "./config";
 import {
   listProfileFiles,
@@ -62,6 +65,80 @@ export const ACTIVE_PROFILE_NAME_KV_KEY = "sdd-active-profile-name";
 
 const log = createLogger("dialogs");
 
+const UI_TEXT = {
+  profile: "Perfil",
+  primaryModels: "Modelos primarios",
+  reasoningEffort: "Nivel de esfuerzo",
+  fallbackModels: "Modelos fallback",
+  back: "← Volver",
+  inherited: "Heredado",
+  defaultEffort: "Predeterminado",
+  unconfigured: "Sin configurar",
+  error: "Error",
+  updated: "Actualizado",
+  noChanges: "Sin cambios",
+  deleted: "Eliminado",
+  renamed: "Renombrado",
+  restored: "Restaurado",
+} as const;
+
+const NAV_TEXT = {
+  back: UI_TEXT.back,
+  close: "✕ Cerrar",
+  deleteMemory: "✕ Eliminar memoria",
+  noProviders: "Sin proveedores",
+  noProfiles: "Sin perfiles",
+  noVersions: "Sin versiones",
+  noMemories: "Sin memorias",
+  profileManagement: "Gestión de perfiles SDD",
+  createProfile: "󰏪 Crear nuevo perfil SDD",
+  manageProfiles: "󰓅 Gestionar perfiles SDD",
+  viewMemories: "󰄄 Ver memorias del proyecto",
+  activate: "Activar",
+} as const;
+
+function buildCatalogRows<T>(
+  groups: readonly (typeof CATALOG_GROUPS)[number][],
+  mapAgent: (key: (typeof CATALOG_GROUPS)[number]["agents"][number]) => T,
+): T[] {
+  return groups.flatMap((group) => group.agents.map(mapAgent));
+}
+
+function buildBackOption() {
+  return { title: NAV_TEXT.back, value: "__back__", category: NAV_CATEGORY };
+}
+
+function localizedModelInfo(api: any, modelId?: string): string {
+  return modelId ? resolveModelInfo(api, modelId).replace("ctx: N/A", "contexto: N/D") : "Sin asignar";
+}
+
+function catalogCategory(agentName: string): string {
+  return CATALOG_GROUPS.find((group) => group.agents.includes(agentName as never))?.labelEs || UI_TEXT.primaryModels;
+}
+
+const CATALOG_FAMILY_BY_GROUP = {
+  orchestrator: "Orchestrator",
+  "sdd-core": "SDD",
+  "judgment-day": "JD",
+  reviewers: "Review",
+  auxiliaries: "Tools",
+} as const;
+
+function buildCatalogEntries(field: "model" | "fallback"): CatalogEntry[] {
+  return CATALOG_GROUPS.flatMap((group, groupIndex) =>
+    group.agents.map((key, agentIndex) => ({
+      displayName: key,
+      profileKey: key,
+      field,
+      family: CATALOG_FAMILY_BY_GROUP[group.id as keyof typeof CATALOG_FAMILY_BY_GROUP],
+      base: true,
+      isFallback: field === "fallback",
+      orderIndex: groupIndex * 100 + agentIndex,
+    })),
+  );
+}
+
+
 export function resolveRuntimeOrchestratorPolicy(config: any): OrchestratorPolicy {
   return getOrchestratorPolicy(
     Object.keys(config?.agent || {}),
@@ -82,13 +159,12 @@ export function buildProfileAgentRows(
     .map((name) => ({ title: name, value: `model:${name}`, modelId: models[name] }));
 }
 
-export function buildReasoningRowForAgent(profileData: any, agentName: string): { title: string; value: string; description: string; category: string } {
+export function buildReasoningRowForAgent(profileData: any, agentName: string): { title: string; value: string; category: string } {
   const saved = profileData?.configs?.[agentName]?.reasoningEffort;
   return {
-    title: `${agentName} reasoning effort`,
+    title: `${agentName}: ${saved || "Sin asignar"}`,
     value: `reasoning:${agentName}`,
-    description: saved ? `Saved: ${saved}` : "Unset",
-    category: "Reasoning (PRIMARY SDD only)",
+    category: catalogCategory(agentName),
   };
 }
 
@@ -165,45 +241,34 @@ export function resolveProfileDetailNavigationAction(optionValue: string):
 export function buildProfileDetailHubOptions(api: any, profileOpt: any, profileData: any) {
   const { sddAgents, fallbackAgents } = buildProfileDetailAgentSections(api.state.config, profileData);
   const reasoningSaved = sddAgents.filter(([name]) => Boolean(profileData?.configs?.[name]?.reasoningEffort)).length;
-  const reasoningSummary = `${reasoningSaved}/${sddAgents.length} saved`;
+  const reasoningSummary = `${reasoningSaved}/${sddAgents.length} guardados`;
   const fallbackConfigured = fallbackAgents.filter(([, modelId]) => Boolean(modelId)).length;
-  const fallbackSummary = `${fallbackConfigured}/${fallbackAgents.length} configured`;
+  const fallbackSummary = `${fallbackConfigured}/${fallbackAgents.length} configurados`;
 
   return [
-    { title: `✏ Name: ${profileOpt.title}`, value: "__rename__", category: "Profile" },
+    { title: `✏ Nombre: ${profileOpt.title}`, value: "__rename__", category: UI_TEXT.profile },
     {
-      title: "Bulk actions...",
+      title: "Acciones masivas...",
       value: "__bulk_actions__",
-      description: "Fill or override primary and fallback SDD phase assignments",
-      category: "Model Navigation",
+      description: "Completa o sobrescribe asignaciones primarias y fallback de fases SDD",
+      category: "Navegación de modelos",
     },
-    ...sddAgents.map(([name, modelId]) => ({
-      title: name,
-      value: `model:${name}`,
-      description: resolveModelInfo(api, modelId),
-      category: "Model Navigation",
-    })),
+    ...buildPrimaryModelOptions(profileData, api),
     {
-      title: "Reasoning effort...",
+      title: `${UI_TEXT.reasoningEffort}...`,
       value: PROFILE_DETAIL_SUBMENU.REASONING,
       description: reasoningSummary,
-      category: "Model Navigation",
+      category: "Navegación",
     },
     {
-      title: "Fallback models...",
+      title: `${UI_TEXT.fallbackModels}...`,
       value: PROFILE_DETAIL_SUBMENU.FALLBACK,
       description: fallbackSummary,
-      category: "Model Navigation",
+      category: "Navegación",
     },
-    {
-      title: "Profile versions...",
-      value: "__profile_versions__",
-      description: "Preview and restore previous profile versions",
-      category: "Agents",
-    },
-    { title: "✓ Activate Profile", value: "__assign__", category: NAV_CATEGORY },
-    { title: "✕ Delete Profile", value: "__delete__", category: NAV_CATEGORY },
-    { title: "← Back", value: "__back__", category: NAV_CATEGORY },
+    { title: "✓ Activar perfil", value: "__assign__", category: NAV_CATEGORY },
+    { title: "✕ Eliminar perfil", value: "__delete__", category: NAV_CATEGORY },
+    buildBackOption(),
   ];
 }
 
@@ -227,7 +292,9 @@ export function buildProfileDetailAgentSections(
   sddAgents: Array<[string, string | undefined]>;
   fallbackAgents: Array<[string, string | undefined]>;
   policy: OrchestratorPolicy;
+  catalogSections: Map<AgentFamily, CatalogEntry[]>;
 } {
+  const catalogSections = buildCatalogSections(config, profileData);
   const sddAgentNames = Object.keys(config?.agent || {})
     .filter(isPrimarySddAgent)
     .sort();
@@ -239,38 +306,76 @@ export function buildProfileDetailAgentSections(
     .filter((name) => isFallbackEligibleSddAgent(name))
     .map((name) => [name, fallbackModelMap[name]] as [string, string | undefined]);
 
-  return { sddAgentNames, sddAgents, fallbackAgents, policy };
+  return { sddAgentNames, sddAgents, fallbackAgents, policy, catalogSections };
+}
+
+function buildPrimaryModelOptions(profileData: any, api?: any) {
+  const agentConfig = api?.state?.config?.agent ?? api?.agent ?? {};
+  const policy = resolveRuntimeOrchestratorPolicy(api?.state?.config ?? { agent: agentConfig });
+  const models = canonicalizeProfileModels(profileData?.models || {}, policy);
+  const entries = buildCatalogEntries("model");
+
+  return buildCatalogRows(CATALOG_GROUPS, (key) => {
+    const entry = entries.find((candidate) => candidate.profileKey === key);
+    if (!entry) return null;
+    const modelId = entry.profileKey === "sdd-ORCHETATOR"
+      ? models[policy.canonicalName]
+      : models[entry.profileKey];
+    const desc = api ? localizedModelInfo(api, modelId) : (modelId || "Sin asignar");
+    const isUnconfigured = !Object.hasOwn(agentConfig, entry.displayName);
+    const option: any = {
+      title: entry.displayName,
+      value: `model:${entry.profileKey}`,
+      description: desc,
+      category: catalogCategory(entry.profileKey),
+    };
+    if (isUnconfigured && entry.profileKey !== "sdd-spec") {
+      option.badge = UI_TEXT.unconfigured;
+    }
+    return option;
+  }).filter((option): option is NonNullable<typeof option> => option !== null);
 }
 
 export function buildPrimaryModelSubmenuOptions(profileData: any, sections: any, api?: any) {
-  return [
-    ...sections.sddAgents.map(([name, modelId]: [string, string | undefined]) => ({
-      title: name,
-      value: `model:${name}`,
-      description: api ? resolveModelInfo(api, modelId) : (modelId || "Unset"),
-      category: "Primary Models",
-    })),
-    { title: "← Back", value: "__back__", category: NAV_CATEGORY },
-  ];
+  const options = buildPrimaryModelOptions(profileData, api);
+  return [...options, buildBackOption()];
 }
 
 export function buildReasoningSubmenuOptions(profileData: any, sections: any) {
-  return [
-    ...sections.sddAgents.map(([name]: [string, string | undefined]) => buildReasoningRowForAgent(profileData, name)),
-    { title: "← Back", value: "__back__", category: NAV_CATEGORY },
-  ];
+  const entries = buildCatalogEntries("model");
+
+  const options = buildCatalogRows(CATALOG_GROUPS, (key) => {
+    const entry = entries.find((candidate) => candidate.profileKey === key);
+    return entry ? buildReasoningRowForAgent(profileData, entry.profileKey) : null;
+  });
+  return [...options.filter((option): option is NonNullable<typeof option> => option !== null), buildBackOption()];
 }
 
 export function buildFallbackSubmenuOptions(profileData: any, sections: any, api?: any) {
-  return [
-    ...sections.fallbackAgents.map(([name, modelId]: [string, string | undefined]) => ({
-      title: `${name} -> ${name}-fallback`,
-      value: `fallback:${name}`,
-      description: modelId ? (api ? resolveModelInfo(api, modelId) : modelId) : "Inherited from base model",
-      category: "Fallback Models",
-    })),
-    { title: "← Back", value: "__back__", category: NAV_CATEGORY },
-  ];
+  const agentConfig = api?.state?.config?.agent ?? api?.agent ?? {};
+  const entries = buildCatalogEntries("fallback");
+
+  const options = buildCatalogRows(CATALOG_GROUPS, (key) => {
+    if (!isFallbackCatalogAgent(key)) return null;
+    const entry = entries.find((candidate) => candidate.profileKey === key);
+    if (!entry) return null;
+    const fallbackModel = profileData?.fallback?.[entry.profileKey];
+    const desc = fallbackModel
+      ? (api ? localizedModelInfo(api, fallbackModel) : fallbackModel)
+      : UI_TEXT.inherited;
+    const isUnconfigured = !Object.hasOwn(agentConfig, `${entry.profileKey}-fallback`);
+    const option: any = {
+      title: entry.displayName,
+      value: `fallback:${entry.profileKey}`,
+      description: desc,
+      category: catalogCategory(entry.profileKey),
+    };
+    if (isUnconfigured && Boolean(fallbackModel)) {
+      option.badge = UI_TEXT.unconfigured;
+    }
+    return option;
+  });
+  return [...options.filter((option): option is NonNullable<typeof option> => option !== null), buildBackOption()];
 }
 
 /**
@@ -754,7 +859,7 @@ export function createPrimarySubmenuDialogProps(api: any, profileOpt: any, profi
   const showHub = deps?.showProfileDetail || showProfileDetailFn;
   const showProvider = deps?.showProviderPickerForAgent || showProviderPickerForAgent;
   return {
-    title: `Primary models › ${profileOpt.title}`,
+    title: `${UI_TEXT.primaryModels} › ${profileOpt.title}`,
     options: buildPrimaryModelSubmenuOptions(profileData, sections, api),
     onSelect: (opt: any) => {
         if (opt.value === "__back__") showHub(api, profileOpt);
@@ -771,7 +876,7 @@ export function createReasoningSubmenuDialogProps(api: any, profileOpt: any, pro
   const showHub = deps?.showProfileDetail || showProfileDetailFn;
   const showReasoning = deps?.showReasoningEffortPicker || showReasoningEffortPicker;
   return {
-    title: `Reasoning effort › ${profileOpt.title}`,
+    title: `${UI_TEXT.reasoningEffort} › ${profileOpt.title}`,
     options: buildReasoningSubmenuOptions(profileData, sections),
     onSelect: (opt: any) => {
         if (opt.value === "__back__") showHub(api, profileOpt);
@@ -788,7 +893,7 @@ export function createFallbackSubmenuDialogProps(api: any, profileOpt: any, prof
   const showHub = deps?.showProfileDetail || showProfileDetailFn;
   const showProvider = deps?.showProviderPickerForAgent || showProviderPickerForAgent;
   return {
-    title: `Fallback models › ${profileOpt.title}`,
+    title: `${UI_TEXT.fallbackModels} › ${profileOpt.title}`,
     options: buildFallbackSubmenuOptions(profileData, sections, api),
     onSelect: (opt: any) => {
         if (opt.value === "__back__") showHub(api, profileOpt);

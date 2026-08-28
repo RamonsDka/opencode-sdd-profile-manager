@@ -15,6 +15,7 @@ import {
   resolveProfileDetailNavigationAction,
 } from './dialogs';
 import { getOrchestratorPolicy } from './orchestrator';
+import { buildCatalogSections, CATALOG_GROUPS, VISIBLE_CATALOG_ROWS } from './catalog';
 
 describe('dialog pure builders', () => {
   beforeEach(() => {
@@ -213,17 +214,16 @@ describe('dialog pure builders', () => {
     expect(option.title).toContain('2026');
   });
 
-  it('builds reasoning detail row with saved value and stable action token', () => {
+  it('builds concise reasoning detail rows with stable action tokens', () => {
     const withValue = buildReasoningRowForAgent({ configs: { 'sdd-apply': { reasoningEffort: 'high' } } }, 'sdd-apply');
     expect(withValue).toEqual({
-      title: 'sdd-apply reasoning effort',
+      title: 'sdd-apply: high',
       value: 'reasoning:sdd-apply',
-      description: 'Saved: high',
-      category: 'Reasoning (PRIMARY SDD only)',
+      category: 'Núcleo SDD',
     });
 
     const withoutValue = buildReasoningRowForAgent({}, 'sdd-apply');
-    expect(withoutValue.description).toBe('Unset');
+    expect(withoutValue.title).toBe('sdd-apply: Sin asignar');
   });
 
   it('returns explicit blocked messages for missing-model and unsupported states', () => {
@@ -246,11 +246,27 @@ describe('dialog pure builders', () => {
     expect(resolveProfileDetailSelectionAction('unknown-token')).toEqual({ action: 'noop' });
   });
 
-  it('builds profile detail hub with inline primary rows and reasoning/fallback navigation entries', () => {
-    const api = { state: { config: { agent: { 'sdd-apply': {}, 'sdd-design': {} } }, provider: [] } } as any;
+  it('builds profile detail hub with the complete grouped primary catalog and navigation actions', () => {
+    const api = {
+      state: {
+        config: {
+          default_agent: 'gentle-orchestrator',
+          agent: {
+            'gentle-orchestrator': {},
+            'sdd-apply': {},
+            'legacy-runtime-only': {},
+          },
+        },
+        provider: [],
+      },
+    } as any;
     const profileOpt = { title: 'team', value: 'team.json' };
     const profileData = {
-      models: { 'sdd-apply': 'openai/gpt-4.1', 'sdd-design': 'openai/gpt-4.1-mini' },
+      models: {
+        'gentle-orchestrator': 'openai/gpt-4.1',
+        'sdd-apply': 'openai/gpt-4.1',
+        'sdd-design': 'openai/gpt-4.1-mini',
+      },
       fallback: { 'sdd-apply': 'openai/gpt-4.1-mini' },
       configs: { 'sdd-apply': { reasoningEffort: 'medium' } },
     };
@@ -267,17 +283,29 @@ describe('dialog pure builders', () => {
     ]);
 
     const optionValues = options.map((option) => option.value);
-    expect(optionValues.some((value) => String(value).startsWith('model:'))).toBe(true);
+    const modelOptions = options.filter((option) => String(option.value).startsWith('model:'));
+    expect(modelOptions.map((option) => option.value)).toEqual(
+      CATALOG_GROUPS.flatMap((group) => group.agents.map((agent) => `model:${agent}`)),
+    );
+    expect(modelOptions.map((option) => option.category)).toEqual(
+      CATALOG_GROUPS.flatMap((group) => group.agents.map(() => group.labelEs)),
+    );
+    expect(modelOptions).toHaveLength(25);
+    expect(modelOptions.find((option) => option.value === 'model:sdd-ORCHETATOR')?.description).toContain('openai/gpt-4.1');
+    expect(modelOptions.find((option) => option.value === 'model:summary')?.description).toBe('Sin asignar');
+    expect(modelOptions.some((option) => option.title === 'legacy-runtime-only')).toBe(false);
+    expect(modelOptions.some((option) => option.value.startsWith('__'))).toBe(false);
     expect(optionValues.some((value) => String(value).startsWith('reasoning:'))).toBe(false);
     expect(optionValues.some((value) => String(value).startsWith('fallback:'))).toBe(false);
     expect(optionValues).toContain('__rename__');
-    expect(optionValues).toContain('__profile_versions__');
+    expect(optionValues).not.toContain('__profile_versions__');
     expect(optionValues[1]).toBe('__bulk_actions__');
 
-    const profileVersionsOption = options.find((option) => option.value === '__profile_versions__');
-    expect(profileVersionsOption?.category).toBe('Agents');
+    expect(options.some((option) => option.category === 'Agentes')).toBe(false);
     const bulkActionsOption = options.find((option) => option.value === '__bulk_actions__');
-    expect(bulkActionsOption?.category).toBe('Model Navigation');
+    expect(bulkActionsOption?.category).toBe('Navegación de modelos');
+    expect(options.find((option) => option.value === PROFILE_DETAIL_SUBMENU.REASONING)?.category).toBe('Navegación');
+    expect(options.find((option) => option.value === PROFILE_DETAIL_SUBMENU.FALLBACK)?.category).toBe('Navegación');
   });
 
   it('builds submenu option sets and resolves submenu navigation tokens', () => {
@@ -466,5 +494,87 @@ describe('dialog pure builders', () => {
     });
 
     expect(showHub).toHaveBeenCalledWith(api, profileOpt);
+  });
+
+  describe('catalog-driven dialogs & category ordering', () => {
+    const createMockApi = (configAgent: any = {}) => ({
+      ui: {
+        dialog: {
+          setSize: vi.fn(),
+          replace: vi.fn(),
+          clear: vi.fn(),
+        },
+        toast: vi.fn(),
+      },
+      state: { config: { agent: configAgent }, provider: [] },
+      kv: { set: vi.fn().mockResolvedValue(undefined) },
+    });
+
+    it.each([
+      ['primary runtime (T10)', { 'sdd-spec': {} }, 'sdd-spec', 'model:sdd-spec', undefined],
+      ['primary configured (T10)', { 'sdd-spec': {} }, 'sdd-spec', 'model:sdd-spec', undefined],
+      ['fallback runtime (T11)', { 'sdd-spec-fallback': {} }, 'sdd-spec-fallback', 'fallback:sdd-spec', undefined],
+    ])('%s', (_, agentConfig, displayName, expectedValue, expectedBadge) => {
+      const api = createMockApi(agentConfig);
+      const catalog = buildCatalogSections(api.state.config, { models: {} });
+      const isFallback = displayName.endsWith('-fallback');
+      const options = isFallback
+        ? buildFallbackSubmenuOptions({ models: {} }, catalog, api)
+        : buildPrimaryModelSubmenuOptions({ models: {} }, catalog, api);
+
+      const option = options.find((opt) => opt.value === expectedValue);
+      expect(option).toBeDefined();
+      expect(option?.badge).toBe(expectedBadge);
+    });
+
+    it('displays fallback model desc from profileKey and badge from displayName hasOwn (T18)', () => {
+      const api = createMockApi({ 'sdd-apply-fallback': {} });
+      const profileData = { fallback: { 'sdd-apply': 'openai/gpt-4.1-mini' } };
+      const catalog = buildCatalogSections(api.state.config, profileData as any);
+      const options = buildFallbackSubmenuOptions(profileData, catalog, api);
+      const option = options.find((opt) => opt.value === 'fallback:sdd-apply');
+
+      expect(option).toBeDefined();
+      expect(option?.title).toBe('sdd-apply');
+      expect(option?.description).toContain('openai/gpt-4.1-mini');
+      expect(option?.badge).toBeUndefined();
+    });
+
+    it('routes unconfigured primary and fallback selections to assign actions (T19, T20)', () => {
+      expect(resolveProfileDetailSelectionAction('model:sdd-spec')).toEqual({ action: 'model', agentName: 'sdd-spec' });
+      expect(resolveProfileDetailSelectionAction('fallback:sdd-spec')).toEqual({ action: 'fallback', agentName: 'sdd-spec' });
+    });
+
+    it('uses native categories in exact catalog order without synthetic separator options', () => {
+      const api = createMockApi(Object.fromEntries(VISIBLE_CATALOG_ROWS.filter((row) => row.kind === 'agent').map((row) => [row.key, {}])));
+      const sections = buildProfileDetailAgentSections(api.state.config, { models: {}, fallback: {} });
+      const primary = buildPrimaryModelSubmenuOptions({ models: {} }, sections, api);
+      const fallback = buildFallbackSubmenuOptions({ models: {}, fallback: {} }, sections, api);
+
+      const expectedAgents = CATALOG_GROUPS.flatMap((group) => group.agents);
+      expect(primary.filter((option) => option.value.startsWith('model:')).map((option) => option.value.slice(6))).toEqual(expectedAgents);
+      expect(fallback.filter((option) => option.value.startsWith('fallback:')).map((option) => option.value.slice(9))).toEqual(expectedAgents.filter((agent) => agent === 'gentle-ai-windows-validator' || !['compaction', 'summary', 'title'].includes(agent)));
+      expect(CATALOG_GROUPS.map((group) => group.labelEs)).toEqual(['Orquestador', 'Núcleo SDD', 'Judgment Day', 'Revisores', 'Auxiliares']);
+      expect(primary.filter((option) => option.value.startsWith('model:')).map((option) => option.category)).toEqual(CATALOG_GROUPS.flatMap((group) => group.agents.map(() => group.labelEs)));
+      expect(primary.some((option) => option.value === '__catalog_separator__' || option.description === 'No seleccionable')).toBe(false);
+    });
+
+    it('routes only real catalog agent values and never needs separator selection guards', () => {
+      const api = createMockApi({ 'sdd-apply': {} });
+      const profileOpt = { title: 'team', value: 'team.json' };
+      const profileData = { models: {}, fallback: {} };
+      const sections = buildProfileDetailAgentSections(api.state.config, profileData);
+      const showProvider = vi.fn();
+      const showHub = vi.fn();
+      const primary = createPrimarySubmenuDialogProps(api, profileOpt, profileData, sections, {
+        showProfileDetail: showHub,
+        showProviderPickerForAgent: showProvider,
+      });
+      expect(primary.options.every((option) => option.category || option.value === '__back__')).toBe(true);
+      primary.onSelect({ value: 'unknown-category-header' });
+
+      expect(showProvider).not.toHaveBeenCalled();
+      expect(showHub).not.toHaveBeenCalled();
+    });
   });
 });
