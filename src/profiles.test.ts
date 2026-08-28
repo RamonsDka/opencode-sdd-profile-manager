@@ -307,25 +307,23 @@ describe('profiles logic', () => {
 
     it('writes canonical profile payloads without stale legacy or config-shaped fields', () => {
       writeProfileData('/mock/profiles/compatible.json', {
-        models: { 'sdd-init': ' gpt-4 ', 'not-sdd': 'ignore-me' } as any,
-        fallback: { 'sdd-init': ' gpt-3.5 ', 'invalid': 'ignore-me' } as any,
+        models: { 'sdd-init': ' gpt-4 ', 'not-sdd': 'ignore-me', '__proto__': 'stale', 'bad name': 'stale' } as any,
+        fallback: { 'sdd-init': ' gpt-3.5 ', 'invalid': 'ignore-me', 'bad fallback': 'stale' } as any,
         description: 'team defaults',
         agent: { 'sdd-init': { model: 'stale/model' } },
         'sdd-init': 'legacy/model',
       } as any);
 
       expect(fs.writeFileSync).toHaveBeenCalledWith(
-        expect.stringMatching(/^\/mock\/profiles\/compatible\.json\.tmp-[0-9a-f]{8}$/),
+        expect.stringMatching(/^[\/\\]mock[\/\\]profiles[\/\\]compatible\.json\.tmp-[0-9a-f]{8}$/),
         JSON.stringify({
           description: 'team defaults',
-          models: { 'sdd-init': 'gpt-4' },
-          fallback: { 'sdd-init': 'gpt-3.5' }
+          models: { 'sdd-init': 'gpt-4', 'not-sdd': 'ignore-me' },
+          fallback: { 'sdd-init': 'gpt-3.5', 'invalid': 'ignore-me' }
         }, null, 2)
       );
-      expect(fs.renameSync).toHaveBeenCalledWith(
-        expect.stringMatching(/^\/mock\/profiles\/compatible\.json\.tmp-[0-9a-f]{8}$/),
-        '/mock/profiles/compatible.json'
-      );
+      expect(toPosix(vi.mocked(fs.renameSync).mock.calls[0][0])).toMatch(/^\/mock\/profiles\/compatible\.json\.tmp-[0-9a-f]{8}$/);
+      expect(toPosix(vi.mocked(fs.renameSync).mock.calls[0][1])).toBe('/mock/profiles/compatible.json');
     });
 
     it('omits empty fallback maps when reading and writing full profile data', () => {
@@ -1281,10 +1279,8 @@ describe('profiles logic', () => {
       expect(version.beforeRaw).toContain('old/model');
       expect(version.preview.models).toEqual({ 'sdd-init': 'old/model' });
       expect(version.preview.fallback).toEqual({ 'sdd-init': 'old/fallback' });
-      expect(fs.writeFileSync).toHaveBeenCalledWith(
-        expect.stringMatching(/^\/mock\/config\/profile-versions\/team\.json\/\d{4}-/),
-        expect.stringContaining('"beforeRaw"')
-      );
+      expect(toPosix(vi.mocked(fs.writeFileSync).mock.calls[0][0])).toMatch(/^\/mock\/config\/profile-versions\/team\.json\/\d{4}-/);
+      expect(vi.mocked(fs.writeFileSync).mock.calls[0][1]).toContain('"beforeRaw"');
     });
 
     it('normalizes legacy versions without source as bulk versions', () => {
@@ -1322,7 +1318,7 @@ describe('profiles logic', () => {
       createProfileVersion('/mock/profiles/team.json', operation, 'Bulk fill both');
 
       expect(fs.unlinkSync).toHaveBeenCalledTimes(1);
-      expect(fs.unlinkSync).toHaveBeenCalledWith('/mock/config/profile-versions/team.json/2026-04-26T00-00-00-000Z-0.json');
+      expect(toPosix(vi.mocked(fs.unlinkSync).mock.calls[0][0])).toBe('/mock/config/profile-versions/team.json/2026-04-26T00-00-00-000Z-0.json');
     });
 
     it('lists newest versions and reads previews by safe version id', () => {
@@ -1451,26 +1447,26 @@ describe('profiles logic', () => {
         operationSummary: 'Bulk fill both',
         beforeRaw: '{"models":{"sdd-init":"old"}}',
         preview: {
-          models: { 'sdd-init': 'old', 'sdd-apply': 42, random: 'ignored' },
-          fallback: { 'sdd-init': 'fallback', 'sdd-design': null, random: 'ignored' }
+          models: { 'sdd-init': 'old', 'sdd-apply': 42, random: 'ignored', '__proto__': 'dropped', 'invalid key': 'dropped' },
+          fallback: { 'sdd-init': 'fallback', 'sdd-design': null, random: 'ignored', '': 'dropped' }
         }
       }));
 
       const version = readProfileVersion('team.json/2026-04-26T10-00-00-000Z-a.json');
 
       expect(version.preview).toEqual({
-        models: { 'sdd-init': 'old' },
-        fallback: { 'sdd-init': 'fallback' }
+        models: { 'sdd-init': 'old', random: 'ignored' },
+        fallback: { 'sdd-init': 'fallback', random: 'ignored' }
       });
       expect(() => formatProfileVersionPreviewLines(version)).not.toThrow();
     });
 
     it('restores only the selected profile from version raw content after snapshotting the live profile', () => {
       const writes: Array<{ filePath: string; content: string }> = [];
-      vi.mocked(fs.existsSync).mockImplementation((filePath: any) => String(filePath).includes('/profile-versions/team.json'));
+      vi.mocked(fs.existsSync).mockImplementation((filePath: any) => toPosix(filePath).includes('/profile-versions/team.json'));
       vi.mocked(fs.readdirSync).mockReturnValue([] as any);
       vi.mocked(fs.readFileSync).mockImplementation((filePath: any) => {
-        if (String(filePath).includes('/profile-versions/team.json/')) {
+        if (toPosix(filePath).includes('/profile-versions/team.json/')) {
           return JSON.stringify({
             version: 1,
             id: 'team.json/2026-04-26T10-00-00-000Z-a.json',
@@ -1486,7 +1482,7 @@ describe('profiles logic', () => {
         return '{"models":{"sdd-init":"live/model"}}';
       });
       vi.mocked(fs.writeFileSync).mockImplementation((filePath: any, content: any) => {
-        writes.push({ filePath: String(filePath), content: String(content) });
+        writes.push({ filePath: toPosix(filePath), content: String(content) });
       });
 
       const restored = restoreProfileVersion('team.json', 'team.json/2026-04-26T10-00-00-000Z-a.json');
@@ -1497,19 +1493,19 @@ describe('profiles logic', () => {
       expect(writes[0].content).toContain('live/model');
       expect(writes[1].filePath).toMatch(/^\/mock\/profiles\/team\.json\.tmp-[0-9a-f]{8}$/);
       expect(writes[1].content).toBe('{"models":{"sdd-init":"old/model"}}');
-      expect(fs.renameSync).toHaveBeenCalledWith(
-        expect.stringMatching(/^\/mock\/profiles\/team\.json\.tmp-[0-9a-f]{8}$/),
-        '/mock/profiles/team.json'
-      );
+      const profileRename = vi.mocked(fs.renameSync).mock.calls.find(([from]) => toPosix(from).includes('/mock/profiles/team.json.tmp-'));
+      expect(profileRename).toBeDefined();
+      expect(toPosix(profileRename![0])).toMatch(/^\/mock\/profiles\/team\.json\.tmp-[0-9a-f]{8}$/);
+      expect(toPosix(profileRename![1])).toBe('/mock/profiles/team.json');
       expect(() => restoreProfileVersion('other.json', 'team.json/2026-04-26T10-00-00-000Z-a.json')).toThrow('does not match selected profile');
     });
 
     it('restores a valid selected version even when the current live profile JSON is corrupt', () => {
       const writes: Array<{ filePath: string; content: string }> = [];
-      vi.mocked(fs.existsSync).mockImplementation((filePath: any) => String(filePath).includes('/profile-versions/team.json'));
+      vi.mocked(fs.existsSync).mockImplementation((filePath: any) => toPosix(filePath).includes('/profile-versions/team.json'));
       vi.mocked(fs.readdirSync).mockReturnValue([] as any);
       vi.mocked(fs.readFileSync).mockImplementation((filePath: any) => {
-        if (String(filePath).includes('/profile-versions/team.json/')) {
+        if (toPosix(filePath).includes('/profile-versions/team.json/')) {
           return JSON.stringify({
             version: 1,
             id: 'team.json/2026-04-26T10-00-00-000Z-a.json',
@@ -1525,7 +1521,7 @@ describe('profiles logic', () => {
         return '{invalid current profile';
       });
       vi.mocked(fs.writeFileSync).mockImplementation((filePath: any, content: any) => {
-        writes.push({ filePath: String(filePath), content: String(content) });
+        writes.push({ filePath: toPosix(filePath), content: String(content) });
       });
 
       expect(() => restoreProfileVersion('team.json', 'team.json/2026-04-26T10-00-00-000Z-a.json')).not.toThrow();
@@ -1534,18 +1530,18 @@ describe('profiles logic', () => {
       expect(writes[0].content).toContain('"preview": {\n    "models": {},\n    "fallback": {}\n  }');
       expect(writes[1].filePath).toMatch(/^\/mock\/profiles\/team\.json\.tmp-[0-9a-f]{8}$/);
       expect(writes[1].content).toBe('{"models":{"sdd-init":"old/model"}}');
-      expect(fs.renameSync).toHaveBeenCalledWith(
-        expect.stringMatching(/^\/mock\/profiles\/team\.json\.tmp-[0-9a-f]{8}$/),
-        '/mock/profiles/team.json'
-      );
+      const profileRename = vi.mocked(fs.renameSync).mock.calls.find(([from]) => toPosix(from).includes('/mock/profiles/team.json.tmp-'));
+      expect(profileRename).toBeDefined();
+      expect(toPosix(profileRename![0])).toMatch(/^\/mock\/profiles\/team\.json\.tmp-[0-9a-f]{8}$/);
+      expect(toPosix(profileRename![1])).toBe('/mock/profiles/team.json');
     });
 
     it('restores snapshot configs and drops unsupported config keys', () => {
       const writes: Array<{ filePath: string; content: string }> = [];
-      vi.mocked(fs.existsSync).mockImplementation((filePath: any) => String(filePath).includes('/profile-versions/team.json'));
+      vi.mocked(fs.existsSync).mockImplementation((filePath: any) => toPosix(filePath).includes('/profile-versions/team.json'));
       vi.mocked(fs.readdirSync).mockReturnValue([] as any);
       vi.mocked(fs.readFileSync).mockImplementation((filePath: any) => {
-        if (String(filePath).includes('/profile-versions/team.json/')) {
+        if (toPosix(filePath).includes('/profile-versions/team.json/')) {
           return JSON.stringify({
             version: 1,
             id: 'team.json/2026-04-26T10-00-00-000Z-a.json',
@@ -1572,7 +1568,7 @@ describe('profiles logic', () => {
         return '{"models":{"sdd-init":"live/model"}}';
       });
       vi.mocked(fs.writeFileSync).mockImplementation((filePath: any, content: any) => {
-        writes.push({ filePath: String(filePath), content: String(content) });
+        writes.push({ filePath: toPosix(filePath), content: String(content) });
       });
 
       restoreProfileVersion('team.json', 'team.json/2026-04-26T10-00-00-000Z-a.json');
@@ -1586,10 +1582,10 @@ describe('profiles logic', () => {
 
     it('restores raw snapshot content even when beforeRaw is invalid JSON', () => {
       const writes: Array<{ filePath: string; content: string }> = [];
-      vi.mocked(fs.existsSync).mockImplementation((filePath: any) => String(filePath).includes('/profile-versions/team.json'));
+      vi.mocked(fs.existsSync).mockImplementation((filePath: any) => toPosix(filePath).includes('/profile-versions/team.json'));
       vi.mocked(fs.readdirSync).mockReturnValue([] as any);
       vi.mocked(fs.readFileSync).mockImplementation((filePath: any) => {
-        if (String(filePath).includes('/profile-versions/team.json/')) {
+        if (toPosix(filePath).includes('/profile-versions/team.json/')) {
           return JSON.stringify({
             version: 1,
             id: 'team.json/2026-04-26T10-00-00-000Z-a.json',
@@ -1605,16 +1601,16 @@ describe('profiles logic', () => {
         return '{"models":{"sdd-init":"live/model"}}';
       });
       vi.mocked(fs.writeFileSync).mockImplementation((filePath: any, content: any) => {
-        writes.push({ filePath: String(filePath), content: String(content) });
+        writes.push({ filePath: toPosix(filePath), content: String(content) });
       });
 
       expect(() => restoreProfileVersion('team.json', 'team.json/2026-04-26T10-00-00-000Z-a.json')).not.toThrow();
       expect(writes[1].filePath).toMatch(/^\/mock\/profiles\/team\.json\.tmp-[0-9a-f]{8}$/);
       expect(writes[1].content).toBe('{invalid snapshot payload');
-      expect(fs.renameSync).toHaveBeenCalledWith(
-        expect.stringMatching(/^\/mock\/profiles\/team\.json\.tmp-[0-9a-f]{8}$/),
-        '/mock/profiles/team.json'
-      );
+      const profileRename = vi.mocked(fs.renameSync).mock.calls.find(([from]) => toPosix(from).includes('/mock/profiles/team.json.tmp-'));
+      expect(profileRename).toBeDefined();
+      expect(toPosix(profileRename![0])).toMatch(/^\/mock\/profiles\/team\.json\.tmp-[0-9a-f]{8}$/);
+      expect(toPosix(profileRename![1])).toBe('/mock/profiles/team.json');
     });
 
     it('creates a version before mutating bulk write and skips versioning for no-op or validation failure', () => {
@@ -1622,17 +1618,17 @@ describe('profiles logic', () => {
       vi.mocked(fs.existsSync).mockReturnValue(false);
       vi.mocked(fs.readdirSync).mockReturnValue([] as any);
       vi.mocked(fs.readFileSync).mockReturnValue(JSON.stringify({ models: { 'sdd-init': '' }, fallback: {} }));
-      vi.mocked(fs.writeFileSync).mockImplementation((filePath: any) => { writes.push(String(filePath)); });
+      vi.mocked(fs.writeFileSync).mockImplementation((filePath: any) => { writes.push(toPosix(filePath)); });
 
       const result = updateProfileWithBulkPhaseAssignment('/mock/profiles/team.json', ['sdd-init'], 'provider/model', operation);
 
       expect(result.assignment.changed).toBe(true);
       expect(writes[0]).toContain('/mock/config/profile-versions/team.json/');
       expect(writes[1]).toMatch(/^\/mock\/profiles\/team\.json\.tmp-[0-9a-f]{8}$/);
-      expect(fs.renameSync).toHaveBeenCalledWith(
-        expect.stringMatching(/^\/mock\/profiles\/team\.json\.tmp-[0-9a-f]{8}$/),
-        '/mock/profiles/team.json'
-      );
+      const profileRename = vi.mocked(fs.renameSync).mock.calls.find(([from]) => toPosix(from).includes('/mock/profiles/team.json.tmp-'));
+      expect(profileRename).toBeDefined();
+      expect(toPosix(profileRename![0])).toMatch(/^\/mock\/profiles\/team\.json\.tmp-[0-9a-f]{8}$/);
+      expect(toPosix(profileRename![1])).toBe('/mock/profiles/team.json');
 
       vi.clearAllMocks();
       vi.mocked(fs.readFileSync).mockReturnValue(JSON.stringify({ models: { 'sdd-init': 'existing' }, fallback: { 'sdd-init': 'existing' } }));
@@ -1694,7 +1690,7 @@ describe('profiles logic', () => {
         fallback: { 'sdd-design': 'old/fallback' },
         description: 'team defaults'
       }));
-      vi.mocked(fs.writeFileSync).mockImplementation((filePath: any) => { writes.push(String(filePath)); });
+      vi.mocked(fs.writeFileSync).mockImplementation((filePath: any) => { writes.push(toPosix(filePath)); });
 
       const result = updateProfilePhaseModel('/mock/profiles/team.json', 'sdd-design', 'primary', 'new/model');
 
@@ -1713,10 +1709,10 @@ describe('profiles logic', () => {
       expect((result.profile as any).description).toBe('team defaults');
       expect(writes[0]).toContain('/mock/config/profile-versions/team.json/');
       expect(writes[1]).toMatch(/^\/mock\/profiles\/team\.json\.tmp-[0-9a-f]{8}$/);
-      expect(fs.renameSync).toHaveBeenCalledWith(
-        expect.stringMatching(/^\/mock\/profiles\/team\.json\.tmp-[0-9a-f]{8}$/),
-        '/mock/profiles/team.json'
-      );
+      const profileRename = vi.mocked(fs.renameSync).mock.calls.find(([from]) => toPosix(from).includes('/mock/profiles/team.json.tmp-'));
+      expect(profileRename).toBeDefined();
+      expect(toPosix(profileRename![0])).toMatch(/^\/mock\/profiles\/team\.json\.tmp-[0-9a-f]{8}$/);
+      expect(toPosix(profileRename![1])).toBe('/mock/profiles/team.json');
     });
 
     it('does not persist version metadata in the profile payload for phase model updates', () => {
@@ -2172,24 +2168,24 @@ describe('profiles logic', () => {
       };
 
       vi.mocked(fs.existsSync).mockImplementation((filePath: any) => {
-        const target = String(filePath);
+        const target = toPosix(filePath);
         if (target in files) return true;
         return Object.keys(files).some((existingPath) => existingPath.startsWith(`${target}/`));
       });
       vi.mocked(fs.readdirSync).mockImplementation((dirPath: any) => {
-        const target = `${String(dirPath)}/`;
+        const target = `${toPosix(dirPath)}/`;
         return Object.keys(files)
           .filter((filePath) => filePath.startsWith(target))
           .map((filePath) => filePath.slice(target.length))
           .filter((entry) => !entry.includes('/')) as any;
       });
-      vi.mocked(fs.readFileSync).mockImplementation((filePath: any) => files[String(filePath)]);
+      vi.mocked(fs.readFileSync).mockImplementation((filePath: any) => files[toPosix(filePath)]);
       vi.mocked(fs.writeFileSync).mockImplementation((filePath: any, content: any) => {
-        files[String(filePath)] = String(content);
+        files[toPosix(filePath)] = String(content);
       });
       vi.mocked(fs.renameSync).mockImplementation((fromPath: any, toPath: any) => {
-        const from = String(fromPath);
-        const to = String(toPath);
+        const from = toPosix(fromPath);
+        const to = toPosix(toPath);
 
         if (from in files) {
           files[to] = files[from];
@@ -2229,8 +2225,12 @@ describe('profiles logic', () => {
       ]);
       expect(read.id).toBe('new.json/2026-04-26T10-00-00-000Z-a.json');
       expect(read.profileFile).toBe('new.json');
-      expect(fs.renameSync).toHaveBeenCalledWith('/mock/profiles/old.json', '/mock/profiles/new.json');
-      expect(fs.renameSync).toHaveBeenCalledWith('/mock/config/profile-versions/old.json', '/mock/config/profile-versions/new.json');
+      expect(vi.mocked(fs.renameSync).mock.calls.some(([from, to]) =>
+        toPosix(from) === '/mock/profiles/old.json' && toPosix(to) === '/mock/profiles/new.json'
+      )).toBe(true);
+      expect(vi.mocked(fs.renameSync).mock.calls.some(([from, to]) =>
+        toPosix(from) === '/mock/config/profile-versions/old.json' && toPosix(to) === '/mock/config/profile-versions/new.json'
+      )).toBe(true);
     });
 
     it('renames the profile and preserves corrupt version files without blocking valid snapshot migration', () => {
@@ -2250,24 +2250,24 @@ describe('profiles logic', () => {
       };
 
       vi.mocked(fs.existsSync).mockImplementation((filePath: any) => {
-        const target = String(filePath);
+        const target = toPosix(filePath);
         if (target in files) return true;
         return Object.keys(files).some((existingPath) => existingPath.startsWith(`${target}/`));
       });
       vi.mocked(fs.readdirSync).mockImplementation((dirPath: any) => {
-        const target = `${String(dirPath)}/`;
+        const target = `${toPosix(dirPath)}/`;
         return Object.keys(files)
           .filter((filePath) => filePath.startsWith(target))
           .map((filePath) => filePath.slice(target.length))
           .filter((entry) => !entry.includes('/')) as any;
       });
-      vi.mocked(fs.readFileSync).mockImplementation((filePath: any) => files[String(filePath)]);
+      vi.mocked(fs.readFileSync).mockImplementation((filePath: any) => files[toPosix(filePath)]);
       vi.mocked(fs.writeFileSync).mockImplementation((filePath: any, content: any) => {
-        files[String(filePath)] = String(content);
+        files[toPosix(filePath)] = String(content);
       });
       vi.mocked(fs.renameSync).mockImplementation((fromPath: any, toPath: any) => {
-        const from = String(fromPath);
-        const to = String(toPath);
+        const from = toPosix(fromPath);
+        const to = toPosix(toPath);
 
         if (from in files) {
           files[to] = files[from];
@@ -2322,24 +2322,24 @@ describe('profiles logic', () => {
       };
 
       vi.mocked(fs.existsSync).mockImplementation((filePath: any) => {
-        const target = String(filePath);
+        const target = toPosix(filePath);
         if (target in files) return true;
         return Object.keys(files).some((existingPath) => existingPath.startsWith(`${target}/`));
       });
       vi.mocked(fs.readdirSync).mockImplementation((dirPath: any) => {
-        const target = `${String(dirPath)}/`;
+        const target = `${toPosix(dirPath)}/`;
         return Object.keys(files)
           .filter((filePath) => filePath.startsWith(target))
           .map((filePath) => filePath.slice(target.length))
           .filter((entry) => !entry.includes('/')) as any;
       });
-      vi.mocked(fs.readFileSync).mockImplementation((filePath: any) => files[String(filePath)]);
+      vi.mocked(fs.readFileSync).mockImplementation((filePath: any) => files[toPosix(filePath)]);
       vi.mocked(fs.writeFileSync).mockImplementation((filePath: any, content: any) => {
-        files[String(filePath)] = String(content);
+        files[toPosix(filePath)] = String(content);
       });
       vi.mocked(fs.renameSync).mockImplementation((fromPath: any, toPath: any) => {
-        const from = String(fromPath);
-        const to = String(toPath);
+        const from = toPosix(fromPath);
+        const to = toPosix(toPath);
 
         if (from === '/mock/config/profile-versions/old.json' && to === '/mock/config/profile-versions/new.json') {
           throw new Error('version rename failed');
@@ -2391,24 +2391,24 @@ describe('profiles logic', () => {
       };
 
       vi.mocked(fs.existsSync).mockImplementation((filePath: any) => {
-        const target = String(filePath);
+        const target = toPosix(filePath);
         if (target in files) return true;
         return Object.keys(files).some((existingPath) => existingPath.startsWith(`${target}/`));
       });
       vi.mocked(fs.readdirSync).mockImplementation((dirPath: any) => {
-        const target = `${String(dirPath)}/`;
+        const target = `${toPosix(dirPath)}/`;
         return Object.keys(files)
           .filter((filePath) => filePath.startsWith(target))
           .map((filePath) => filePath.slice(target.length))
           .filter((entry) => !entry.includes('/')) as any;
       });
-      vi.mocked(fs.readFileSync).mockImplementation((filePath: any) => files[String(filePath)]);
+      vi.mocked(fs.readFileSync).mockImplementation((filePath: any) => files[toPosix(filePath)]);
       vi.mocked(fs.writeFileSync).mockImplementation((filePath: any, content: any) => {
-        files[String(filePath)] = String(content);
+        files[toPosix(filePath)] = String(content);
       });
       vi.mocked(fs.renameSync).mockImplementation((fromPath: any, toPath: any) => {
-        const from = String(fromPath);
-        const to = String(toPath);
+        const from = toPosix(fromPath);
+        const to = toPosix(toPath);
 
         if (from.includes('2026-04-26T11-00-00-000Z-b.json.tmp-') && to.endsWith('/2026-04-26T11-00-00-000Z-b.json')) {
           throw new Error('version rewrite failed');
@@ -2433,7 +2433,7 @@ describe('profiles logic', () => {
       expect(files['/mock/profiles/old.json']).toBe('{"models":{"sdd-init":"live/model"}}');
       expect(files['/mock/profiles/new.json']).toBeUndefined();
       const directVersionWrites = vi.mocked(fs.writeFileSync).mock.calls
-        .map(([filePath]) => String(filePath))
+        .map(([filePath]) => toPosix(filePath))
         .filter((filePath) => filePath.startsWith('/mock/config/profile-versions/new.json/') && filePath.endsWith('.json'));
       expect(directVersionWrites).toEqual([]);
 
@@ -2455,12 +2455,13 @@ describe('profiles logic', () => {
     });
 
     it('deletes matching profile version history with the profile file', () => {
-      vi.mocked(fs.existsSync).mockImplementation((filePath: any) => String(filePath) === '/mock/config/profile-versions/team.json');
+      vi.mocked(fs.existsSync).mockImplementation((filePath: any) => toPosix(filePath) === '/mock/config/profile-versions/team.json');
 
       deleteProfileFile('team.json');
 
-      expect(fs.unlinkSync).toHaveBeenCalledWith('/mock/profiles/team.json');
-      expect(fs.rmSync).toHaveBeenCalledWith('/mock/config/profile-versions/team.json', { recursive: true, force: true });
+      expect(toPosix(vi.mocked(fs.unlinkSync).mock.calls[0][0])).toBe('/mock/profiles/team.json');
+      expect(toPosix(vi.mocked(fs.rmSync).mock.calls[0][0])).toBe('/mock/config/profile-versions/team.json');
+      expect(vi.mocked(fs.rmSync).mock.calls[0][1]).toEqual({ recursive: true, force: true });
     });
   });
 
@@ -2885,7 +2886,7 @@ describe('profiles logic', () => {
       const writes: string[] = [];
       vi.mocked(fs.readdirSync).mockReturnValue(['team.json'] as any);
       vi.mocked(fs.readFileSync).mockImplementation((filePath: any) => {
-        if (String(filePath) === '/mock/profiles/team.json') {
+        if (toPosix(filePath) === '/mock/profiles/team.json') {
           return JSON.stringify({
             models: {
               'sdd-orchestrator': 'legacy/model',
@@ -2934,7 +2935,7 @@ describe('profiles logic', () => {
       });
       vi.mocked(fs.readdirSync).mockReturnValue(['team.json'] as any);
       vi.mocked(fs.readFileSync).mockImplementation((filePath: any) => {
-        if (String(filePath) === '/mock/profiles/team.json') return profileRaw;
+        if (toPosix(filePath) === '/mock/profiles/team.json') return profileRaw;
         return '{}';
       });
       vi.mocked(fs.writeFileSync).mockImplementation((_filePath: any, content: any) => {
@@ -2961,7 +2962,7 @@ describe('profiles logic', () => {
 
     it('matches legacy active profile during list detection without creating updated key side effects', () => {
       vi.mocked(fs.readFileSync).mockImplementation((filePath: any) => {
-        if (String(filePath) === '/mock/profiles/legacy.json') {
+        if (toPosix(filePath) === '/mock/profiles/legacy.json') {
           return JSON.stringify({ models: { 'sdd-orchestrator': 'legacy/model', 'sdd-init': 'phase/model' } });
         }
         return '{}';
@@ -2988,7 +2989,7 @@ describe('profiles logic', () => {
 
     it('marks profile active when profile primaries are a subset of active config models', () => {
       vi.mocked(fs.readFileSync).mockImplementation((filePath: any) => {
-        if (String(filePath) === '/mock/profiles/subset.json') {
+        if (toPosix(filePath) === '/mock/profiles/subset.json') {
           return JSON.stringify({ models: { 'sdd-init': 'phase/model' } });
         }
         return '{}';
@@ -3012,7 +3013,7 @@ describe('profiles logic', () => {
 
     it('does not require exact key-count equality when all declared profile primaries match', () => {
       vi.mocked(fs.readFileSync).mockImplementation((filePath: any) => {
-        if (String(filePath) === '/mock/profiles/team.json') {
+        if (toPosix(filePath) === '/mock/profiles/team.json') {
           return JSON.stringify({ models: { 'sdd-orchestrator': 'runtime/model', 'sdd-init': 'phase/model' } });
         }
         return '{}';
@@ -3037,13 +3038,13 @@ describe('profiles logic', () => {
 
     it('uses fallback model comparison as tie-breaker when primaries match multiple profiles', () => {
       vi.mocked(fs.readFileSync).mockImplementation((filePath: any) => {
-        if (String(filePath) === '/mock/profiles/alpha.json') {
+        if (toPosix(filePath) === '/mock/profiles/alpha.json') {
           return JSON.stringify({
             models: { 'sdd-init': 'phase/model' },
             fallback: { 'sdd-init': 'fallback/a' },
           });
         }
-        if (String(filePath) === '/mock/profiles/beta.json') {
+        if (toPosix(filePath) === '/mock/profiles/beta.json') {
           return JSON.stringify({
             models: { 'sdd-init': 'phase/model' },
             fallback: { 'sdd-init': 'fallback/b' },
@@ -3070,13 +3071,13 @@ describe('profiles logic', () => {
 
     it('returns undefined when tie remains unresolved after fallback comparison', () => {
       vi.mocked(fs.readFileSync).mockImplementation((filePath: any) => {
-        if (String(filePath) === '/mock/profiles/alpha.json') {
+        if (toPosix(filePath) === '/mock/profiles/alpha.json') {
           return JSON.stringify({
             models: { 'sdd-init': 'phase/model' },
             fallback: { 'sdd-init': 'fallback/shared' },
           });
         }
-        if (String(filePath) === '/mock/profiles/beta.json') {
+        if (toPosix(filePath) === '/mock/profiles/beta.json') {
           return JSON.stringify({
             models: { 'sdd-init': 'phase/model' },
             fallback: { 'sdd-init': 'fallback/shared' },
