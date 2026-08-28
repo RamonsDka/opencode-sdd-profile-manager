@@ -33,6 +33,7 @@ import {
   BulkProfileOverwriteResult,
   ConfigurableProfileTarget,
   ProfileData,
+  ProfileConfigs,
   ProfileFallbackModels,
   ProfileModels,
   ProfileVersion,
@@ -194,6 +195,26 @@ export function extractSddAgentModels(config: any): ProfileModels {
 /**
  * Extracts managed fallback model mapping from a profile payload
  */
+/**
+ * Extracts models for all valid agent keys from a configuration object (persisted layer)
+ */
+export function extractPersistedAgentModels(config: any): ProfileModels {
+  const agents = config?.agent || {};
+  return Object.fromEntries(
+    Object.entries(agents)
+      .filter(
+        ([name, value]: any) =>
+          isValidAgentKey(name) &&
+          typeof value?.model === "string" &&
+          value.model.trim()
+      )
+      .map(([name, value]: any) => [name, value.model.trim()])
+  );
+}
+
+/**
+ * Extracts managed fallback model mapping from a profile payload
+ */
 export function extractSddFallbackModels(raw: any): ProfileFallbackModels {
   if (!raw || typeof raw !== "object" || Array.isArray(raw)) return {};
 
@@ -203,7 +224,7 @@ export function extractSddFallbackModels(raw: any): ProfileFallbackModels {
 
   return Object.fromEntries(
     Object.entries(source).filter(
-      ([name, value]: any) => isFallbackEligibleSddAgent(name) && typeof value === "string" && value.trim()
+      ([name, value]: any) => isValidAgentKey(name) && typeof value === "string" && value.trim()
     ).map(([name, value]: any) => [name, value.trim()])
   );
 }
@@ -213,34 +234,47 @@ function normalizeProfileModels(models: unknown, policy?: OrchestratorPolicy): P
 
   const normalized = Object.fromEntries(
     Object.entries(models)
-      .filter(([name, value]: any) => isPrimarySddAgent(name) && typeof value === "string" && value.trim())
+      .filter(([name, value]: any) => isValidAgentKey(name) && typeof value === "string" && value.trim())
       .map(([name, value]: any) => [name, value.trim()])
   );
   return policy ? canonicalizeProfileModels(normalized, policy) : normalized;
 }
 
-function extractPersistedProfileExtras(raw: unknown): Record<string, unknown> {
+export function extractPersistedProfileExtras(raw: unknown): Record<string, unknown> {
   if (!raw || typeof raw !== "object" || Array.isArray(raw)) return {};
 
   return Object.fromEntries(
-    Object.entries(raw).filter(([key]) => {
-      if (key === "models" || key === "fallback" || key === "configs" || key === "agent") return false;
-      if (isPrimarySddAgent(key) || isSddFallbackAgent(key)) return false;
-      return true;
-    })
+    Object.entries(raw).filter(
+      ([key]) => key !== "models" && key !== "fallback" && key !== "configs" && key !== "agent" && !isPrimarySddAgent(key)
+    )
   );
 }
 
-function normalizePersistedProfileData(profile: ProfileData, policy?: OrchestratorPolicy): ProfileData {
+function normalizePersistedProfileData(
+  profile: ProfileData,
+  policy?: OrchestratorPolicy,
+  options?: ProfileWriteOptions,
+): ProfileData {
   const models = normalizeProfileModels(profile?.models, policy);
   const fallback = extractSddFallbackModels({ fallback: profile?.fallback || {} });
-  const configs = normalizeProfileConfigs(profile?.configs, policy);
+  const configs = normalizeProfileConfigs(
+    profile?.configs,
+    policy,
+    options?.preserveProviderDefaultReasoning,
+    fallback,
+  );
+  const persistedConfigs = configs
+    ? Object.fromEntries(Object.entries(configs).filter(([name]) => {
+      const fallbackOwner = deriveFallbackProfileKey(name);
+      return fallbackOwner ? Object.hasOwn(fallback, fallbackOwner) : Object.hasOwn(models, name);
+    }))
+    : undefined;
 
   return {
     ...extractPersistedProfileExtras(profile),
     models,
     ...(Object.keys(fallback).length > 0 ? { fallback } : {}),
-    ...(configs ? { configs } : {}),
+    ...(persistedConfigs && Object.keys(persistedConfigs).length > 0 ? { configs: persistedConfigs } : {}),
   };
 }
 
@@ -269,8 +303,8 @@ export function readProfileModels(profilePath: string): ProfileModels {
   if (raw && typeof raw === "object" && !Array.isArray(raw) && raw.models && typeof raw.models === "object") {
     return canonicalizeProfileModels(Object.fromEntries(
       Object.entries(raw.models)
-        .filter(([name, value]: any) => isPrimarySddAgent(name) && typeof value === "string" && value.trim())
-        .map(([name, value]: any) => [name, value])
+        .filter(([name, value]: any) => isValidAgentKey(name) && typeof value === "string" && value.trim())
+        .map(([name, value]: any) => [name, value.trim()])
     ), policy);
   }
 
@@ -280,15 +314,15 @@ export function readProfileModels(profilePath: string): ProfileModels {
       Object.entries(raw)
         .filter(
           ([name, value]: any) =>
-            isPrimarySddAgent(name) &&
-            ((typeof value === "string" && value) || (typeof value?.model === "string" && value.model))
+            isValidAgentKey(name) &&
+            ((typeof value === "string" && value.trim()) || (typeof value?.model === "string" && value.model.trim()))
         )
-        .map(([name, value]: any) => [name, typeof value === "string" ? value : value.model])
+        .map(([name, value]: any) => [name, typeof value === "string" ? value.trim() : value.model.trim()])
     ), policy);
   }
 
   // Config format: { agent: { ... } }
-  return canonicalizeProfileModels(extractSddAgentModels(raw), policy);
+  return canonicalizeProfileModels(extractPersistedAgentModels(raw), policy);
 }
 
 /**
@@ -335,36 +369,47 @@ function readProfileDataFromRaw(rawContent: string): ProfileData {
   }
 
   let models: ProfileModels;
+  let isLegacyFlat = false;
   if (raw && typeof raw === "object" && !Array.isArray(raw) && raw.models && typeof raw.models === "object") {
     models = Object.fromEntries(
       Object.entries(raw.models)
-        .filter(([name, value]: any) => isPrimarySddAgent(name) && typeof value === "string" && value.trim())
-        .map(([name, value]: any) => [name, value])
+        .filter(([name, value]: any) => isValidAgentKey(name) && typeof value === "string" && value.trim())
+        .map(([name, value]: any) => [name, value.trim()])
     );
   } else if (raw && typeof raw === "object" && !Array.isArray(raw) && !raw.agent && !raw.models) {
+    isLegacyFlat = true;
     models = Object.fromEntries(
       Object.entries(raw)
         .filter(
           ([name, value]: any) =>
-            isPrimarySddAgent(name) &&
-            ((typeof value === "string" && value) || (typeof value?.model === "string" && value.model))
+            isValidAgentKey(name) &&
+            ((typeof value === "string" && value.trim()) || (typeof value?.model === "string" && value.model.trim()))
         )
-        .map(([name, value]: any) => [name, typeof value === "string" ? value : value.model])
+        .map(([name, value]: any) => [name, typeof value === "string" ? value.trim() : value.model.trim()])
     );
   } else {
-    models = extractSddAgentModels(raw);
+    models = extractPersistedAgentModels(raw);
   }
 
   const fallback = extractSddFallbackModels(raw);
   const policy = getOrchestratorPolicy(Object.keys(raw?.agent || raw?.models || raw || {}));
   const configs = normalizeProfileConfigs(raw?.configs, policy);
+  const canonicalModels = canonicalizeProfileModels(models, policy);
+  const persistedConfigs = configs
+    ? Object.fromEntries(Object.entries(configs).filter(([name]) => Object.hasOwn(canonicalModels, name)))
+    : undefined;
+  const rawExtras = extractPersistedProfileExtras(raw);
+  const extras = isLegacyFlat
+    ? Object.fromEntries(Object.entries(rawExtras).filter(([key]) => !(key in models)))
+    : rawExtras;
+
   return {
-    ...extractPersistedProfileExtras(raw),
-    models: canonicalizeProfileModels(models, policy),
+    ...extras,
+    models: canonicalModels,
     ...(Object.keys(fallback).length > 0
       ? { fallback }
       : {}),
-    ...(configs ? { configs } : {}),
+    ...(persistedConfigs && Object.keys(persistedConfigs).length > 0 ? { configs: persistedConfigs } : {}),
   };
 }
 
@@ -377,7 +422,15 @@ export function writeProfileData(
   policy?: OrchestratorPolicy,
   options?: ProfileWriteOptions,
 ): void {
-  atomicWriteFile(profilePath, JSON.stringify(normalizePersistedProfileData(profile, policy), null, 2));
+  const normalized = normalizePersistedProfileData(profile, policy, options);
+  if (normalized.configs) {
+    const configs = Object.fromEntries(
+      Object.entries(normalized.configs).filter(([name]) => isValidAgentKey(name) && (isEditablePrimaryAgent(name) || name === policy?.canonicalName)),
+    );
+    if (Object.keys(configs).length > 0) normalized.configs = configs;
+    else delete normalized.configs;
+  }
+  atomicWriteFile(profilePath, JSON.stringify(normalized, null, 2));
 }
 
 function normalizePrimarySddAgentNames(primarySddAgentNames: string[]): string[] {
@@ -678,9 +731,9 @@ function readProfilePreviewFromRaw(beforeRaw: string): { models: ProfileModels; 
       models: isRecord(raw)
         ? isRecord(raw.models)
           ? Object.fromEntries(
-              Object.entries(sanitizeStringRecord(raw.models) || {}).filter(([name]) => isPrimarySddAgent(name))
+              Object.entries(sanitizeStringRecord(raw.models) || {}).filter(([name]) => isValidAgentKey(name))
             )
-          : extractSddAgentModels(raw)
+          : extractPersistedAgentModels(raw)
         : {},
       fallback: extractSddFallbackModels(raw),
     };

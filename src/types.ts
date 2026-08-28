@@ -99,6 +99,11 @@ export type ProfileAgentConfig = {
   reasoningEffort?: string;
 };
 
+/**
+ * Agent-name keyed reasoning configuration. Fallback effort is stored using
+ * the runtime fallback agent key (`${primary}-fallback`) to keep it separate
+ * from the primary agent's reasoning configuration.
+ */
 export type ProfileConfigs = Record<string, ProfileAgentConfig>;
 
 /**
