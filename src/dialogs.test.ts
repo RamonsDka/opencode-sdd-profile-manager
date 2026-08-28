@@ -199,12 +199,12 @@ describe('dialog pure builders', () => {
       preview: { models: { 'sdd-init': 'old/model' }, fallback: { 'sdd-init': 'old/fallback' } }
     });
 
-    expect(lines).toContain('Profile: team.json');
-    expect(lines).toContain('Source: Bulk');
-    expect(lines).toContain('Operation: Set 2 primary and 1 fallback phases');
-    expect(lines).toContain('Primary: sdd-init -> old/model');
-    expect(lines).toContain('Fallback: sdd-init -> old/fallback');
-    expect(lines.some((line) => line.startsWith('Raw: {"models"'))).toBe(true);
+    expect(lines).toContain('Perfil: team.json');
+    expect(lines).toContain('Origen: Masivo');
+    expect(lines).toContain('Operación: Set 2 primary and 1 fallback phases');
+    expect(lines).toContain('Primario: sdd-init -> old/model');
+    expect(lines).toContain('fallback: sdd-init -> old/fallback');
+    expect(lines.some((line) => line.startsWith('Contenido: {"models"'))).toBe(true);
   });
 
   it('builds version list labels with source, date, and operation summary', () => {
@@ -220,7 +220,7 @@ describe('dialog pure builders', () => {
     });
 
     expect(option).toEqual({
-      title: expect.stringContaining('Bulk'),
+      title: expect.stringContaining('Masivo'),
       value: 'team.json/2026-04-26T10-00-00-000Z-a.json',
       description: 'Override all primary phases: 2 primary, 0 fallback',
     });

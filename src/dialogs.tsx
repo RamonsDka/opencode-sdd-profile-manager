@@ -126,6 +126,21 @@ function catalogCategory(agentName: string): string {
   return CATALOG_GROUPS.find((group) => group.agents.includes(agentName as never))?.labelEs || UI_TEXT.primaryModels;
 }
 
+function localizedMemoryScope(scope?: string): string {
+  return scope === "project" || !scope ? "proyecto" : scope;
+}
+
+function localizedMemoryType(type?: string): string {
+  return {
+    architecture: "arquitectura",
+    discovery: "descubrimiento",
+    decision: "decisión",
+    bugfix: "corrección",
+    pattern: "patrón",
+    manual: "manual",
+  }[type || "manual"] || type || "manual";
+}
+
 const CATALOG_FAMILY_BY_GROUP = {
   orchestrator: "Orchestrator",
   "sdd-core": "SDD",
@@ -433,11 +448,11 @@ export function wrapDisplayText(value: string, max = 80): string[] {
  */
 export function showMemoryDetail(api: any, memory: any) {
   safeSetDialogSize(api, "xlarge");
-  const title = memory.title || memory.topic_key || `Memory #${memory.id}`;
-  const metadata = `[${(memory.type || "manual").toUpperCase()}] ${formatMemoryDate(
+  const title = memory.title || memory.topic_key || `Memoria #${memory.id}`;
+  const metadata = `[${localizedMemoryType(memory.type).toUpperCase()}] ${formatMemoryDate(
     memory.updated_at || memory.created_at
-  )} · ${memory.scope || "project"}`;
-  const contentLines = (memory.content || "No content")
+  )} · ${localizedMemoryScope(memory.scope)}`;
+  const contentLines = (memory.content || "Sin contenido")
     .split("\n")
     .flatMap((line: string) => wrapDisplayText(line || " ", 80));
 
@@ -448,14 +463,14 @@ export function showMemoryDetail(api: any, memory: any) {
         {
           title: metadata,
           value: "__meta__",
-          category: "Memory",
+          category: "Memoria",
         },
         ...contentLines.map((line: string, index: number) => ({
           title: line || " ",
           value: `__line__${index}`,
         })),
-        { title: "✕ Delete Memory", value: "__delete__", category: NAV_CATEGORY },
-        { title: "← Back", value: "__back__", category: NAV_CATEGORY },
+        { title: NAV_TEXT.deleteMemory, value: "__delete__", category: NAV_CATEGORY },
+        buildBackOption(),
       ]}
       onSelect={(opt: any) => {
         if (opt.value === "__back__") showProjectMemoriesMenuFn(api);
@@ -476,20 +491,20 @@ export function showMemoryDetail(api: any, memory: any) {
 export function showDeleteMemory(api: any, memory: any) {
   safeSetDialogSize(api, "medium");
   safeSetDialogSize(api, "medium");
-  const title = memory.title || memory.topic_key || `Memory #${memory.id}`;
+  const title = memory.title || memory.topic_key || `Memoria #${memory.id}`;
 
   api.ui.dialog.replace(() => (
     <api.ui.DialogConfirm
-      title="Delete Memory"
-      message={`Permanently delete '${truncateText(title, 48)}'?`}
+      title="Eliminar memoria"
+      message={`¿Eliminar permanentemente '${truncateText(title, 48)}'?`}
       onConfirm={async () => {
         try {
           await deleteProjectMemory(memory.id);
-          api.ui.toast({ title: "Deleted", message: "Memory deleted successfully", variant: "success" });
+          api.ui.toast({ title: UI_TEXT.deleted, message: "Memoria eliminada correctamente", variant: "success" });
           showProjectMemoriesMenuFn(api);
         } catch (e: any) {
           log.error(`showDeleteMemory: failed to delete memory ${memory?.id}`, e);
-          api.ui.toast({ title: "Error", message: e.message || "Failed to delete memory", variant: "error" });
+          api.ui.toast({ title: UI_TEXT.error, message: e.message || "No se pudo eliminar la memoria", variant: "error" });
           showMemoryDetail(api, memory);
         }
       }}
@@ -526,21 +541,21 @@ export function buildBulkProfileActionOptions(): BulkProfileActionOption[] {
 }
 
 export function formatProfileVersionPreviewLines(version: ProfileVersion): string[] {
-  const primaryLines = Object.entries(version.preview.models || {}).map(([name, model]) => `Primary: ${name} -> ${model}`);
-  const fallbackLines = Object.entries(version.preview.fallback || {}).map(([name, model]) => `Fallback: ${name} -> ${model}`);
+  const primaryLines = Object.entries(version.preview.models || {}).map(([name, model]) => `Primario: ${name} -> ${model}`);
+  const fallbackLines = Object.entries(version.preview.fallback || {}).map(([name, model]) => `fallback: ${name} -> ${model}`);
   return [
-    `Profile: ${version.profileFile}`,
-    `Created: ${formatMemoryDate(version.createdAt)}`,
-    `Source: ${formatProfileVersionSource(version.source)}`,
-    `Operation: ${version.operationSummary}`,
-    ...(primaryLines.length > 0 ? primaryLines : ["Primary: none"]),
-    ...(fallbackLines.length > 0 ? fallbackLines : ["Fallback: none"]),
-    `Raw: ${truncateText(version.beforeRaw.replace(/\s+/g, " "), 80)}`,
+    `Perfil: ${version.profileFile}`,
+    `Creado: ${formatMemoryDate(version.createdAt)}`,
+    `Origen: ${formatProfileVersionSource(version.source)}`,
+    `Operación: ${version.operationSummary}`,
+    ...(primaryLines.length > 0 ? primaryLines : ["Primario: ninguno"]),
+    ...(fallbackLines.length > 0 ? fallbackLines : ["fallback: ninguno"]),
+    `Contenido: ${truncateText(version.beforeRaw.replace(/\s+/g, " "), 80)}`,
   ];
 }
 
 function formatProfileVersionSource(source: string | undefined): string {
-  return source === PROFILE_VERSION_SOURCE.PHASE ? "Phase" : "Bulk";
+  return source === PROFILE_VERSION_SOURCE.PHASE ? "Fase" : "Masivo";
 }
 
 export function buildProfileVersionListOption(version: ProfileVersionMetadata): { title: string; value: string; description: string } {
@@ -1496,7 +1511,7 @@ function updateAgentModel(api: any, profileOpt: any, agentName: string, fullMode
  */
 export async function showProjectMemoriesMenu(api: any) {
   safeSetDialogSize(api, "large");
-  const projectName = resolveEngramProjectName(api) || resolveProjectName(api) || "project";
+  const projectName = resolveEngramProjectName(api) || resolveProjectName(api) || "proyecto";
 
   try {
     const memories = await listProjectMemories(api);
@@ -1513,14 +1528,14 @@ export async function showProjectMemoriesMenu(api: any) {
 
     api.ui.dialog.replace(() => (
       <api.ui.DialogSelect
-        title={`Memories: ${projectName}`}
+        title={`Memorias: ${projectName}`}
         options={[
           ...memories.map((m) => ({
-            title: truncateText(`[${m.id}] ${m.title || m.topic_key || `Memory #${m.id}`}`, 60),
+            title: truncateText(`[${m.id}] ${m.title || m.topic_key || `Memoria #${m.id}`}`, 60),
             value: String(m.id),
-            description: `[${(m.type || "manual").toUpperCase()}] ${formatMemoryDate(
+            description: `[${localizedMemoryType(m.type).toUpperCase()}] ${formatMemoryDate(
               m.updated_at || m.created_at
-            )} · ${m.scope || "project"}`,
+            )} · ${localizedMemoryScope(m.scope)}`,
           })),
           { title: "← Back", value: "__back__", category: NAV_CATEGORY },
         ]}
