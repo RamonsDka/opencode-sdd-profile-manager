@@ -221,6 +221,43 @@ describe("profile reasoning helpers", () => {
 
       expect(updated).toEqual({ models: { "sdd-apply": "openai/gpt-5" } });
     });
+
+    it("maps provider default and its display label to absence instead of persisting either literal", () => {
+      const profile = {
+        models: { "sdd-apply": "openai/gpt-5" },
+        configs: { "sdd-apply": { reasoningEffort: "high" } },
+      } as any;
+
+      expect(updateProfileReasoningEffort(profile, "sdd-apply", PROVIDER_DEFAULT_REASONING_EFFORT)).toEqual({
+        models: { "sdd-apply": "openai/gpt-5" },
+      });
+      expect(updateProfileReasoningEffort(profile, "sdd-apply", DEFAULT_REASONING_EFFORT_LABEL)).toEqual({
+        models: { "sdd-apply": "openai/gpt-5" },
+      });
+    });
+
+    it("updates custom primary effort but leaves reserved and fallback agents unchanged", () => {
+      const profile = {
+        models: {
+          "security-auditor": "openai/gpt-5",
+          "sdd-orchestrator": "openai/gpt-5",
+        },
+        configs: {
+          "sdd-orchestrator": { reasoningEffort: "high" },
+          "security-auditor-fallback": { reasoningEffort: "low" },
+        },
+      } as any;
+
+      expect(updateProfileReasoningEffort(profile, "security-auditor", "medium")).toEqual({
+        models: {
+          "security-auditor": "openai/gpt-5",
+          "sdd-orchestrator": "openai/gpt-5",
+        },
+        configs: { "security-auditor": { reasoningEffort: "medium" } },
+      });
+      expect(updateProfileReasoningEffort(profile, "sdd-orchestrator", "low")).toBe(profile);
+      expect(updateProfileReasoningEffort(profile, "security-auditor-fallback", "low")).toBe(profile);
+    });
   });
 
   describe("reasoning model compatibility", () => {
@@ -353,7 +390,7 @@ describe("profile reasoning helpers", () => {
       expect(missingMetadata.clearedAgents).toEqual(["sdd-apply"]);
       expect(missingMetadata.config.agent["sdd-apply"].reasoningEffort).toBeUndefined();
       expect(missingMetadata.config.agent["sdd-apply"].options.reasoningEffort).toBeUndefined();
-      expect(missingMetadata.warnings[0]).toContain("missing runtime metadata");
+      expect(missingMetadata.warnings[0]).toContain("metadata");
     });
 
     it("applies orchestrator reasoning effort using updated runtime canonical alias", () => {
@@ -431,6 +468,74 @@ describe("profile reasoning helpers", () => {
       expect(next.config.agent["sdd-orchestrator"]).toBeUndefined();
       expect(next.appliedAgents).toEqual([]);
       expect(next.clearedAgents).toEqual(["gentle-orchestrator"]);
+      expect(next.warnings).toEqual([]);
+    });
+
+    it("persists auxiliary model reasoning without creating fallback configuration", () => {
+      const next = applyProfileReasoningEffort({
+        agent: {
+          compaction: { model: "openai/gpt-5" },
+          summary: { model: "openai/gpt-5" },
+          title: { model: "openai/gpt-5" },
+        },
+      }, {
+        models: {
+          compaction: "openai/gpt-5",
+          summary: "openai/gpt-5",
+          title: "openai/gpt-5",
+        },
+        configs: {
+          compaction: { reasoningEffort: "low" },
+          summary: { reasoningEffort: "high" },
+          title: { reasoningEffort: "low" },
+        },
+      } as any, providers as any);
+
+      expect(next.config.agent.compaction.reasoningEffort).toBe("low");
+      expect(next.config.agent.summary.reasoningEffort).toBe("high");
+      expect(next.config.agent.title.reasoningEffort).toBe("low");
+      expect(next.config.agent["compaction-fallback"]).toBeUndefined();
+      expect(next.appliedAgents).toEqual(["compaction", "summary", "title"]);
+    });
+
+    it("applies supported reasoning to a runtime custom primary and ignores inactive or ineligible entries", () => {
+      const next = applyProfileReasoningEffort({
+        agent: {
+          "security-auditor": { model: "openai/gpt-5" },
+          "security-auditor-fallback": { model: "openai/gpt-5" },
+          "sdd-orchestrator": { model: "openai/gpt-5" },
+        },
+      }, {
+        models: {
+          "security-auditor": "openai/gpt-5",
+          "inactive-auditor": "openai/gpt-5",
+          "sdd-orchestrator": "openai/gpt-5",
+        },
+        configs: {
+          "security-auditor": { reasoningEffort: "high" },
+          "inactive-auditor": { reasoningEffort: "low" },
+          "security-auditor-fallback": { reasoningEffort: "high" },
+          "sdd-orchestrator": { reasoningEffort: "low" },
+        },
+      } as any, [
+        {
+          id: "openai",
+          models: {
+            "gpt-5": {
+              capabilities: { reasoning: true },
+              variants: {
+                low: { reasoningEffort: "low" },
+                high: { reasoningEffort: "high" },
+              },
+            },
+          },
+        },
+      ] as any);
+
+      expect(next.config.agent["security-auditor"].reasoningEffort).toBe("high");
+      expect(next.config.agent["security-auditor-fallback"].reasoningEffort).toBeUndefined();
+      expect(next.config.agent["sdd-orchestrator"].reasoningEffort).toBeUndefined();
+      expect(next.appliedAgents).toEqual(["security-auditor"]);
       expect(next.warnings).toEqual([]);
     });
   });

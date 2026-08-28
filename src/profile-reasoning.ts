@@ -1,7 +1,7 @@
 /** @jsxImportSource @opentui/solid */
 import type { ProfileData, ProfileConfigs } from "./types";
 import { deriveFallbackProfileKey } from "./catalog";
-import { isEditablePrimaryAgent, isPrimarySddAgent, isSddFallbackAgent, RESERVED_RUNTIME_AGENT_NAMES } from "./utils";
+import { isEditablePrimaryAgent, RESERVED_RUNTIME_AGENT_NAMES } from "./utils";
 import {
   LEGACY_ORCHESTRATOR,
   UPDATED_ORCHESTRATOR,
@@ -36,7 +36,7 @@ function listReasoningEffortsFromModel(modelDef: any): string[] {
   const variants = modelDef?.variants;
   if (!variants || typeof variants !== "object") return [];
   const values = Object.values(variants)
-    .map((variant: any) => (typeof variant?.reasoningEffort === "string" ? variant.reasoningEffort.trim() : ""))
+    .map((variant: any) => typeof variant?.reasoningEffort === "string" ? variant.reasoningEffort.trim() : "")
     .filter(Boolean);
   return Array.from(new Set(values)).sort();
 }
@@ -68,14 +68,12 @@ function canonicalizeProfileConfigs(configs: ProfileConfigs, policy: Orchestrato
 
   delete next[LEGACY_ORCHESTRATOR];
   delete next[UPDATED_ORCHESTRATOR];
-
   if (canonicalEffort) {
     next[policy.canonicalName] = {
       ...(next[policy.canonicalName] || {}),
       reasoningEffort: canonicalEffort,
     };
   }
-
   return next;
 }
 
@@ -104,7 +102,7 @@ export function resolveReasoningEffortSelection(
   }
   const options = getReasoningEffortOptions(providers, modelId);
   if (!options.includes(normalized)) {
-    throw new Error("Reasoning effort '" + normalized + "' is not available for " + modelId);
+    throw new Error(`Reasoning effort '${normalized}' is not available for ${modelId}`);
   }
   return { kind: "configured", value: normalized, option: normalized, label: normalized };
 }
@@ -152,32 +150,18 @@ export function normalizeProfileConfigs(
       })
       .filter(Boolean) as any,
   );
-
   const normalized = policy ? canonicalizeProfileConfigs(normalizedBase, policy) : normalizedBase;
-
   return Object.keys(normalized).length > 0 ? normalized : undefined;
 }
 
 export function updateProfileReasoningEffort(profile: ProfileData, agentName: string, value?: string): ProfileData {
-  if (!isPrimarySddAgent(agentName) || isSddFallbackAgent(agentName)) {
-    return profile;
-  }
-
+  if (!isReasoningOwner(agentName)) return profile;
   const nextConfigs: Record<string, any> = { ...(profile?.configs || {}) };
-  const trimmed = typeof value === "string" ? value.trim() : "";
-  if (!trimmed) {
-    delete nextConfigs[agentName];
-  } else {
-    nextConfigs[agentName] = {
-      ...(nextConfigs[agentName] || {}),
-      reasoningEffort: trimmed,
-    };
-  }
-
+  const trimmed = normalizeReasoningEffortValue(value) || "";
+  if (!trimmed) delete nextConfigs[agentName];
+  else nextConfigs[agentName] = { ...(nextConfigs[agentName] || {}), reasoningEffort: trimmed };
   const normalized = normalizeProfileConfigs(nextConfigs);
-  const nextProfile: any = {
-    ...(profile || { models: {} }),
-  };
+  const nextProfile: any = { ...(profile || { models: {} }) };
   delete nextProfile.configs;
   if (normalized) nextProfile.configs = normalized;
   return nextProfile;
@@ -215,16 +199,17 @@ export function pruneProfileReasoningEffort(
   return clearProfileReasoningEffort(profile, agentName);
 }
 
-function clearAgentReasoningEffort(agentConfig: any) {
-  if (!agentConfig || typeof agentConfig !== "object") return;
+function clearAgentReasoningEffort(agentConfig: any): boolean {
+  if (!agentConfig || typeof agentConfig !== "object") return false;
+  const hadEffort = Object.hasOwn(agentConfig, "reasoningEffort")
+    || (agentConfig.options && typeof agentConfig.options === "object" && Object.hasOwn(agentConfig.options, "reasoningEffort"));
   delete agentConfig.reasoningEffort;
-  if (agentConfig.options && typeof agentConfig.options === "object") {
-    delete agentConfig.options.reasoningEffort;
-  }
+  if (agentConfig.options && typeof agentConfig.options === "object") delete agentConfig.options.reasoningEffort;
+  return hadEffort;
 }
 
-function applyAgentReasoningEffort(agentConfig: any, effort: string) {
-  const next = {
+function applyAgentReasoningEffort(agentConfig: any, effort: string): any {
+  return {
     ...(agentConfig || {}),
     reasoningEffort: effort,
     options: {
@@ -232,7 +217,6 @@ function applyAgentReasoningEffort(agentConfig: any, effort: string) {
       reasoningEffort: effort,
     },
   };
-  return next;
 }
 
 export function applyProfileReasoningEffort(currentConfig: any, profile: ProfileData, providers: any[], policy?: OrchestratorPolicy): {
@@ -246,60 +230,46 @@ export function applyProfileReasoningEffort(currentConfig: any, profile: Profile
   const appliedAgents: string[] = [];
   const clearedAgents: string[] = [];
   const effectivePolicy = policy || getOrchestratorPolicy(
-    [
-      ...Object.keys(nextConfig?.agent || {}),
-      ...Object.keys(profile?.models || {}),
-      ...Object.keys(profile?.configs || {}),
-    ],
+    [...Object.keys(nextConfig?.agent || {}), ...Object.keys(profile?.models || {}), ...Object.keys(profile?.configs || {})],
     nextConfig?.default_agent,
   );
-  const normalizedConfigs = normalizeProfileConfigs(profile?.configs, effectivePolicy);
+  const normalizedConfigs = normalizeProfileConfigs(profile?.configs, policy ? effectivePolicy : undefined);
+  const reasoningOwner = (agentName: string) => isReasoningOwner(agentName, policy ? effectivePolicy : undefined);
 
-  const scopedPrimaryAgents = Object.keys(
-    canonicalizeProfileModels(profile?.models || {}, effectivePolicy)
-  ).filter((agentName) => isPrimarySddAgent(agentName) && !isSddFallbackAgent(agentName));
-
-  const configuredAgents = new Set(Object.keys(normalizedConfigs || {}));
-  for (const agentName of scopedPrimaryAgents) {
-    if (configuredAgents.has(agentName)) continue;
-    if (nextConfig?.agent?.[agentName] && typeof nextConfig.agent[agentName] === "object") {
-      clearAgentReasoningEffort(nextConfig.agent[agentName]);
+  for (const [agentName, agentConfig] of Object.entries(nextConfig?.agent || {})) {
+    if (isFallbackOrReservedAgent(agentName) && agentName !== effectivePolicy.canonicalName && clearAgentReasoningEffort(agentConfig)) {
       clearedAgents.push(agentName);
     }
   }
 
-  if (!normalizedConfigs) {
-    return { config: nextConfig, warnings, appliedAgents, clearedAgents };
+  const scopedPrimaries = Object.keys(canonicalizeProfileModels(profile?.models || {}, effectivePolicy))
+    .filter(reasoningOwner);
+  const configuredAgents = new Set(Object.keys(normalizedConfigs || {}));
+  for (const agentName of scopedPrimaries) {
+    if (configuredAgents.has(agentName)) continue;
+    if (nextConfig?.agent?.[agentName] && clearAgentReasoningEffort(nextConfig.agent[agentName])) {
+      clearedAgents.push(agentName);
+    }
   }
 
-  for (const [agentName, cfg] of Object.entries(normalizedConfigs)) {
-    if (!isPrimarySddAgent(agentName) || isSddFallbackAgent(agentName)) continue;
+  for (const [agentName, cfg] of Object.entries(normalizedConfigs || {})) {
+    if (!reasoningOwner(agentName)) continue;
+    const runtimeAgent = nextConfig?.agent?.[agentName];
     const effort = cfg?.reasoningEffort;
-    if (!effort) continue;
-    const modelId = nextConfig?.agent?.[agentName]?.model;
-    if (!modelId) continue;
-
-    const modelDef = resolveModelDefinition(providers, modelId);
-    const options = listReasoningEffortsFromModel(modelDef);
-    if (!modelDef || options.length === 0) {
-      if (nextConfig?.agent?.[agentName] && typeof nextConfig.agent[agentName] === "object") {
-        clearAgentReasoningEffort(nextConfig.agent[agentName]);
-        clearedAgents.push(agentName);
-      }
-      warnings.push("Skipped reasoning effort for " + agentName + ": missing runtime metadata for " + modelId + ".");
+    if (!effort || !runtimeAgent || typeof runtimeAgent !== "object") continue;
+    const modelId = runtimeAgent.model;
+    const options = getReasoningEffortOptions(providers, modelId);
+    if (options.length === 0) {
+      if (clearAgentReasoningEffort(runtimeAgent)) clearedAgents.push(agentName);
+      warnings.push(`Skipped reasoning effort for ${agentName}: missing runtime metadata for ${modelId}.`);
       continue;
     }
     if (!options.includes(effort)) {
-      if (nextConfig?.agent?.[agentName] && typeof nextConfig.agent[agentName] === "object") {
-        clearAgentReasoningEffort(nextConfig.agent[agentName]);
-        clearedAgents.push(agentName);
-      }
-      warnings.push("Skipped reasoning effort for " + agentName + ": saved value '" + effort + "' is incompatible with " + modelId + ".");
+      if (clearAgentReasoningEffort(runtimeAgent)) clearedAgents.push(agentName);
+      warnings.push(`Skipped reasoning effort for ${agentName}: saved value '${effort}' is incompatible with ${modelId}.`);
       continue;
     }
-
-    if (!nextConfig.agent) nextConfig.agent = {};
-    nextConfig.agent[agentName] = applyAgentReasoningEffort(nextConfig.agent[agentName], effort);
+    nextConfig.agent[agentName] = applyAgentReasoningEffort(runtimeAgent, effort);
     appliedAgents.push(agentName);
   }
 
