@@ -17,6 +17,8 @@ export type ActiveProfileState = {
 
 export type BadgeDisplayMode = "model" | "profile";
 
+export type DialogSize = "medium" | "large" | "xlarge";
+
 /**
  * Mapping of profile names to their model identifiers
  */
