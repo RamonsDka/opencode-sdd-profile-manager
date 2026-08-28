@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { BULK_ASSIGNMENT_MODE, BULK_ASSIGNMENT_TARGET, PROFILE_VERSION_SOURCE } from './types';
 import { buildBulkProfileActionOptions, buildProfileVersionListOption, createFallbackSubmenuDialogProps, createPrimarySubmenuDialogProps, createReasoningSubmenuDialogProps, formatProfileVersionPreviewLines } from './dialogs';
-import { buildProfileAgentRows } from './dialogs';
+import { buildProfileAgentRows, buildProfileListOptions, createProfileListDialogProps, resolvePersistedActiveProfileFile } from './dialogs';
 import { buildProfileDetailAgentSections, resolveRuntimeOrchestratorPolicy, buildReasoningRowForAgent, buildReasoningBlockedMessage } from './dialogs';
 import { resolveProfileDetailSelectionAction } from './dialogs';
 import {
@@ -211,6 +211,30 @@ describe('dialog pure builders', () => {
   it('returns explicit blocked messages for missing-model and unsupported states', () => {
     expect(buildReasoningBlockedMessage({ kind: 'missing-model', agentName: 'sdd-apply' })).toContain('Asigna un modelo primario');
     expect(buildReasoningBlockedMessage({ kind: 'unsupported', agentName: 'sdd-apply', modelId: 'openai/gpt-4.1' })).toContain('no expone opciones de esfuerzo de razonamiento');
+  });
+
+
+  it('prioritizes a safely mapped persisted active profile name in profile list rows', () => {
+    const files = ['GLOBAL-1.json', 'team.json'];
+    const activeFile = resolvePersistedActiveProfileFile(files, 'GLOBAL-1');
+    const options = buildProfileListOptions(files, activeFile);
+
+    expect(activeFile).toBe('GLOBAL-1.json');
+    expect(options[0]).toEqual({ title: '✓ GLOBAL-1', value: 'GLOBAL-1.json', description: '✓ Activo' });
+    expect(options[1]).toEqual({ title: 'team', value: 'team.json', description: 'Perfil SDD' });
+  });
+
+  it('falls back to config detection when persisted active profile name is stale or unsafe', () => {
+    expect(resolvePersistedActiveProfileFile(['team.json'], 'missing')).toBeUndefined();
+    expect(resolvePersistedActiveProfileFile(['team.json'], '../team')).toBeUndefined();
+    expect(resolvePersistedActiveProfileFile(['team.json'], 'team.json')).toBe('team.json');
+  });
+
+  it('passes the persisted active profile file to DialogSelect current', () => {
+    const props = createProfileListDialogProps(['GLOBAL-1.json', 'team.json'], 'GLOBAL-1.json', vi.fn(), vi.fn());
+
+    expect(props.current).toBe('GLOBAL-1.json');
+    expect(props.options[0]).toEqual({ title: '✓ GLOBAL-1', value: 'GLOBAL-1.json', description: '✓ Activo' });
   });
 
   it('routes profile detail selection actions to reasoning/model/fallback branches', () => {

@@ -20,6 +20,7 @@ import {
   type CatalogEntry,
   type AgentFamily,
   type ModelMutationContext,
+  type BulkAssignmentTarget,
 } from "./types";
 import {
   resolveModelInfo,
@@ -55,6 +56,7 @@ import {
 import { buildReasoningEditState, updateProfileReasoningEffort } from "./profile-reasoning";
 import { deleteProjectMemory, listProjectMemories } from "./memories";
 import {
+  activeProfile,
   badgeDisplayMode,
   setActiveProfile,
   setBadgeDisplayMode,
@@ -700,6 +702,40 @@ export function showCreateProfile(api: any) {
  * 
  * @param api - The TUI API instance
  */
+export function resolvePersistedActiveProfileFile(files: readonly string[], profileName?: string): string | undefined {
+  if (typeof profileName !== "string" || !profileName.trim()) return undefined;
+  const rawName = profileName.trim();
+  if (rawName.includes("/") || rawName.includes("\\") || rawName.includes("..")) return undefined;
+  const normalized = rawName.endsWith(".json") ? rawName : `${rawName}.json`;
+  return files.includes(normalized) ? normalized : undefined;
+}
+
+export function buildProfileListOptions(files: readonly string[], activeFile?: string) {
+  return files.map((file) => ({
+    title: `${file === activeFile ? "✓ " : ""}${file.replace(/\.json$/, "")}`,
+    value: file,
+    description: file === activeFile ? "✓ Activo" : "Perfil SDD",
+  }));
+}
+
+export function createProfileListDialogProps(
+  files: readonly string[],
+  activeFile: string | undefined,
+  showProfilesMenu: () => void,
+  showProfileDetail: (file: string) => void,
+) {
+  return {
+    title: "Select SDD Profile",
+    current: activeFile,
+    options: [...buildProfileListOptions(files, activeFile), { title: "← Back", value: "__back__", category: NAV_CATEGORY }],
+    onSelect: (opt: any) => {
+      if (opt.value === "__back__") showProfilesMenu();
+      else showProfileDetail(String(opt.value));
+    },
+    onCancel: showProfilesMenu,
+  };
+}
+
 export function showProfileList(api: any) {
   ensureProfilesDir();
 
@@ -715,26 +751,16 @@ export function showProfileList(api: any) {
     return;
   }
 
-  const activeFile = detectActiveProfileFile(files, api);
+  const activeFile = resolvePersistedActiveProfileFile(files, activeProfile()?.profileName)
+    || detectActiveProfileFile(files, api);
 
   api.ui.dialog.replace(() => (
-    <api.ui.DialogSelect
-      title="Select SDD Profile"
-      current={activeFile}
-      options={[
-        ...files.map((f) => ({
-          title: `${f === activeFile ? "✓ " : ""}${f.replace(".json", "")}`,
-          value: f,
-          description: f === activeFile ? "✓ Active" : "SDD Profile",
-        })),
-        { title: "← Back", value: "__back__", category: NAV_CATEGORY },
-      ]}
-      onSelect={(opt: any) => {
-        if (opt.value === "__back__") showProfilesMenuFn(api);
-        else showProfileDetailFn(api, { title: String(opt.value).replace(".json", ""), value: opt.value });
-      }}
-      onCancel={() => showProfilesMenuFn(api)}
-    />
+    <api.ui.DialogSelect {...createProfileListDialogProps(
+      files,
+      activeFile,
+      () => showProfilesMenuFn(api),
+      (file) => showProfileDetailFn(api, { title: file.replace(".json", ""), value: file }),
+    )} />
   ));
 }
 
@@ -894,10 +920,23 @@ export type DialogFlowDependencies = {
   commitPendingModelSelection?: typeof commitPendingModelSelection; updateProfileReasoningWithoutVersion?: typeof updateProfileReasoningWithoutVersion;
   showReasoningEffortPicker?: (api: any, profileOpt: any, agentName: string, returnTarget: ProfileDetailReturnTarget, flow?: ReasoningFlow) => void;
   showProviderPickerForAgent?: typeof showProviderPickerForAgent; returnToProfileDetailTarget?: typeof returnToProfileDetailTarget; showProfileDetail?: typeof showProfileDetailFn; onModelSelected?: (modelId: string) => void;
+  updateProfileWithBulkOverwrite?: typeof updateProfileWithBulkOverwrite;
+  collectConfigurableProfileTargets?: typeof collectConfigurableProfileTargets;
+  bulkTarget?: BulkAssignmentTarget;
+  showProviderPickerForBulkProfilePhases?: (api: any, profileOpt: any, action: any) => void;
+  showBulkReasoningEffortPicker?: (api: any, profileOpt: any, modelId: string, target?: "primary" | "fallback") => void;
 };
 
 export function buildModelMutationContext(api: any, mode: ModelSelectionMode): ModelMutationContext {
   return { providers: api?.state?.provider || [], runtimePrimaryNames: mode === "primary" ? Object.keys(api?.state?.config?.agent || {}).filter(isEditablePrimaryAgent) : undefined, effortPolicy: mode === "primary" ? "interactive-clear" : "none" };
+}
+
+export function buildBulkModelMutationContext(api: any, runtimePrimaryNames: string[]): ModelMutationContext {
+  return {
+    providers: api?.state?.provider || [],
+    runtimePrimaryNames,
+    effortPolicy: "bulk-compatible-prune",
+  };
 }
 
 function buildModelSelectionToast(agentName: string, fullModelId: string, mode: ModelSelectionMode, changed: boolean) {
@@ -993,12 +1032,12 @@ export function createBulkReasoningEffortPickerDialogProps(
       try {
         const result = updateBulk(
           profilePath,
-          collectTargets(api.state.config, resolvedTarget),
+          collectTargets(api.state.config, resolvedTarget as any),
           modelId,
           opt.value,
           buildBulkModelMutationContext(api, runtimePrimaryNames),
           resolveRuntimeOrchestratorPolicy(api.state.config),
-          ...(resolvedTarget === "fallback" ? [resolvedTarget] : []),
+          ...(resolvedTarget === "fallback" ? ["fallback" as const] : []),
         );
         const totalAssigned = result.assignment?.modelsAssigned || 0;
         api.ui.toast({
