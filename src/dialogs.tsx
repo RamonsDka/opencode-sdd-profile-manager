@@ -19,6 +19,7 @@ import {
   type BadgeDisplayMode,
   type CatalogEntry,
   type AgentFamily,
+  type ModelMutationContext,
 } from "./types";
 import {
   resolveModelInfo,
@@ -27,6 +28,7 @@ import {
   parseActiveProfileFromRaw,
   formatContext,
   isFallbackEligibleSddAgent,
+  isEditablePrimaryAgent,
   isPrimarySddAgent,
 } from "./utils";
 import { buildCatalogSections, CATALOG_GROUPS, isFallbackCatalogAgent } from "./catalog";
@@ -39,6 +41,9 @@ import {
   writeProfileModels,
   updateProfileWithBulkPhaseAssignment,
   updateProfilePhaseModel,
+  updateProfileReasoningWithoutVersion,
+  stageProfileModelSelection,
+  commitPendingModelSelection,
   listProfileVersions,
   readProfileVersion,
   restoreProfileVersion,
@@ -112,6 +117,8 @@ function localizedModelInfo(api: any, modelId?: string): string {
   return modelId ? resolveModelInfo(api, modelId).replace("ctx: N/A", "contexto: N/D") : "Sin asignar";
 }
 
+function localizedEffortLabel(value: string): string { return value === "provider-default" ? UI_TEXT.defaultEffort : value; }
+
 function catalogCategory(agentName: string): string {
   return CATALOG_GROUPS.find((group) => group.agents.includes(agentName as never))?.labelEs || UI_TEXT.primaryModels;
 }
@@ -169,9 +176,9 @@ export function buildReasoningRowForAgent(profileData: any, agentName: string): 
 }
 
 export function buildReasoningBlockedMessage(state: any): string {
-  if (state?.kind === "missing-model") return `Assign a primary model to ${state.agentName} before editing reasoning effort.`;
-  if (state?.kind === "unsupported") return `Model ${state.modelId} does not expose reasoning effort options.`;
-  return "Reasoning effort is not editable for this selection.";
+  if (state?.kind === "missing-model") return `Asigna un modelo primario a ${state.agentName} antes de editar el esfuerzo de razonamiento.`;
+  if (state?.kind === "unsupported") return `El modelo ${state.modelId} no expone opciones de esfuerzo de razonamiento.`;
+  return "El esfuerzo de razonamiento no se puede editar para esta selección.";
 }
 
 export const PROFILE_DETAIL_SUBMENU = {
@@ -802,7 +809,7 @@ export function createProfileDetailDialogProps(
   const showReasoning = deps?.showReasoningEffortPicker || showReasoningEffortPicker;
 
   return {
-    title: `Profile: ${profileOpt.title}`,
+    title: `Perfil: ${profileOpt.title}`,
     options: buildProfileDetailHubOptions(api, profileOpt, profileData),
     onSelect: (opt: any) => {
       if (opt.value === "__back__") showProfileList(api);
@@ -906,51 +913,114 @@ export function createFallbackSubmenuDialogProps(api: any, profileOpt: any, prof
   };
 }
 
-function showReasoningEffortPicker(api: any, profileOpt: any, agentName: string, returnTarget: ProfileDetailReturnTarget = "hub") {
-  const { profilesDir } = resolvePaths();
-  const profilePath = path.join(profilesDir, profileOpt.value);
+export type ModelSelectionMode = "primary" | "fallback";
+export type ModelPickerMode = "model" | "primary" | "fallback";
+export type ReasoningFlow = { sequential?: boolean; pending?: any; commitPendingModelSelection?: typeof commitPendingModelSelection; modelMutationContext?: ModelMutationContext };
+export type DialogFlowDependencies = {
+  updateProfilePhaseModel?: typeof updateProfilePhaseModel; readProfileData?: typeof readProfileData; stageProfileModelSelection?: typeof stageProfileModelSelection;
+  commitPendingModelSelection?: typeof commitPendingModelSelection; updateProfileReasoningWithoutVersion?: typeof updateProfileReasoningWithoutVersion;
+  showReasoningEffortPicker?: (api: any, profileOpt: any, agentName: string, returnTarget: ProfileDetailReturnTarget, flow?: ReasoningFlow) => void;
+  showProviderPickerForAgent?: typeof showProviderPickerForAgent; returnToProfileDetailTarget?: typeof returnToProfileDetailTarget; showProfileDetail?: typeof showProfileDetailFn; onModelSelected?: (modelId: string) => void;
+};
 
+export function buildModelMutationContext(api: any, mode: ModelSelectionMode): ModelMutationContext {
+  return { providers: api?.state?.provider || [], runtimePrimaryNames: mode === "primary" ? Object.keys(api?.state?.config?.agent || {}).filter(isEditablePrimaryAgent) : undefined, effortPolicy: mode === "primary" ? "interactive-clear" : "none" };
+}
+
+function buildModelSelectionToast(agentName: string, fullModelId: string, mode: ModelSelectionMode, changed: boolean) {
+  const target = mode === "fallback" ? " fallback" : "";
+  return { title: changed ? "Actualizado" : "Sin cambios", message: changed ? `${agentName}${target} usa ${fullModelId}. Versión guardada.` : `${agentName}${target} ya usa ${fullModelId}`, variant: changed ? "success" : "warning" };
+}
+
+export function createModelSelectionHandler(api: any, profileOpt: any, agentName: string, mode: ModelSelectionMode, returnTarget: ProfileDetailReturnTarget, deps: DialogFlowDependencies = {}) {
+  const stageModel = deps.stageProfileModelSelection || stageProfileModelSelection, commitModel = deps.commitPendingModelSelection || commitPendingModelSelection;
+  const legacyUpdateModel = deps.updateProfilePhaseModel, readProfile = deps.readProfileData || readProfileData, showReasoning = deps.showReasoningEffortPicker || showReasoningEffortPicker;
+  const returnToTarget = deps.returnToProfileDetailTarget || returnToProfileDetailTarget, { profilesDir } = resolvePaths(), profilePath = path.join(profilesDir, profileOpt.value);
+
+  return (fullModelId: string) => {
+    try {
+      if (legacyUpdateModel) {
+        const result = legacyUpdateModel(profilePath, agentName, mode, fullModelId, resolveRuntimeOrchestratorPolicy(api.state.config), buildModelMutationContext(api, mode));
+        if (mode === "primary") { showReasoning(api, profileOpt, agentName, returnTarget, { sequential: true }); return; }
+        api.ui.toast(buildModelSelectionToast(agentName, fullModelId, mode, result.changed));
+        returnToTarget(api, profileOpt, returnTarget);
+        return;
+      }
+      const staged = stageModel(readProfile(profilePath), agentName, mode, fullModelId);
+      showReasoning(api, profileOpt, agentName, returnTarget, { sequential: true, pending: staged.pending, commitPendingModelSelection: commitModel, modelMutationContext: buildModelMutationContext(api, mode) });
+    } catch (error: any) {
+      log.error(`handleModelSelection: failed to update ${agentName}`, error);
+      api.ui.toast({ title: UI_TEXT.error, message: `No se pudo actualizar el agente: ${error.message}`, variant: "error" });
+      returnToTarget(api, profileOpt, returnTarget);
+    }
+  };
+}
+
+export function createModelPickerDialogProps(api: any, profileOpt: any, agentName: string, provider: any, mode: ModelPickerMode, returnTarget: ProfileDetailReturnTarget, deps: DialogFlowDependencies = {}) {
+  const showProvider = deps.showProviderPickerForAgent || showProviderPickerForAgent;
+  const onModelSelected = (deps as any).onModelSelected || createModelSelectionHandler(api, profileOpt, agentName, mode === "fallback" ? "fallback" : "primary", returnTarget, deps);
+  const models = provider?.models || {};
+  return {
+    title: `${provider?.name || provider?.id} › ${agentName}${mode === "fallback" ? " (fallback)" : ""}`,
+    options: [...Object.keys(models).map((key) => ({ title: models[key].name || key, value: `${provider.id}/${key}`, description: models[key].limit?.context ? formatContext(models[key].limit.context) : "contexto: N/D" })), buildBackOption()],
+    onSelect: (opt: any) => (opt.value === "__back__" ? showProvider(api, profileOpt, agentName, mode === "primary" ? "model" : mode, returnTarget) : onModelSelected(opt.value)),
+    onCancel: () => showProvider(api, profileOpt, agentName, mode === "primary" ? "model" : mode, returnTarget),
+  };
+}
+
+function showReasoningEffortError(api: any, agentName: string, error: any) {
+  log.error(`showReasoningEffortEditor: failed to update ${agentName}`, error);
+  api.ui.toast({ title: UI_TEXT.error, message: `No se pudo actualizar el esfuerzo de razonamiento: ${error.message}`, variant: "error" });
+}
+
+export function createReasoningEffortPickerDialogProps(api: any, profileOpt: any, agentName: string, profilePath: string, profile: any, state: any, returnTarget: ProfileDetailReturnTarget, flow?: ReasoningFlow, deps: DialogFlowDependencies = {}) {
+  const updateEffort = deps.updateProfileReasoningWithoutVersion || updateProfileReasoningWithoutVersion, commitModel = flow?.commitPendingModelSelection || deps.commitPendingModelSelection || commitPendingModelSelection;
+  const returnToTarget = deps.returnToProfileDetailTarget || returnToProfileDetailTarget, clearAndReturn = () => returnToTarget(api, profileOpt, returnTarget);
+
+  return {
+    title: `${UI_TEXT.reasoningEffort} › ${agentName}`,
+    options: [...(state?.options || []).map((value: string) => ({ title: localizedEffortLabel(value), value })), ...(!flow?.sequential ? [{ title: "Borrar valor guardado", value: "__clear__", category: NAV_CATEGORY }] : []), buildBackOption()],
+    onSelect: (opt: any) => {
+      if (opt.value === "__back__") { clearAndReturn(); return; }
+      try {
+        const effort = opt.value === "__clear__" ? "" : opt.value;
+        if (flow?.sequential && flow.pending) {
+          commitModel(profilePath, flow.pending, effort, resolveRuntimeOrchestratorPolicy(api.state.config), flow.modelMutationContext || buildModelMutationContext(api, "primary"));
+        } else {
+          updateEffort(profilePath, agentName, effort, resolveRuntimeOrchestratorPolicy(api.state.config));
+        }
+        const selectedModel = flow?.pending?.modelId || profile?.models?.[agentName];
+        api.ui.toast({ title: "Actualizado", message: flow?.sequential ? `${agentName}: modelo ${selectedModel} y esfuerzo ${localizedEffortLabel(effort)} actualizados` : `${agentName}: esfuerzo de razonamiento actualizado`, variant: "success" });
+        returnToTarget(api, profileOpt, returnTarget);
+      } catch (error: any) {
+        showReasoningEffortError(api, agentName, error);
+        returnToTarget(api, profileOpt, returnTarget);
+      }
+    },
+    onCancel: clearAndReturn,
+  };
+}
+
+export function showReasoningEffortPicker(api: any, profileOpt: any, agentName: string, returnTarget: ProfileDetailReturnTarget = "hub", flow?: ReasoningFlow) {
+  const { profilesDir } = resolvePaths(), profilePath = path.join(profilesDir, profileOpt.value);
   try {
-    const profile = readProfileData(profilePath);
-    const modelId = profile?.models?.[agentName];
-    const current = profile?.configs?.[agentName]?.reasoningEffort;
+    const profile = readProfileData(profilePath), modelId = flow?.pending?.modelId || profile?.models?.[agentName], current = profile?.configs?.[agentName]?.reasoningEffort;
     const state = buildReasoningEditState(api?.state?.provider || [], agentName, modelId, current);
-
-    if (state.kind !== "selectable") {
-      api.ui.toast({ title: "Reasoning Unsupported", message: buildReasoningBlockedMessage(state), variant: "warning" });
+    if (state.kind === "ineligible" || state.kind === "missing-model") {
+      api.ui.toast({ title: "Razonamiento no disponible", message: buildReasoningBlockedMessage(state), variant: "warning" });
       returnToProfileDetailTarget(api, profileOpt, returnTarget);
       return;
     }
-
-    api.ui.dialog.replace(() => (
-      <api.ui.DialogSelect
-        title={`Reasoning effort › ${agentName}`}
-        options={[
-          ...state.options.map((value: string) => ({
-            title: value,
-            value,
-            description: state.current === value ? "Current" : undefined,
-          })),
-          { title: "Clear saved value", value: "__clear__", category: NAV_CATEGORY },
-          { title: "← Back", value: "__back__", category: NAV_CATEGORY },
-        ]}
-        onSelect={(opt: any) => {
-          if (opt.value === "__back__") {
-            returnToProfileDetailTarget(api, profileOpt, returnTarget);
-            return;
-          }
-
-          const nextProfile = updateProfileReasoningEffort(profile, agentName, opt.value === "__clear__" ? "" : opt.value);
-          writeProfileData(profilePath, nextProfile, resolveRuntimeOrchestratorPolicy(api.state.config));
-          api.ui.toast({ title: "Updated", message: `${agentName} reasoning effort updated`, variant: "success" });
-          returnToProfileDetailTarget(api, profileOpt, returnTarget);
-        }}
-        onCancel={() => returnToProfileDetailTarget(api, profileOpt, returnTarget)}
-      />
-    ));
+    const pickerProps = createReasoningEffortPickerDialogProps(api, profileOpt, agentName, profilePath, profile, state, returnTarget, flow, flow?.sequential ? { updateProfileReasoningWithoutVersion: undefined } : {
+      updateProfileReasoningWithoutVersion: (targetPath, targetAgent, value, policy) => {
+        const nextProfile = updateProfileReasoningEffort(profile, targetAgent, value);
+        writeProfileData(targetPath, nextProfile, policy);
+        return nextProfile;
+      },
+    });
+    api.ui.dialog.replace(() => <api.ui.DialogSelect {...pickerProps} />);
   } catch (e: any) {
-    log.error(`showReasoningEffortEditor: failed to update ${agentName}`, e);
-    api.ui.toast({ title: "Error", message: `Failed to update reasoning effort: ${e.message}`, variant: "error" });
+    showReasoningEffortError(api, agentName, e);
     returnToProfileDetailTarget(api, profileOpt, returnTarget);
   }
 }
@@ -1309,82 +1379,15 @@ function showProviderPickerForAgent(
 /**
  * Displays a menu to select a model from a provider for a specific agent
  */
-function showModelPickerForAgent(
-  api: any,
-  profileOpt: any,
-  agentName: string,
-  provider: any,
-  mode: "model" | "fallback",
-  returnTarget: ProfileDetailReturnTarget = "hub"
-) {
-  const models = provider.models || {};
-  const modelKeys = Object.keys(models);
-
-  api.ui.dialog.replace(() => (
-    <api.ui.DialogSelect
-      title={`${provider.name || provider.id} › ${agentName}${mode === "fallback" ? " (fallback)" : ""}`}
-      options={[
-        ...modelKeys.map((key) => {
-          const model = models[key];
-          const ctxText = model.limit?.context ? formatContext(model.limit.context) : "ctx: N/A";
-          return {
-            title: model.name || key,
-            value: `${provider.id}/${key}`,
-            description: ctxText,
-          };
-        }),
-        { title: "← Back", value: "__back__", category: NAV_CATEGORY },
-      ]}
-      onSelect={(opt: any) => {
-        if (opt.value === "__back__") showProviderPickerForAgent(api, profileOpt, agentName, mode, returnTarget);
-        else updateAgentModel(api, profileOpt, agentName, opt.value, mode, returnTarget);
-      }}
-      onCancel={() => showProviderPickerForAgent(api, profileOpt, agentName, mode, returnTarget)}
-    />
-  ));
+export function showModelPickerForAgent(api: any, profileOpt: any, agentName: string, provider: any, mode: "model" | "fallback", returnTarget: ProfileDetailReturnTarget = "hub") {
+  api.ui.dialog.replace(() => <api.ui.DialogSelect {...createModelPickerDialogProps(api, profileOpt, agentName, provider, mode === "fallback" ? "fallback" : "model", returnTarget)} />);
 }
 
 /**
  * Updates a specific agent's model within a profile file
  */
-function updateAgentModel(
-  api: any,
-  profileOpt: any,
-  agentName: string,
-  fullModelId: string,
-  mode: "model" | "fallback",
-  returnTarget: ProfileDetailReturnTarget = "hub"
-) {
-  const { profilesDir } = resolvePaths();
-  const profilePath = path.join(profilesDir, profileOpt.value);
-  const runtimePolicy = resolveRuntimeOrchestratorPolicy(api.state.config);
-
-  try {
-    if (mode === "fallback") {
-      const result = updateProfilePhaseModel(profilePath, agentName, "fallback", fullModelId, runtimePolicy);
-      api.ui.toast({
-        title: result.changed ? "Updated" : "No Changes",
-        message: result.changed
-          ? `${agentName} fallback set to ${fullModelId}. Version saved.`
-          : `${agentName} fallback already uses ${fullModelId}`,
-        variant: result.changed ? "success" : "warning",
-      });
-    } else {
-      const result = updateProfilePhaseModel(profilePath, agentName, "primary", fullModelId, runtimePolicy);
-      api.ui.toast({
-        title: result.changed ? "Updated" : "No Changes",
-        message: result.changed
-          ? `${agentName} set to ${fullModelId}. Version saved.`
-          : `${agentName} already uses ${fullModelId}`,
-        variant: result.changed ? "success" : "warning",
-      });
-    }
-    returnToProfileDetailTarget(api, profileOpt, returnTarget);
-  } catch (e: any) {
-    log.error(`handleModelSelection: failed to update ${agentName}`, e);
-    api.ui.toast({ title: "Error", message: `Failed to update agent: ${e.message}`, variant: "error" });
-    returnToProfileDetailTarget(api, profileOpt, returnTarget);
-  }
+function updateAgentModel(api: any, profileOpt: any, agentName: string, fullModelId: string, mode: "model" | "fallback", returnTarget: ProfileDetailReturnTarget = "hub") {
+  createModelSelectionHandler(api, profileOpt, agentName, mode === "fallback" ? "fallback" : "primary", returnTarget)(fullModelId);
 }
 
 /**
