@@ -26,6 +26,8 @@ import {
   commitPendingModelSelection,
   stageProfileModelSelection,
   updateProfileWithBulkPhaseAssignment,
+  buildBulkProfileOverwrite,
+  updateProfileWithBulkOverwrite,
   updateProfileReasoningWithoutVersion,
    updateProfilePhaseModel,
    detectActiveProfileFile,
@@ -35,6 +37,7 @@ import {
    migrateProfilesForRuntimePolicy
 } from './profiles';
 import { getOrchestratorPolicy } from './orchestrator';
+import { collectConfigurableProfileTargets } from './catalog';
 
 const toPosix = (p: any) => (typeof p === 'string' ? p.replace(/\\/g, '/') : p);
 
@@ -890,6 +893,231 @@ describe('profiles logic', () => {
       });
       expect(noOp.changed).toBe(false);
       expect(noOp.profile).toEqual(profile);
+    });
+  });
+
+  describe('bulk profile overwrite engine (Unit 2)', () => {
+    const configurableRuntime = {
+      agent: {
+        'gentle-orchestrator': {},
+        'sdd-apply': {},
+        'jd-judge-a': {},
+        'review-risk': {},
+        'model-audit': {},
+        'gentle-ai-windows-validator': {},
+        'security-scanner': {},
+        compaction: {},
+        summary: {},
+        title: {},
+        general: {},
+        'sdd-apply-fallback': {},
+      },
+    };
+
+    it('derives every configurable primary target from runtime inventory and excludes internal or fallback entries', () => {
+      const targets = collectConfigurableProfileTargets(configurableRuntime);
+
+      expect(targets.map((target) => [target.field, target.profileKey])).toEqual([
+        ['model', 'gentle-orchestrator'],
+        ['model', 'sdd-apply'],
+        ['model', 'jd-judge-a'],
+        ['model', 'review-risk'],
+        ['model', 'model-audit'],
+        ['model', 'gentle-ai-windows-validator'],
+        ['model', 'security-scanner'],
+      ]);
+    });
+
+    it('overwrites every catalog-derived target with model and selected effort while leaving internal profile entries untouched', () => {
+      const targets = collectConfigurableProfileTargets(configurableRuntime);
+      const profile = {
+        models: {
+          'gentle-orchestrator': 'old/orchestrator',
+          'sdd-apply': 'old/apply',
+          'jd-judge-a': 'old/judge',
+          'review-risk': 'old/review',
+          'model-audit': 'old/audit',
+          'gentle-ai-windows-validator': 'old/validator',
+          'security-scanner': 'old/security',
+          compaction: 'internal/compaction',
+        },
+        configs: {
+          'sdd-apply': { reasoningEffort: 'low' },
+          compaction: { reasoningEffort: 'low' },
+        },
+      } as ProfileData;
+
+      const result = buildBulkProfileOverwrite(profile, targets, 'openai/o3-mini', 'high', {
+        providers: [{
+          id: 'openai',
+          models: {
+            'o3-mini': {
+              capabilities: { reasoning: true },
+              variants: { high: { reasoningEffort: 'high' } },
+            },
+          },
+        }],
+        effortPolicy: 'bulk-compatible-prune',
+      });
+
+      expect(result.modelsAssigned).toBe(7);
+      expect(result.effortsAssigned).toBe(7);
+      expect(result.profile.models).toMatchObject({
+        'gentle-orchestrator': 'openai/o3-mini',
+        'sdd-apply': 'openai/o3-mini',
+        'jd-judge-a': 'openai/o3-mini',
+        'review-risk': 'openai/o3-mini',
+        'model-audit': 'openai/o3-mini',
+        'gentle-ai-windows-validator': 'openai/o3-mini',
+        'security-scanner': 'openai/o3-mini',
+        compaction: 'internal/compaction',
+      });
+      expect(result.profile.configs).toMatchObject({
+        'gentle-orchestrator': { reasoningEffort: 'high' },
+        'sdd-apply': { reasoningEffort: 'high' },
+        'jd-judge-a': { reasoningEffort: 'high' },
+        'review-risk': { reasoningEffort: 'high' },
+        'model-audit': { reasoningEffort: 'high' },
+        'gentle-ai-windows-validator': { reasoningEffort: 'high' },
+        'security-scanner': { reasoningEffort: 'high' },
+      });
+      expect(result.profile.configs?.compaction).toEqual({ reasoningEffort: 'low' });
+      expect(profile.models['sdd-apply']).toBe('old/apply');
+    });
+
+    it('uses provider-default for unsupported reasoning and deduplicates target field/profile-key pairs', () => {
+      const result = buildBulkProfileOverwrite({
+        models: { 'sdd-apply': 'old/apply', compaction: 'internal/compaction' },
+      }, [
+        { field: 'model', profileKey: 'sdd-apply' },
+        { field: 'model', profileKey: 'sdd-apply' },
+      ], 'anthropic/claude-3-5-sonnet', 'high', { providers: [], effortPolicy: 'bulk-compatible-prune' });
+
+      expect(result.modelsAssigned).toBe(1);
+      expect(result.effortsAssigned).toBe(1);
+      expect(result.profile.models).toEqual({
+        'sdd-apply': 'anthropic/claude-3-5-sonnet',
+        compaction: 'internal/compaction',
+      });
+      expect(result.profile.configs).toEqual({
+        'sdd-apply': { reasoningEffort: 'provider-default' },
+      });
+    });
+
+    it('overwrites fallback models and suffixed efforts without mutating primary models or configs', () => {
+      const result = buildBulkProfileOverwrite({
+        models: { 'sdd-apply': 'primary/apply', 'sdd-init': 'primary/init' },
+        configs: { 'sdd-apply': { reasoningEffort: 'low' } },
+        fallback: { 'sdd-apply': 'old/fallback' },
+      }, [
+        { field: 'fallback', profileKey: 'sdd-apply' },
+        { field: 'fallback', profileKey: 'sdd-init' },
+        { field: 'fallback', profileKey: 'sdd-apply' },
+      ], 'openai/o3-mini', 'high', {
+        providers: [{ id: 'openai', models: { 'o3-mini': { capabilities: { reasoning: true }, variants: { high: { reasoningEffort: 'high' } } } } }],
+        effortPolicy: 'bulk-compatible-prune',
+      }, undefined, BULK_ASSIGNMENT_TARGET.FALLBACK);
+
+      expect(result.modelsAssigned).toBe(2);
+      expect(result.effortsAssigned).toBe(2);
+      expect(result.profile.models).toEqual({ 'sdd-apply': 'primary/apply', 'sdd-init': 'primary/init' });
+      expect(result.profile.configs).toEqual({
+        'sdd-apply': { reasoningEffort: 'low' },
+        'sdd-apply-fallback': { reasoningEffort: 'high' },
+        'sdd-init-fallback': { reasoningEffort: 'high' },
+      });
+      expect(result.profile.fallback).toEqual({ 'sdd-apply': 'openai/o3-mini', 'sdd-init': 'openai/o3-mini' });
+    });
+
+    it('creates a fallback-target snapshot before one write and restores the exact legacy payload after a failed write', () => {
+      const beforeRaw = JSON.stringify({ models: { 'sdd-apply': 'primary/old' } });
+      const writes: Array<{ filePath: string; content: string }> = [];
+      vi.mocked(fs.existsSync).mockReturnValue(false);
+      vi.mocked(fs.readdirSync).mockReturnValue([] as any);
+      vi.mocked(fs.readFileSync).mockReturnValue(beforeRaw);
+      let profileWriteAttempts = 0;
+      vi.mocked(fs.writeFileSync).mockImplementation((filePath: any, content: any) => {
+        const normalizedPath = toPosix(filePath);
+        writes.push({ filePath: normalizedPath, content: String(content) });
+        if (normalizedPath.includes('/mock/profiles/team.json.tmp-') && profileWriteAttempts++ === 0) {
+          throw new Error('profile write failed');
+        }
+      });
+
+      expect(() => updateProfileWithBulkOverwrite(
+        '/mock/profiles/team.json',
+        [{ field: 'fallback', profileKey: 'sdd-apply' }],
+        'anthropic/claude-3-5-sonnet',
+        'high',
+        { providers: [], effortPolicy: 'bulk-compatible-prune' },
+        undefined,
+        BULK_ASSIGNMENT_TARGET.FALLBACK,
+      )).toThrow('profile write failed');
+
+      expect(writes[0].filePath).toContain('/mock/config/profile-versions/team.json/');
+      expect(JSON.parse(writes[0].content).operation.target).toBe(BULK_ASSIGNMENT_TARGET.FALLBACK);
+      expect(writes.filter(({ filePath }) => filePath.includes('/mock/profiles/team.json.tmp-'))).toHaveLength(2);
+      expect(JSON.parse(writes.at(-1)!.content)).toEqual(JSON.parse(beforeRaw));
+      expect(vi.mocked(fs.unlinkSync).mock.calls.some(([filePath]) =>
+        toPosix(filePath).includes('/mock/config/profile-versions/team.json/')
+      )).toBe(true);
+    });
+
+    it('persists provider-default with the snapshot-backed overwrite transaction', () => {
+      const writes: Array<{ filePath: string; content: string }> = [];
+      vi.mocked(fs.existsSync).mockReturnValue(false);
+      vi.mocked(fs.readdirSync).mockReturnValue([] as any);
+      vi.mocked(fs.readFileSync).mockReturnValue(JSON.stringify({
+        models: { 'sdd-apply': 'old/apply' },
+        configs: { 'sdd-apply': { reasoningEffort: 'low' } },
+      }));
+      vi.mocked(fs.writeFileSync).mockImplementation((filePath: any, content: any) => {
+        writes.push({ filePath: toPosix(filePath), content: String(content) });
+      });
+
+      const result = updateProfileWithBulkOverwrite(
+        '/mock/profiles/team.json',
+        [{ field: 'model', profileKey: 'sdd-apply' }],
+        'anthropic/claude-3-5-sonnet',
+        'high',
+        { providers: [], effortPolicy: 'bulk-compatible-prune' },
+      );
+
+      const profileWrite = writes.find(({ filePath }) => filePath.includes('/mock/profiles/team.json.tmp-'));
+      expect(result.version?.beforeRaw).toContain('old/apply');
+      expect(JSON.parse(profileWrite!.content)).toEqual({
+        models: { 'sdd-apply': 'anthropic/claude-3-5-sonnet' },
+        configs: { 'sdd-apply': { reasoningEffort: 'provider-default' } },
+      });
+    });
+
+    it('creates the snapshot before one profile write and compensates the snapshot when that write fails', () => {
+      const writes: string[] = [];
+      vi.mocked(fs.existsSync).mockReturnValue(false);
+      vi.mocked(fs.readdirSync).mockReturnValue([] as any);
+      vi.mocked(fs.readFileSync).mockReturnValue(JSON.stringify({
+        models: { 'sdd-apply': 'old/apply' },
+        configs: { 'sdd-apply': { reasoningEffort: 'low' } },
+      }));
+      vi.mocked(fs.writeFileSync).mockImplementation((filePath: any) => {
+        const normalizedPath = toPosix(filePath);
+        writes.push(normalizedPath);
+        if (normalizedPath.includes('/mock/profiles/team.json.tmp-')) throw new Error('profile write failed');
+      });
+
+      expect(() => updateProfileWithBulkOverwrite(
+        '/mock/profiles/team.json',
+        [{ field: 'model', profileKey: 'sdd-apply' }],
+        'anthropic/claude-3-5-sonnet',
+        'high',
+        { providers: [], effortPolicy: 'bulk-compatible-prune' },
+      )).toThrow('profile write failed');
+
+      expect(writes[0]).toContain('/mock/config/profile-versions/team.json/');
+      expect(writes[1]).toMatch(/^\/mock\/profiles\/team\.json\.tmp-[0-9a-f]{8}$/);
+      expect(vi.mocked(fs.unlinkSync).mock.calls.some(([filePath]) =>
+        toPosix(filePath).includes('/mock/config/profile-versions/team.json/')
+      )).toBe(true);
     });
   });
 

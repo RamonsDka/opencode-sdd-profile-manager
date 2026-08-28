@@ -204,6 +204,13 @@ export type UpdateProfilePhaseModelResult = {
   context?: ModelMutationContext;
 };
 
+export type BulkProfileOverwriteResult = {
+  profile: ProfileData;
+  modelsAssigned: number;
+  effortsAssigned: number;
+  changed: boolean;
+};
+
 export type ProfileWriteOptions = {
   preserveProviderDefaultReasoning?: boolean;
 };
