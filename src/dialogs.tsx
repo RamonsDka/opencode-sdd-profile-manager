@@ -593,22 +593,22 @@ export function showProfilesMenu(api: any) {
   safeSetDialogSize(api, "medium");
   api.ui.dialog.replace(() => (
     <api.ui.DialogSelect
-      title="SDD Profile Management"
+      title={NAV_TEXT.profileManagement}
       options={[
         {
-          title: "󰏪 Create New SDD Profile",
+          title: NAV_TEXT.createProfile,
           value: "create",
-          description: "Create an empty SDD profile for manual configuration.",
+          description: "Crea un perfil SDD vacío para configurarlo manualmente.",
         },
         {
-          title: "󰓅 Manage SDD Profiles",
+          title: NAV_TEXT.manageProfiles,
           value: "list",
-          description: "List and activate your saved SDD profiles.",
+          description: "Lista y activa tus perfiles SDD guardados.",
         },
         {
-          title: "󰄄 View Project Memories",
+          title: NAV_TEXT.viewMemories,
           value: "view_memories",
-          description: "Show recent Engram observations for this project.",
+          description: "Muestra las observaciones recientes de Engram para este proyecto.",
         },
         {
           title: `Badge: ${showModelBadge() ? "On" : "Off"}`,
@@ -664,7 +664,7 @@ export function showCreateProfile(api: any) {
 
   api.ui.dialog.replace(() => (
     <api.ui.DialogPrompt
-      title="New SDD Profile Name"
+      title={NAV_TEXT.createProfile}
       placeholder="Enter profile name"
       onConfirm={(name: string) => {
         const trimmed = name?.trim();
@@ -680,8 +680,8 @@ export function showCreateProfile(api: any) {
 
           if (fs.existsSync(profilePath)) {
             api.ui.toast({
-              title: "Error",
-              message: `Profile '${finalName}' already exists`,
+              title: UI_TEXT.error,
+              message: `El perfil '${finalName}' ya existe`,
               variant: "error",
             });
             showProfilesMenuFn(api);
@@ -696,8 +696,8 @@ export function showCreateProfile(api: any) {
           setTimeout(() => {
             showProfileDetailFn(api, { title: finalName, value: fileName });
             api.ui.toast({
-              title: "Success",
-              message: `Profile '${finalName}' created successfully`,
+              title: "Éxito",
+              message: `Perfil '${finalName}' creado correctamente`,
               variant: "success",
             });
           }, 0);
@@ -806,7 +806,7 @@ export function showProfileDetail(api: any, profileOpt: any) {
     ));
   } catch (e) {
     log.error(`showProfileDetail: failed to read profile '${profileOpt?.value}'`, e);
-    api.ui.toast({ title: "Error", message: "Failed to read profile details", variant: "error" });
+    api.ui.toast({ title: UI_TEXT.error, message: "No se pudieron leer los detalles del perfil", variant: "error" });
   }
 }
 
@@ -1159,8 +1159,8 @@ export async function handleActivateProfile(api: any, profilePath: string, profi
   safeSetDialogSize(api, "medium");
   api.ui.dialog.replace(() => (
     <api.ui.DialogConfirm
-      title="Profile Activated"
-      message={`Profile '${profileName}' successfully applied to global configuration.`}
+      title="Perfil activado"
+      message={`El perfil '${profileName}' se aplicó correctamente a la configuración global.`}
       onConfirm={() => api.ui.dialog.clear()}
       onCancel={() => api.ui.dialog.clear()}
     />
@@ -1175,8 +1175,8 @@ export function showDeleteProfile(api: any, profileOpt: any) {
   safeSetDialogSize(api, "medium");
   api.ui.dialog.replace(() => (
     <api.ui.DialogConfirm
-      title="Delete Profile"
-      message={`Permanently delete '${profileOpt.title}'?`}
+      title="Eliminar perfil"
+      message={`¿Eliminar permanentemente '${profileOpt.title}'?`}
       onConfirm={() => {
         try {
           deleteProfileFile(profileOpt.value);
@@ -1218,13 +1218,13 @@ export function showRenameProfile(api: any, profileOpt: any) {
           const newPath = path.join(profilesDir, newFileName);
 
           if (fs.existsSync(newPath)) {
-            api.ui.toast({ title: "Error", message: "A profile with this name already exists", variant: "error" });
+            api.ui.toast({ title: UI_TEXT.error, message: "Ya existe un perfil con este nombre", variant: "error" });
             showProfileDetailFn(api, profileOpt);
             return;
           }
 
           renameProfileFile(profileOpt.value, newFileName);
-          api.ui.toast({ title: "Renamed", message: `Profile renamed to '${finalName}'` });
+          api.ui.toast({ title: UI_TEXT.renamed, message: `Perfil renombrado a '${finalName}'` });
           showProfileListFn(api);
         } catch (e: any) {
           log.error(`showRenameProfile: failed to rename profile '${profileOpt?.value}' to '${newName}'`, e);
@@ -1389,7 +1389,7 @@ export function showProfileVersions(api: any, profileOpt: any) {
     ));
   } catch (e: any) {
     log.error(`showProfileVersions: failed to list versions for '${profileOpt?.value}'`, e);
-    api.ui.toast({ title: "Version Error", message: e.message || "Failed to list profile versions", variant: "error" });
+    api.ui.toast({ title: "Error de versiones", message: e.message || "No se pudieron listar las versiones del perfil", variant: "error" });
     showProfileDetailFn(api, profileOpt);
   }
 }
@@ -1419,7 +1419,7 @@ export function showProfileVersionPreview(api: any, profileOpt: any, versionId: 
     ));
   } catch (e: any) {
     log.error(`showProfileVersionPreview: failed to read version '${versionId}'`, e);
-    api.ui.toast({ title: "Version Error", message: e.message || "Failed to read profile version", variant: "error" });
+    api.ui.toast({ title: "Error de versiones", message: e.message || "No se pudo leer la versión del perfil", variant: "error" });
     showProfileVersions(api, profileOpt);
   }
 }
@@ -1518,8 +1518,8 @@ export async function showProjectMemoriesMenu(api: any) {
 
     if (memories.length === 0) {
       api.ui.toast({
-        title: "No Memories",
-        message: `No project observations found for ${projectName}`,
+        title: NAV_TEXT.noMemories,
+        message: `No hay observaciones guardadas para ${projectName}`,
         variant: "warning",
       });
       showProfilesMenuFn(api);
@@ -1552,7 +1552,7 @@ export async function showProjectMemoriesMenu(api: any) {
     ));
   } catch (e: any) {
     log.error(`showProjectMemoriesMenu: failed to load memories for ${projectName}`, e);
-    api.ui.toast({ title: "Error", message: `Failed to load memories: ${e.message}`, variant: "error" });
+    api.ui.toast({ title: UI_TEXT.error, message: `No se pudieron cargar las memorias: ${e.message}`, variant: "error" });
     showProfilesMenuFn(api);
   }
 }
