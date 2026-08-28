@@ -32,8 +32,9 @@ import {
   updateProfileWithBulkOverwrite,
   updateProfileReasoningWithoutVersion,
    updateProfilePhaseModel,
-   detectActiveProfileFile,
-   activateProfileFile,
+    detectActiveProfileFile,
+    discoverInstalledAgentDefinitions,
+    activateProfileFile,
    deleteProfileFile,
    renameProfileFile,
    migrateProfilesForRuntimePolicy
@@ -2848,6 +2849,38 @@ describe('profiles logic', () => {
   });
 
   describe('activateProfileFile', () => {
+    it('discovers only complete installed definitions and reports unresolved profile agents', async () => {
+      const discovery = discoverInstalledAgentDefinitions(
+        { agent: { 'sdd-init': { model: 'old/init', file: './agents/init.md' } } },
+        { agent: { summary: { model: 'old/summary', description: 'Installed auxiliary' } } },
+        { 'sdd-init': 'new/init', summary: 'new/summary', missing: 'new/missing' },
+      );
+
+      expect(discovery.models).toEqual({ 'sdd-init': 'new/init', summary: 'new/summary' });
+      expect(discovery.missing).toEqual(['missing']);
+      expect(discovery.config.agent.summary).toEqual({ model: 'old/summary', description: 'Installed auxiliary' });
+      expect(discovery.config.agent.missing).toBeUndefined();
+
+      vi.mocked(fs.existsSync).mockImplementation((filePath: any) => String(filePath) === '/mock/config/opencode.json');
+      vi.mocked(fs.readFileSync).mockImplementation((filePath: any) => String(filePath) === '/mock/profiles/team.json'
+        ? JSON.stringify({ models: { 'sdd-init': 'new/init', summary: 'new/summary', missing: 'new/missing' } })
+        : JSON.stringify({ agent: { 'sdd-init': { model: 'old/init', file: './agents/init.md' } } }));
+      const update = vi.fn().mockResolvedValue({ data: {} });
+      const toast = vi.fn();
+      const api = {
+        state: { provider: [] },
+        ui: { toast },
+        client: { global: { config: { get: vi.fn().mockResolvedValue({ data: { agent: { summary: { model: 'old/summary', description: 'Installed auxiliary' } } } }), update } } },
+      } as any;
+
+      const result = await activateProfileFile(api, '/mock/profiles/team.json', 'team');
+
+      expect(result?.agent['sdd-init']).toEqual({ model: 'new/init', file: './agents/init.md' });
+      expect(result?.agent.summary).toEqual({ model: 'new/summary', description: 'Installed auxiliary' });
+      expect(result?.agent.missing).toBeUndefined();
+      expect(toast).toHaveBeenCalledWith({ title: 'Activation Warning', message: 'Missing agent definitions: missing', variant: 'warning' });
+    });
+
     it('eagerly migrates profile files on updated runtime policy at startup', () => {
       const writes: string[] = [];
       vi.mocked(fs.readdirSync).mockReturnValue(['team.json'] as any);

@@ -1607,6 +1607,35 @@ function applyProfileModelsToConfig(currentConfig: any, profileModels: ProfileMo
   return nextConfig;
 }
 
+function isCompleteAgentDefinition(value: unknown): value is Record<string, unknown> {
+  return Boolean(value) && typeof value === "object" && !Array.isArray(value);
+}
+
+export function discoverInstalledAgentDefinitions(
+  diskConfig: any,
+  runtimeConfig: any,
+  profileModels: ProfileModels,
+): { config: any; models: ProfileModels; missing: string[] } {
+  const config = JSON.parse(JSON.stringify(diskConfig || {}));
+  const diskAgents = diskConfig?.agent || {};
+  const runtimeAgents = runtimeConfig?.agent || {};
+  config.agent = { ...(config.agent || {}) };
+
+  const models: ProfileModels = {};
+  const missing: string[] = [];
+  for (const [agentName, modelId] of Object.entries(profileModels || {})) {
+    const definition = diskAgents[agentName] ?? runtimeAgents[agentName];
+    if (!isCompleteAgentDefinition(definition)) {
+      missing.push(agentName);
+      continue;
+    }
+    config.agent[agentName] = JSON.parse(JSON.stringify(definition));
+    models[agentName] = modelId;
+  }
+
+  return { config, models, missing };
+}
+
 /**
  * Applies full profile data to config (primary models + fallback reconciliation)
  */
@@ -1658,14 +1687,21 @@ export async function activateProfileFile(api: any, profilePath: string, profile
       currentConfig = globalConfigResult?.data || {};
     }
 
+    const runtimeConfigResult = await api.client.global.config.get();
+    const runtimeConfig = runtimeConfigResult?.data || {};
     const policy = getOrchestratorPolicy(Object.keys(currentConfig?.agent || {}), currentConfig?.default_agent);
-    const nextConfigWithModels = applyProfileModelsToConfig(currentConfig, canonicalizeProfileModels(profileData.models || {}, policy));
+    const discovered = discoverInstalledAgentDefinitions(
+      currentConfig,
+      runtimeConfig,
+      canonicalizeProfileModels(profileData.models || {}, policy),
+    );
+    const nextConfigWithModels = applyProfileModelsToConfig(discovered.config, discovered.models);
     const fallbackValidationErrors = validateProfileFallbackMapping(nextConfigWithModels, profileData.fallback || {});
     if (fallbackValidationErrors.length > 0) {
       throw new Error(fallbackValidationErrors.join(" | "));
     }
 
-    const nextConfigWithFallback = syncSddFallbackAgents(nextConfigWithModels, profileData.fallback || {});
+    const nextConfigWithFallback = syncSddFallbackAgents(nextConfigWithModels, profileData.fallback || {}, profileData.configs);
     const reasoningResult = applyProfileReasoningEffort(nextConfigWithFallback, profileData, api?.state?.provider || [], policy);
     const nextConfig = reasoningResult.config;
 
@@ -1682,10 +1718,14 @@ export async function activateProfileFile(api: any, profilePath: string, profile
       }
     }
 
-    if (reasoningResult.warnings.length > 0) {
+    const warnings = [
+      ...(discovered.missing.length > 0 ? [`Missing agent definitions: ${discovered.missing.join(", ")}`] : []),
+      ...reasoningResult.warnings,
+    ];
+    if (warnings.length > 0) {
       api.ui.toast({
         title: "Activation Warning",
-        message: reasoningResult.warnings.join(" | "),
+        message: warnings.join(" | "),
         variant: "warning",
       });
     }
