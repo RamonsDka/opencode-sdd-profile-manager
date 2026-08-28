@@ -23,7 +23,10 @@ import {
   listProfileVersions,
   readProfileVersion,
   restoreProfileVersion,
+  commitPendingModelSelection,
+  stageProfileModelSelection,
   updateProfileWithBulkPhaseAssignment,
+  updateProfileReasoningWithoutVersion,
    updateProfilePhaseModel,
    detectActiveProfileFile,
    activateProfileFile,
@@ -1499,6 +1502,212 @@ describe('profiles logic', () => {
       expect(vi.mocked(fs.unlinkSync).mock.calls.every(([filePath]) =>
         toPosix(filePath).includes('/profile-versions/team.json/') || toPosix(filePath).includes('/mock/profiles/team.json.tmp-')
       )).toBe(true);
+    });
+
+    it('updates or clears reasoning without creating a version and preserves the saved model on failure', () => {
+      vi.mocked(fs.readFileSync).mockReturnValue(JSON.stringify({
+        models: { 'security-auditor': 'openai/model' },
+      }));
+      const writes: string[] = [];
+      vi.mocked(fs.writeFileSync).mockImplementation((filePath: any) => writes.push(toPosix(filePath)));
+
+      const updated = updateProfileReasoningWithoutVersion(
+        '/mock/profiles/team.json',
+        'security-auditor',
+        'medium',
+      );
+      expect(updated.models['security-auditor']).toBe('openai/model');
+      expect(updated.configs?.['security-auditor']?.reasoningEffort).toBe('medium');
+      expect(writes.some((filePath) => filePath.includes('/profile-versions/'))).toBe(false);
+
+      vi.clearAllMocks();
+      vi.mocked(fs.readFileSync).mockReturnValue(JSON.stringify({
+        models: { 'security-auditor': 'openai/model' },
+        configs: { 'security-auditor': { reasoningEffort: 'medium' } },
+      }));
+      vi.mocked(fs.writeFileSync).mockImplementation((filePath: any) => {
+        if (toPosix(filePath).includes('/mock/profiles/team.json.tmp-')) throw new Error('reasoning write failed');
+      });
+
+      expect(() => updateProfileReasoningWithoutVersion(
+        '/mock/profiles/team.json',
+        'security-auditor',
+        '',
+      )).toThrow('reasoning write failed');
+      expect(fs.readFileSync).toHaveBeenCalledWith('/mock/profiles/team.json', 'utf-8');
+    });
+
+    it('stages a primary model selection and requests effort even when the model is unchanged', () => {
+      const profile = {
+        models: { 'sdd-apply': 'openai/gpt-5' },
+        configs: { 'sdd-apply': { reasoningEffort: 'low' } },
+      } as ProfileData;
+
+      const staged = stageProfileModelSelection(profile, 'sdd-apply', 'primary', 'openai/gpt-5');
+
+      expect(staged).toEqual({
+        pending: { agentName: 'sdd-apply', field: 'primary', modelId: 'openai/gpt-5' },
+        modelChanged: false,
+        requestReasoningEffort: true,
+      });
+    });
+
+    it('commits same-model effort changes as one model-and-effort transaction', () => {
+      const writes: Array<{ filePath: string; content: string }> = [];
+      vi.mocked(fs.existsSync).mockReturnValue(false);
+      vi.mocked(fs.readdirSync).mockReturnValue([] as any);
+      vi.mocked(fs.readFileSync).mockReturnValue(JSON.stringify({
+        models: { 'sdd-apply': 'openai/gpt-5' },
+        configs: { 'sdd-apply': { reasoningEffort: 'low' } },
+      }));
+      vi.mocked(fs.writeFileSync).mockImplementation((filePath: any, content: any) => {
+        writes.push({ filePath: toPosix(filePath), content: String(content) });
+      });
+
+      const pending = stageProfileModelSelection(
+        { models: { 'sdd-apply': 'openai/gpt-5' }, configs: { 'sdd-apply': { reasoningEffort: 'low' } } },
+        'sdd-apply',
+        'primary',
+        'openai/gpt-5',
+      ).pending;
+      const result = commitPendingModelSelection('/mock/profiles/team.json', pending, 'high', undefined, {
+        providers: [{
+          id: 'openai',
+          models: {
+            'gpt-5': {
+              capabilities: { reasoning: true },
+              variants: { low: { reasoningEffort: 'low' }, high: { reasoningEffort: 'high' } },
+            },
+          },
+        }],
+        effortPolicy: 'none',
+      });
+
+      expect(result.changed).toBe(true);
+      expect(result.profile.models['sdd-apply']).toBe('openai/gpt-5');
+      expect(result.profile.configs).toEqual({ 'sdd-apply': { reasoningEffort: 'high' } });
+      expect(writes.filter(({ filePath }) => filePath.includes('/profile-versions/team.json/'))).toHaveLength(1);
+      expect(writes.filter(({ filePath }) => filePath.includes('/profiles/team.json.tmp-'))).toHaveLength(1);
+    });
+
+    it('does not write on primary cancellation or invalid effort resolution', () => {
+      vi.mocked(fs.readFileSync).mockReturnValue(JSON.stringify({
+        models: { 'sdd-apply': 'openai/gpt-5' },
+        configs: { 'sdd-apply': { reasoningEffort: 'low' } },
+      }));
+      const pending = stageProfileModelSelection(
+        { models: { 'sdd-apply': 'openai/gpt-5' }, configs: { 'sdd-apply': { reasoningEffort: 'low' } } },
+        'sdd-apply',
+        'primary',
+        'openai/gpt-5',
+      ).pending;
+
+      const cancelled = commitPendingModelSelection('/mock/profiles/team.json', pending);
+      expect(cancelled.changed).toBe(false);
+      expect(fs.writeFileSync).not.toHaveBeenCalled();
+
+      expect(() => commitPendingModelSelection('/mock/profiles/team.json', pending, 'not-a-provider-effort', undefined, {
+        providers: [{ id: 'openai', models: { 'gpt-5': { capabilities: { reasoning: true }, variants: { high: { reasoningEffort: 'high' } } } } }],
+        effortPolicy: 'none',
+      })).toThrow(/not available/);
+      expect(fs.writeFileSync).not.toHaveBeenCalled();
+    });
+
+    it('commits a catalog orchestrator selection to the supplied canonical owner and prunes stale aliases', () => {
+      const writes: Array<{ filePath: string; content: string }> = [];
+      vi.mocked(fs.existsSync).mockReturnValue(false);
+      vi.mocked(fs.readdirSync).mockReturnValue([] as any);
+      vi.mocked(fs.readFileSync).mockReturnValue(JSON.stringify({
+        models: {
+          'sdd-orchestrator': 'legacy/model',
+          'sdd-ORCHETATOR': 'catalog/model',
+        },
+        configs: {
+          'sdd-orchestrator': { reasoningEffort: 'low' },
+          'sdd-ORCHETATOR': { reasoningEffort: 'medium' },
+        },
+      }));
+      vi.mocked(fs.writeFileSync).mockImplementation((filePath: any, content: any) => {
+        writes.push({ filePath: toPosix(filePath), content: String(content) });
+      });
+
+      const result = commitPendingModelSelection(
+        '/mock/profiles/team.json',
+        { agentName: 'sdd-ORCHETATOR', field: 'primary', modelId: 'google/gemini-2.5-flash' },
+        'high',
+        getOrchestratorPolicy(['gentle-orchestrator']) as any,
+        {
+          providers: [{
+            id: 'google',
+            models: {
+              'gemini-2.5-flash': {
+                capabilities: { reasoning: true },
+                variants: { high: { reasoningEffort: 'high' } },
+              },
+            },
+          }],
+          effortPolicy: 'none',
+        },
+      );
+
+      const profileWrite = writes.find(({ filePath }) => filePath.includes('/profiles/team.json.tmp-'));
+      const persisted = JSON.parse(profileWrite!.content);
+      expect(result.changed).toBe(true);
+      expect(persisted.models).toEqual({ 'gentle-orchestrator': 'google/gemini-2.5-flash' });
+      expect(persisted.configs).toEqual({ 'gentle-orchestrator': { reasoningEffort: 'high' } });
+      expect(persisted.models['sdd-orchestrator']).toBeUndefined();
+      expect(persisted.models['sdd-ORCHETATOR']).toBeUndefined();
+      expect(persisted.configs['sdd-orchestrator']).toBeUndefined();
+      expect(persisted.configs['sdd-ORCHETATOR']).toBeUndefined();
+    });
+
+    it('clears provider default without persisting its token or display label', () => {
+      const writes: string[] = [];
+      vi.mocked(fs.existsSync).mockReturnValue(false);
+      vi.mocked(fs.readdirSync).mockReturnValue([] as any);
+      vi.mocked(fs.readFileSync).mockReturnValue(JSON.stringify({
+        models: { 'sdd-apply': 'openai/gpt-5' },
+        configs: { 'sdd-apply': { reasoningEffort: 'high' } },
+      }));
+      vi.mocked(fs.writeFileSync).mockImplementation((filePath: any, content: any) => {
+        writes.push(`${toPosix(filePath)}\n${String(content)}`);
+      });
+
+      const pending = { agentName: 'sdd-apply', field: 'primary', modelId: 'openai/gpt-5' } as const;
+      const result = commitPendingModelSelection('/mock/profiles/team.json', pending, 'provider-default');
+
+      expect(result.profile.configs).toBeUndefined();
+      const profileWrite = writes.find((entry) => entry.includes('/profiles/team.json.tmp-'));
+      expect(profileWrite).toBeDefined();
+      expect(profileWrite).not.toContain('provider-default');
+      expect(profileWrite).not.toContain('Predeterminado');
+    });
+
+    it('commits a fallback model and its suffixed reasoning effort in one versioned write', () => {
+      const writes: Array<{ filePath: string; content: string }> = [];
+      vi.mocked(fs.existsSync).mockReturnValue(false);
+      vi.mocked(fs.readdirSync).mockReturnValue([] as any);
+      vi.mocked(fs.readFileSync).mockReturnValue(JSON.stringify({
+        models: { 'sdd-apply': 'openai/old' },
+        fallback: { 'sdd-apply': 'openai/old' },
+      }));
+      vi.mocked(fs.writeFileSync).mockImplementation((filePath: any, content: any) => {
+        writes.push({ filePath: toPosix(filePath), content: String(content) });
+      });
+
+      const result = commitPendingModelSelection(
+        '/mock/profiles/team.json',
+        { agentName: 'sdd-apply', field: 'fallback', modelId: 'openai/gpt-5' },
+        'high',
+        undefined,
+        { providers: [{ id: 'openai', models: { 'gpt-5': { capabilities: { reasoning: true }, variants: { high: { reasoningEffort: 'high' } } } } }], effortPolicy: 'none' },
+      );
+
+      expect(result.changed).toBe(true);
+      expect(result.profile.fallback?.['sdd-apply']).toBe('openai/gpt-5');
+      expect(result.profile.configs).toEqual({ 'sdd-apply-fallback': { reasoningEffort: 'high' } });
+      expect(writes.filter(({ filePath }) => filePath.includes('/profile-versions/team.json/'))).toHaveLength(1);
+      expect(writes.filter(({ filePath }) => filePath.includes('/profiles/team.json.tmp-'))).toHaveLength(1);
     });
 
     it('aborts before the profile write when snapshot creation fails', () => {

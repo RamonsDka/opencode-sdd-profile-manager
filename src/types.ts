@@ -144,6 +144,18 @@ export const PROFILE_PHASE_MODEL_FIELD = {
 
 export type ProfilePhaseModelField = (typeof PROFILE_PHASE_MODEL_FIELD)[keyof typeof PROFILE_PHASE_MODEL_FIELD];
 
+export type PendingModelSelection = {
+  agentName: string;
+  field: ProfilePhaseModelField;
+  modelId: string;
+};
+
+export type StagedModelSelection = {
+  pending: PendingModelSelection;
+  modelChanged: boolean;
+  requestReasoningEffort: boolean;
+};
+
 export type BulkProfileVersionOperation = BulkAssignmentOperation & {
   source: typeof PROFILE_VERSION_SOURCE.BULK;
   changedPhases?: number;

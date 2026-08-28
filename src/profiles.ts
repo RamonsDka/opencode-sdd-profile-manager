@@ -14,6 +14,7 @@ import {
   applyProfileReasoningEffort,
   pruneProfileReasoningEffort,
   normalizeProfileConfigs,
+  resolveReasoningEffortSelection,
   updateProfileReasoningEffort,
 } from "./profile-reasoning";
 
@@ -37,6 +38,8 @@ import {
   ModelMutationContext,
   ProfileWriteTransaction,
   ProfileWriteOptions,
+  PendingModelSelection,
+  StagedModelSelection,
   UpdateProfilePhaseModelResult,
 } from "./types";
 import {
@@ -1052,6 +1055,121 @@ export function updateProfilePhaseModel(
     versionId: version.id,
     context: mutationContext,
   };
+}
+
+export function updateProfileReasoningWithoutVersion(
+  profilePath: string,
+  agentName: string,
+  value?: string,
+  runtimePolicy?: OrchestratorPolicy,
+): ProfileData {
+  const profile = readProfileData(profilePath);
+  const nextProfile = updateProfileReasoningEffort(profile, agentName, value);
+  writeProfileData(profilePath, nextProfile, runtimePolicy);
+  return nextProfile;
+}
+
+export function stageProfileModelSelection(
+  profile: ProfileData,
+  agentName: string,
+  field: ProfilePhaseModelField,
+  modelId: string,
+): StagedModelSelection {
+  const trimmedModelId = modelId?.trim();
+  if (!trimmedModelId) throw new Error("modelId must be a non-empty string");
+  const pending: PendingModelSelection = { agentName, field, modelId: trimmedModelId };
+  const currentModel = field === PROFILE_PHASE_MODEL_FIELD.FALLBACK
+    ? profile.fallback?.[agentName]
+    : profile.models?.[agentName];
+  return {
+    pending,
+    modelChanged: currentModel !== trimmedModelId,
+    requestReasoningEffort: field === PROFILE_PHASE_MODEL_FIELD.PRIMARY,
+  };
+}
+
+export function commitPendingModelSelection(
+  profilePath: string,
+  pending: PendingModelSelection,
+  effortSelection?: string,
+  runtimePolicy?: OrchestratorPolicy,
+  context?: ModelMutationContext,
+): ProfileWriteTransaction {
+  if (pending.field === PROFILE_PHASE_MODEL_FIELD.PRIMARY && effortSelection === undefined) {
+    const profile = readProfileData(profilePath);
+    return { profile, changed: false, context: context || { providers: [], effortPolicy: "none" } };
+  }
+
+  const beforeRaw = fs.readFileSync(profilePath, "utf-8").toString();
+  const profileData = readProfileDataFromRaw(beforeRaw);
+  const policy = runtimePolicy ?? getOrchestratorPolicy(Object.keys(profileData.models || {}));
+  const currentModel = pending.field === PROFILE_PHASE_MODEL_FIELD.FALLBACK
+    ? profileData.fallback?.[pending.agentName]
+    : profileData.models?.[pending.agentName];
+  const nextProfile: ProfileData = {
+    ...profileData,
+    models: { ...(profileData.models || {}) },
+    ...(profileData.fallback ? { fallback: { ...profileData.fallback } } : {}),
+  };
+
+  if (pending.field === PROFILE_PHASE_MODEL_FIELD.FALLBACK) {
+    nextProfile.fallback = { ...(nextProfile.fallback || {}), [pending.agentName]: pending.modelId };
+    const resolvedEffort = resolvePendingReasoningEffort(context, pending.modelId, effortSelection || "provider-default");
+    const fallbackConfigKey = `${pending.agentName}-fallback`;
+    const nextConfigs = { ...(nextProfile.configs || {}) };
+    if (resolvedEffort) {
+      nextConfigs[fallbackConfigKey] = {
+        ...(nextConfigs[fallbackConfigKey] || {}),
+        reasoningEffort: resolvedEffort,
+      };
+    } else {
+      delete nextConfigs[fallbackConfigKey];
+    }
+    delete nextProfile.configs;
+    if (Object.keys(nextConfigs).length > 0) nextProfile.configs = nextConfigs;
+  } else {
+    const resolvedEffort = resolvePendingReasoningEffort(context, pending.modelId, effortSelection || "provider-default");
+    const mutation = preparePrimaryModelMutation(nextProfile, pending.agentName, pending.modelId, policy);
+    const reasonedProfile = updateProfileReasoningEffort(mutation.profile, mutation.agentName, resolvedEffort);
+    delete nextProfile.configs;
+    Object.assign(nextProfile, reasonedProfile);
+  }
+
+  const effortConfigKey = pending.field === PROFILE_PHASE_MODEL_FIELD.FALLBACK
+    ? `${pending.agentName}-fallback`
+    : pending.agentName;
+  const currentEffort = profileData.configs?.[effortConfigKey]?.reasoningEffort;
+  const nextEffort = nextProfile.configs?.[effortConfigKey]?.reasoningEffort;
+  const changed = currentModel !== pending.modelId || currentEffort !== nextEffort;
+  const contextValue = context || { providers: [], effortPolicy: "none" as const };
+  if (!changed) return { profile: profileData, changed: false, context: contextValue };
+
+  const operation: PhaseProfileVersionOperation = {
+    source: PROFILE_VERSION_SOURCE.PHASE,
+    phase: pending.agentName,
+    field: pending.field,
+    modelId: pending.modelId,
+    changedPhases: 1,
+  };
+  const version = createProfileVersion(
+    profilePath,
+    operation,
+    buildPhaseOperationSummary(pending.agentName, pending.field, pending.modelId),
+    DEFAULT_PROFILE_VERSION_RETENTION,
+    beforeRaw,
+  );
+  persistVersionedProfileMutation(profilePath, nextProfile, version, policy);
+  return { profile: nextProfile, changed: true, version, versionId: version.id, context: contextValue };
+}
+
+function resolvePendingReasoningEffort(
+  context: ModelMutationContext | undefined,
+  modelId: string,
+  selection: string,
+): string | undefined {
+  const providers = context?.providers || [];
+  const resolved = resolveReasoningEffortSelection(providers as any[], modelId, selection);
+  return resolved.value;
 }
 
 /**
