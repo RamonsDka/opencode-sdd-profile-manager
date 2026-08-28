@@ -8,6 +8,7 @@
 
 import * as fs from "node:fs";
 import * as path from "node:path";
+import { execFileSync } from "node:child_process";
 import {
   BULK_ASSIGNMENT_MODE,
   BULK_ASSIGNMENT_TARGET,
@@ -34,7 +35,7 @@ import {
 } from "./utils";
 import { buildCatalogSections, CATALOG_GROUPS, collectConfigurableProfileTargets, isFallbackCatalogAgent } from "./catalog";
 import { safeSetDialogSize } from "./host-compat";
-import { resolveEngramProjectName, resolvePaths, ensureProfilesDir, resolveProjectName } from "./config";
+import { resolveEngramProjectName, resolvePaths, ensureProfilesDir, resolveProjectName, resolveWorkspaceRoot } from "./config";
 import {
   listProfileFiles,
   readProfileData,
@@ -66,6 +67,12 @@ import {
 } from "./state";
 import { createLogger } from "./logger";
 import { canonicalizeProfileModels, getOrchestratorPolicy, type OrchestratorPolicy } from "./orchestrator";
+import { buildPluginHubOptions } from "./plugins/registry";
+import { loadOfflineHelp, type HelpTopic } from "./plugins/offline-help";
+import { openVendoredSuite } from "./plugins/suite-adapter";
+import { resolveTaskManagerRoot, type TaskManagerRootCandidates } from "./plugins/task-manager-root";
+import { provisionTaskManagerBase } from "./plugins/task-manager-lifecycle";
+import { launchTaskManagerBrowser } from "./plugins/task-manager-coordinator";
 
 export const BADGE_VISIBLE_KV_KEY = "sdd-show-model-badge";
 export const BADGE_DISPLAY_MODE_KV_KEY = "sdd-badge-display-mode";
@@ -611,6 +618,11 @@ export function showProfilesMenu(api: any) {
           description: "Muestra las observaciones recientes de Engram para este proyecto.",
         },
         {
+          title: "Plugins",
+          value: "plugins",
+          description: "Abre el menú de plugins integrados (Suite de Agentes, Task Manager).",
+        },
+        {
           title: `Badge: ${showModelBadge() ? "On" : "Off"}`,
           value: "toggle_badge_visible",
           description: "Show or hide the badge.",
@@ -630,6 +642,7 @@ export function showProfilesMenu(api: any) {
         if (opt.value === "create") showCreateProfile(api);
         else if (opt.value === "list") showProfileListFn(api);
         else if (opt.value === "view_memories") showProjectMemoriesMenuFn(api);
+        else if (opt.value === "plugins") showPluginsMenu(api);
         else if (opt.value === "toggle_badge_visible") {
           const next = !showModelBadge();
           setShowModelBadge(next);
@@ -1555,4 +1568,160 @@ export async function showProjectMemoriesMenu(api: any) {
     api.ui.toast({ title: UI_TEXT.error, message: `No se pudieron cargar las memorias: ${e.message}`, variant: "error" });
     showProfilesMenuFn(api);
   }
+}
+
+/**
+ * Detects git root for a directory synchronously
+ */
+export function detectGitRootForDirectory(directory: string): string | undefined {
+  try {
+    const root = execFileSync(
+      "git",
+      ["-C", directory, "rev-parse", "--show-toplevel"],
+      {
+        encoding: "utf-8",
+        timeout: 2000,
+        stdio: ["ignore", "pipe", "ignore"],
+      }
+    ).trim();
+    return root ? path.normalize(root) : undefined;
+  } catch {
+    return undefined;
+  }
+}
+
+/**
+ * Builds task manager root candidates
+ */
+export function buildTaskManagerRootCandidates(directory: string): TaskManagerRootCandidates {
+  const gitRoot = detectGitRootForDirectory(directory);
+  return {
+    cwd: directory,
+    ...(gitRoot ? { gitRoot } : {}),
+  };
+}
+
+/**
+ * Builds plugin help menu options
+ */
+export function buildPluginHelpOptions() {
+  return [
+    { title: "Suite de Agentes", value: "suite", description: "Documentación offline de la Suite de Agentes." },
+    { title: "Task Manager", value: "task-manager", description: "Documentación offline del Task Manager portátil." },
+    { title: "Hub (opencode-sdd-engram-manage)", value: "hub", description: "Documentación del hub y gestión de perfiles/plugins." },
+    { title: "← Volver", value: "__back__", description: "Volver al menú de plugins." },
+  ];
+}
+
+/**
+ * Shows plugins offline help submenu
+ */
+export function showPluginsHelpMenu(api: any) {
+  safeSetDialogSize(api, "medium");
+  api.ui.dialog.replace(() => (
+    <api.ui.DialogSelect
+      title="Ayuda de Plugins"
+      options={buildPluginHelpOptions()}
+      onSelect={(opt: any) => {
+        if (opt.value === "__back__") {
+          showPluginsMenu(api);
+        } else {
+          showPluginHelpDetail(api, opt.value as HelpTopic);
+        }
+      }}
+      onCancel={() => showPluginsMenu(api)}
+    />
+  ));
+}
+
+/**
+ * Shows detailed offline help for a plugin topic
+ */
+export function showPluginHelpDetail(api: any, topic: HelpTopic) {
+  safeSetDialogSize(api, "xlarge");
+  const content = loadOfflineHelp(topic);
+  const title = topic === "suite" ? "Ayuda: Suite de Agentes" : topic === "task-manager" ? "Ayuda: Task Manager" : "Ayuda: Hub de Plugins";
+  api.ui.dialog.replace(() => (
+    <api.ui.DialogAlert
+      title={title}
+      message={content}
+      onConfirm={() => showPluginsHelpMenu(api)}
+    />
+  ));
+}
+
+/**
+ * Resolves path to the bundled Task Manager template
+ */
+export function resolveTaskManagerTemplatePath(baseDir = import.meta.dirname): string {
+  const candidates = [
+    path.resolve(baseDir, "../plugins/task-manager/Task-Manager-Portable.html"),
+    path.resolve(baseDir, "../../plugins/task-manager/Task-Manager-Portable.html"),
+    path.resolve(baseDir, "plugins/task-manager/Task-Manager-Portable.html"),
+    path.resolve(baseDir, "../dist/plugins/task-manager/Task-Manager-Portable.html"),
+  ];
+  const found = candidates.find((candidate) => fs.existsSync(candidate));
+  return found || candidates[0];
+}
+
+/**
+ * Launches or provisions the Task Manager dashboard
+ */
+export async function launchTaskManagerAction(api: any): Promise<void> {
+  const workspaceDir = resolveWorkspaceRoot(api);
+  const candidates = buildTaskManagerRootCandidates(workspaceDir);
+  const identity = resolveTaskManagerRoot(candidates);
+  const templatePath = resolveTaskManagerTemplatePath();
+  const provisionResult = provisionTaskManagerBase(identity.root, templatePath, "foreground");
+  const launchResult = await launchTaskManagerBrowser({
+    filePath: provisionResult.path,
+    canonicalRoot: identity.canonicalRoot,
+  });
+
+  if (!launchResult.opened && launchResult.fallback) {
+    safeSetDialogSize(api, "medium");
+    api.ui.dialog.replace(() => (
+      <api.ui.DialogAlert
+        title={launchResult.fallback!.title}
+        message={`${launchResult.fallback!.manualInstructions}\n\n${launchResult.fallback!.absolutePath}`}
+        onConfirm={() => showPluginsMenu(api)}
+      />
+    ));
+    return;
+  }
+
+  if (launchResult.opened) {
+    api.ui.toast?.({
+      title: "Task Manager",
+      message: "Task Manager abierto en el navegador.",
+    });
+    api.ui.dialog.clear();
+  }
+}
+
+/**
+ * Shows the plugins hub dialog
+ */
+export function showPluginsMenu(api: any) {
+  safeSetDialogSize(api, "medium");
+  api.ui.dialog.replace(() => (
+    <api.ui.DialogSelect
+      title="Plugins"
+      options={buildPluginHubOptions()}
+      onSelect={async (opt: any) => {
+        if (opt.value === "help") {
+          showPluginsHelpMenu(api);
+        } else if (opt.value === "suite") {
+          openVendoredSuite(api);
+        } else if (opt.value === "task-manager") {
+          await launchTaskManagerAction(api);
+        } else if (opt.value === "__back__") {
+          showProfilesMenu(api);
+        } else {
+          api.ui.dialog.clear();
+        }
+      }}
+      onCancel={() => api.ui.dialog.clear()}
+    />
+  ));
 }
