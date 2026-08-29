@@ -11,11 +11,11 @@ This repository is exclusively the Suite de Agentes product (`opencode-agent-sui
 - Do not copy or reference external `gentle-ai-plus-observer-router` material here.
 - `openspec/changes/*` is reserved for Suite de Agentes product changes; do not create or modify SDD phase/state artifacts for unrelated work.
 
-## Repository boundary
+## Canonical boundary
 
-- Do not use `C:/Users/DELL` as the Git root for this project.
-- The canonical source is now this directory: `C:/Users/DELL/projects/0.-MEJORA-OPENCODE-TRABAJANDO/suite-de-agentes`.
-- Preserve existing product working-tree changes and OpenSpec Suite artifacts unless a future product task explicitly changes them.
+- The canonical source for Suite de Agentes is now vendored directly at `plugins/suite-de-agentes` within the `opencode-sdd-profile-manager` repository.
+- All product source, tests, skills, documentation, and OpenSpec artifacts are maintained here as the single source of truth.
+- Standard build and packaging pipelines copy assets directly from `plugins/suite-de-agentes` to `dist/plugins/suite-de-agentes`. External import synchronization is obsolete.
 
 ## Documentation
 

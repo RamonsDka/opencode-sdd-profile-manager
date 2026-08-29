@@ -3,3 +3,23 @@ dist/
 coverage/
 release/
 *.tmp-*
+.agents/
+.claude/
+.github/
+.codegraph/
+.engram/
+openspec/
+skills-lock.json
+docs/image/
+test-results/
+.last-run.json
+
+# Local NotebookLM runtime and agent configs
+*notebooklm*
+agent-notebooklm*
+.notebooklm/
+notebooklm/
+
+# Whitelist public skills and assets
+!skills/task-tracker-manager/
+!skills/task-tracker-manager/**

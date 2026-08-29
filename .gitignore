@@ -2,6 +2,8 @@ node_modules
 dist
 dist-release
 coverage
+test-results/
+.last-run.json
 *.tgz
 examples/.tmp-run
 .atl
@@ -13,7 +15,33 @@ dist-share/
 .env.*
 *.local
 *.log
-.engram/chunks/
-.engram/manifest.json
+.engram/
+.cortexmem/
+.cortex/
+.context-mode/
+.playwright-mcp/
+.hallmark/
+.impeccable/
+.opencode/
+.claude/
+.agents/
+*.tmp
+*.tmp-*
+*.bak
 /Task-Manager-Portable.html
+
+# Local NotebookLM runtime and agent configs
+*notebooklm*
+agent-notebooklm*
+.notebooklm/
+notebooklm/
+
+# Explicit inclusions for public Task Manager and GitHub agent assets
+!drop-in-task-manager.html
+!plugins/task-manager/
+!plugins/task-manager/**
+!plugins/suite-de-agentes/skills/task-tracker-manager/
+!plugins/suite-de-agentes/skills/task-tracker-manager/**
+!.github/
+!.github/**
 
