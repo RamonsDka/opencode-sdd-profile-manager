@@ -130,7 +130,7 @@ describe('skeleton shell — file:// portability & tokens', () => {
     assert.equal(jsonText.includes('</script>'), false, 'island must not contain raw </script> (must be \\u003c)');
   });
 
-  it('provides accessible native Codegraph, Overview detail, and Welcome dialog shells', () => {
+  it('provides accessible native Codegraph and Overview detail dialog shells and no obsolete welcome dialog', () => {
     const window = new Window({ url: 'http://localhost/' });
     window.document.write(readSkeleton());
     window.document.close();
@@ -140,11 +140,10 @@ describe('skeleton shell — file:// portability & tokens', () => {
     assert.notEqual(codegraphDialog.querySelector('[data-codegraph-close]'), null);
 
     const welcomeDialog = window.document.getElementById('welcome-dialog');
-    assert.notEqual(welcomeDialog, null, 'welcome-dialog must exist');
-    assert.equal(welcomeDialog.tagName, 'DIALOG');
-    assert.notEqual(window.document.getElementById(welcomeDialog.getAttribute('aria-labelledby')), null);
-    assert.notEqual(welcomeDialog.querySelector('[data-welcome-close]'), null);
-    assert.notEqual(welcomeDialog.querySelector('[data-copy-welcome-prompt]'), null);
+    assert.equal(welcomeDialog, null, 'welcome-dialog must not exist in canonical skeleton');
+
+    const projectSubtitle = window.document.getElementById('project-subtitle');
+    assert.equal(projectSubtitle, null, '#project-subtitle must be permanently absent from canonical skeleton');
   });
 
   it('has no logic script tags — only island JSON (no fetch/import/XHR/classic logic yet)', () => {
@@ -320,15 +319,15 @@ describe('skeleton shell — file:// portability & tokens', () => {
     assert.match(html, /filter-toolbar/);
   });
 
-  it('uses a four-column desktop HUD with a flex-shell panoramic card and an internal five-region grid', () => {
+  it('uses a four-column desktop HUD with a flex-shell panoramic card and an internal grid', () => {
     const html = readSkeleton();
 
     assert.match(html, /\.metrics-grid\s*\{[^}]*grid-template-columns:\s*repeat\(4,\s*minmax\(0,\s*1fr\)\)/s);
     assert.match(html, /\.metric-card\s*\{[^}]*display:\s*flex[^}]*flex-direction:\s*column/s);
     assert.match(html, /\.metric-card\.metric-insights-band\s*\{\s*grid-column:\s*1\s*\/\s*-1;?\s*\}/s);
     assert.doesNotMatch(html, /\.metric-card\.metric-insights-band\s*\{[^}]*display\s*:/s);
-    assert.match(html, /\.insight-band-grid\s*\{[^}]*display:\s*grid[^}]*width:\s*100%[^}]*grid-template-columns:\s*[^;}]+\s+[^;}]+\s+[^;}]+\s+[^;}]+\s+[^;}]+;/s);
-    assert.match(html, /\.insight-dimension-list\s*\{[^}]*grid-template-columns:\s*repeat\(auto-(?:fit|fill),\s*minmax\((?:8|9)\dpx,\s*1fr\)\)/s);
+    assert.match(html, /\.insight-band-grid\s*\{[^}]*display:\s*grid[^}]*width:\s*100%[^}]*grid-template-columns:\s*[^;\}]+;/s);
+    assert.match(html, /\.insight-meta-strip/s);
   });
 
   it('scopes the HUD to overview and keeps both metric and insight grids responsive', () => {
@@ -341,7 +340,7 @@ describe('skeleton shell — file:// portability & tokens', () => {
 
     assert.equal(overview.contains(metrics), true, 'metrics HUD must belong to the overview view');
     assert.match(html, /@media\s*\(max-width:\s*1200px\)[\s\S]*\.metrics-grid\s*\{[^}]*grid-template-columns:\s*repeat\(2,\s*minmax\(0,\s*1fr\)\)/s);
-    assert.match(html, /@media\s*\(max-width:\s*900px\)[\s\S]*\.insight-band-grid\s*\{[^}]*grid-template-columns:\s*repeat\(2,\s*minmax\(0,\s*1fr\)\)/s);
+    assert.match(html, /@media\s*\(max-width:\s*900px\)[\s\S]*\.insight-band-grid\s*\{[^}]*grid-template-columns:\s*1fr/s);
     assert.match(html, /@media\s*\(max-width:\s*720px\)[\s\S]*\.metrics-grid\s*\{[^}]*grid-template-columns:\s*1fr/s);
     assert.match(html, /@media\s*\(max-width:\s*720px\)[\s\S]*\.insight-band-grid\s*\{[^}]*grid-template-columns:\s*1fr/s);
   });
@@ -483,5 +482,26 @@ describe('skeleton shell — file:// portability & tokens', () => {
     assert.ok(contrast('#a0a0a0', '#161b22') >= 4.5, 'secondary text must meet 4.5:1');
     for (const status of ['#3fb950', '#58a6ff', '#d29922', '#f85149']) assert.ok(contrast(status, '#161b22') >= 3, status + ' must meet 3:1');
     assert.match(readSkeleton(), /badge-dot[\s\S]*?badge-(?:completed|inprogress|pending|blocked)/, 'status must retain text and shape alongside color');
+  });
+
+  it('declares synchronization banner with authored motion, signal tokens, and reduced-motion fallback', () => {
+    const html = readSkeleton();
+    const window = new Window({ url: 'http://localhost/' });
+    window.document.write(html);
+    window.document.close();
+
+    const banner = window.document.getElementById('tm-sync-banner');
+    assert.notEqual(banner, null, '#tm-sync-banner must exist in skeleton');
+    assert.equal(banner.getAttribute('role'), 'status');
+    assert.equal(banner.getAttribute('aria-live'), 'polite');
+    assert.equal(banner.hasAttribute('hidden'), true, 'sync banner must be hidden by default in skeleton');
+
+    // Authored motion styling checks
+    assert.match(html, /#tm-sync-banner\.sync-running/);
+    assert.match(html, /sync-border-pulse/);
+    assert.match(html, /sync-wave-sweep/);
+    assert.match(html, /sync-beam-travel/);
+    assert.match(html, /sync-node-sequence/);
+    assert.match(html, /@media\s*\(prefers-reduced-motion:\s*reduce\)[\s\S]*?\.sync-signal-node[\s\S]*?animation:\s*none/);
   });
 });

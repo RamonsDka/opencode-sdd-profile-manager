@@ -151,7 +151,12 @@
           + (syncStatus ? '<span class=\"badge\" style=\"color:var(--accent-green);border-color:rgba(63,185,80,0.3);font-size:10px;\"><span class=\"badge-dot completed\"></span> ' + esc(syncStatus) + '</span>' : '')
           + '</div>';
       }
-      html += '<div class=\"git-summary-grid\"><div><strong>' + commits.length + '</strong><span> commits visibles</span></div><div><strong>' + Object.keys(kinds).length + '</strong><span> tipos detectados</span></div><div><strong>' + (syncStatus ? esc(syncStatus) : 'Sin dato') + '</strong><span> estado informado</span></div></div>';
+      var commitsSummaryText = (git.totalCount && git.totalCount > commits.length)
+        ? '<div><strong>' + commits.length + ' de ' + git.totalCount + '</strong><span> commits recientes</span></div>'
+        : (commits.length > 0
+          ? '<div><strong>' + commits.length + '</strong><span> commits recientes</span></div>'
+          : '<div><strong>0</strong><span> commits</span></div>');
+      html += '<div class=\"git-summary-grid\">' + commitsSummaryText + '<div><strong>' + Object.keys(kinds).length + '</strong><span> tipos detectados</span></div><div><strong>' + (syncStatus ? esc(syncStatus) : 'Sin dato') + '</strong><span> estado informado</span></div></div>';
       if (Object.keys(kinds).length) html += '<div class=\"git-kind-strip\">' + Object.keys(kinds).sort().map(function (kind) { return '<span class=\"git-kind\"><strong>' + esc(kind) + '</strong> ' + kinds[kind] + '</span>'; }).join('') + '</div>';
       if (commits.length > 0) {
         html += '<ol class=\"git-timeline\">';
@@ -201,8 +206,11 @@
       // Also mirror to #full-git-mount if available
       var fullGit = doc.getElementById('full-git-mount');
       if (fullGit) {
+        var fullGitBadgeText = (git.totalCount && git.totalCount > commits.length)
+          ? (commits.length + ' de ' + git.totalCount + ' commits recientes')
+          : (commits.length > 0 ? commits.length + ' commits recientes' : '0 commits');
         fullGit.innerHTML = '<div class=\"panel-card\">'
-          + '<div class=\"panel-header\"><div class=\"panel-title\"><span>🌿 Git Commit Timeline & Activity</span></div><span class=\"badge\" style=\"color:var(--accent-purple);\">' + commits.length + ' commits</span></div>'
+          + '<div class=\"panel-header\"><div class=\"panel-title\"><span>🌿 Git Commit Timeline & Activity</span></div><span class=\"badge\" style=\"color:var(--accent-purple);\">' + fullGitBadgeText + '</span></div>'
           + '<div class=\"panel-body\">' + html + '</div>'
           + '</div>';
         bindGitMount(fullGit);

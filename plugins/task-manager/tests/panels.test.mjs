@@ -232,6 +232,32 @@ describe('panels — git snapshot verbatim, zero runtime calls; tree depth; code
     assert.match(git.textContent, /fix/i);
     assert.equal(/autor|author|fecha|date/i.test(git.textContent), false);
   });
+
+  it('renders truthful commit ratio copy when totalCount exceeds visible commits', () => {
+    const state = createState({
+      meta: { features: { git: true } },
+      git: {
+        branch: 'main',
+        totalCount: 151,
+        limit: 5,
+        syncStatus: 'synced',
+        commits: [
+          { hash: '1111111', message: 'feat: c1' },
+          { hash: '2222222', message: 'fix: c2' },
+          { hash: '3333333', message: 'chore: c3' },
+          { hash: '4444444', message: 'docs: c4' },
+          { hash: '5555555', message: 'refactor: c5' },
+        ],
+      },
+    });
+    const { document } = mountWithPanels(state);
+    const gitPanel = document.getElementById('git-details-panel');
+    assert.match(gitPanel.textContent, /5 de 151/);
+    assert.match(gitPanel.textContent, /commits recientes/);
+
+    const fullGit = document.getElementById('full-git-mount');
+    assert.match(fullGit.textContent, /5 de 151 commits recientes/);
+  });
 });
 
 describe('panels — wrong-type tree contained, core unaffected', () => {

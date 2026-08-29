@@ -68,7 +68,6 @@ describe('core — file existence and portability', () => {
     assert.equal(typeof core.isEnabled, 'function');
   });
 });
-
 describe('core — island-by-id discovery and parse', () => {
   before(() => { loadCore(); });
 
@@ -456,5 +455,77 @@ describe('core — additive Codegraph normalization', () => {
     assert.equal(graph.edges.length, 1);
     assert.equal(JSON.stringify(state), raw, 'raw island bytes/data must remain immutable');
     assert.equal(diagnostics.warnings.length > 0, true);
+  });
+});
+
+describe('core — token telemetry normalization', () => {
+  before(() => { loadCore(); });
+
+  it('normalizes token usage, sorts agents descending by total tokens, and derives accurate totals', () => {
+    const state = createState({
+      tokenUsage: {
+        schemaVersion: '1.0',
+        updatedAt: '2026-08-29T12:00:00Z',
+        source: 'opencode-sdk',
+        scope: '/app',
+        root: '/app',
+        byAgent: [
+          {
+            agent: 'sdd-verify',
+            model: 'gemini-2.5-flash',
+            categories: { input: 1000, output: 500, reasoning: 100, cacheRead: 2000, cacheWrite: 0, total: 3600 },
+            total: 3600,
+            cost: 0.005,
+            evidence: 'measured',
+            confidence: 1.0,
+          },
+          {
+            agent: 'orchestrator',
+            model: 'claude-3-7-sonnet',
+            categories: { input: 5000, output: 2000, reasoning: 800, cacheRead: 10000, cacheWrite: 200, total: 18000 },
+            total: 18000,
+            cost: 0.045,
+            evidence: 'measured',
+            confidence: 1.0,
+          },
+        ],
+      },
+    });
+
+    const insights = TMCore.deriveInsights(state);
+    assert.notEqual(insights.tokenUsage, null);
+    assert.equal(insights.tokenUsage.hasData, true);
+    assert.equal(insights.tokenUsage.byAgent.length, 2);
+
+    // Orchestrator (18000) must appear before sdd-verify (3600)
+    assert.equal(insights.tokenUsage.byAgent[0].agent, 'orchestrator');
+    assert.equal(insights.tokenUsage.byAgent[0].total, 18000);
+    assert.equal(insights.tokenUsage.byAgent[1].agent, 'sdd-verify');
+    assert.equal(insights.tokenUsage.byAgent[1].total, 3600);
+
+    assert.equal(insights.tokenUsage.totals.input, 6000);
+    assert.equal(insights.tokenUsage.totals.output, 2500);
+    assert.equal(insights.tokenUsage.totals.reasoning, 900);
+    assert.equal(insights.tokenUsage.totals.cacheRead, 12000);
+    assert.equal(insights.tokenUsage.totals.cacheWrite, 200);
+    assert.equal(insights.tokenUsage.totals.total, 21600);
+    assert.equal(insights.tokenUsage.totals.cost, 0.05);
+  });
+
+  it('detects stale telemetry (>24h) and handles missing tokenUsage safely', () => {
+    const staleDate = new Date(Date.now() - 30 * 60 * 60 * 1000).toISOString();
+    const staleState = createState({
+      tokenUsage: {
+        updatedAt: staleDate,
+        byAgent: [{ agent: 'sdd-apply', total: 500 }],
+      },
+    });
+    const staleInsights = TMCore.deriveInsights(staleState);
+    assert.equal(staleInsights.tokenUsage.isStale, true);
+
+    const emptyInsights = TMCore.deriveInsights(createState({}));
+    assert.equal(emptyInsights.tokenUsage.hasData, false);
+    assert.equal(emptyInsights.tokenUsage.byAgent.length, 0);
+    assert.equal(emptyInsights.tokenUsage.totals.total, 0);
   });
 });

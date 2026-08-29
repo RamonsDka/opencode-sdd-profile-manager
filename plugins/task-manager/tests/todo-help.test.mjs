@@ -257,32 +257,18 @@ describe('todo-help — help shows copy/AI-update/schema + AI-instructions; labe
     assert.equal(document.getElementById('tm-state').textContent.includes('schemaVersion'), true);
   });
 
-  it('provides autonomous Master Prompt and initializes Welcome Dialog with copy & close controls', async () => {
+  it('provides direct authority Master Prompt without delegation or subagent language and has no welcome dialog', async () => {
     const { document, window } = mountWithTodoHelp(createState());
     const prompt = window.TMTodoHelp.getMasterPrompt();
-    assert.equal(prompt.includes('MODO AUTÓNOMO'), true);
+    assert.equal(prompt.includes('Agent Task Manager'), true);
     assert.equal(prompt.includes('Task-Manager-Portable.html'), true);
-    assert.equal(prompt.includes('subagente'), true);
     assert.equal(prompt.includes('schemaVersion'), true);
+    assert.equal(prompt.includes('subagente'), false);
+    assert.equal(prompt.includes('sub-worker'), false);
+    assert.equal(prompt.includes('delegar'), false);
 
     const welcomeDialog = document.getElementById('welcome-dialog');
-    assert.notEqual(welcomeDialog, null);
-    const welcomePrompt = welcomeDialog.querySelector('[data-welcome-prompt]');
-    assert.notEqual(welcomePrompt, null);
-    assert.equal(welcomePrompt.textContent, prompt);
-
-    let copied = '';
-    Object.defineProperty(window.navigator, 'clipboard', { configurable: true, value: { writeText: async (text) => { copied = text; } } });
-    const welcomeCopyBtn = welcomeDialog.querySelector('[data-copy-welcome-prompt]');
-    assert.notEqual(welcomeCopyBtn, null);
-    welcomeCopyBtn.click();
-    await new Promise((resolve) => setTimeout(resolve, 0));
-    assert.equal(copied, prompt);
-
-    const closeBtn = welcomeDialog.querySelector('[data-welcome-close]');
-    assert.notEqual(closeBtn, null);
-    closeBtn.click();
-    assert.equal(welcomeDialog.dataset.open, 'false');
+    assert.equal(welcomeDialog, null, 'welcome-dialog should not exist');
   });
 });
 

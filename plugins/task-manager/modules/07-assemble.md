@@ -30,7 +30,7 @@ Run after each module and final assemble. Tick all:
 - [ ] Flag gate: with `features.git/tree/codegraph:false` panels hidden or show `sin datos` placeholder; with `true` but empty → `sin datos`; with data → renders verbatim snapshot
 - [ ] Help tab: copy-anywhere instructions, AI update protocol, schema summary visible
 - [ ] No localStorage of task state (only view prefs allowed per spec)
-- [ ] Welcome modal dialog opens on launch with copyable Master Prompt and close buttons
+- [ ] Direct authority prompt accessible in AI Console / Help tab without modal popup
 
 ## Portability Scan (automated)
 `scripts/scan-portability.mjs` must exit 0:

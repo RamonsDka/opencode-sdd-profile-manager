@@ -5,6 +5,11 @@
 (function (global) {
   'use strict';
 
+  function finiteNumber(value, fallback) {
+    value = Number(value);
+    return isFinite(value) ? value : (fallback !== undefined ? fallback : 0);
+  }
+
   /**
    * Parse island JSON text (textContent of #tm-state).
    * MUST handle \u003c/script\u003e escaped form; JSON.parse decodes it.
@@ -321,6 +326,195 @@
     };
   }
 
+  function normalizeTokenUsage(raw, nowTimestamp) {
+    if (!raw || typeof raw !== 'object') {
+      return {
+        hasData: false,
+        schemaVersion: '1.0',
+        updatedAt: null,
+        isStale: false,
+        source: 'unavailable',
+        scope: '',
+        root: '',
+        totals: { input: 0, output: 0, reasoning: 0, cacheRead: 0, cacheWrite: 0, total: 0, cost: undefined },
+        byAgent: []
+      };
+    }
+
+    var updatedAt = typeof raw.updatedAt === 'string' ? raw.updatedAt : null;
+    var updatedDate = updatedAt ? new Date(updatedAt) : null;
+    var now = nowTimestamp || Date.now();
+    var isStale = Boolean(updatedDate && !isNaN(updatedDate.getTime()) && (now - updatedDate.getTime() > 24 * 60 * 60 * 1000));
+
+    var rawAgents = Array.isArray(raw.byAgent) ? raw.byAgent : [];
+    var byAgent = [];
+    var calcInput = 0, calcOutput = 0, calcReasoning = 0, calcCacheRead = 0, calcCacheWrite = 0, calcTotal = 0, calcCost = 0;
+    var anyCost = false;
+
+    for (var i = 0; i < rawAgents.length; i++) {
+      var item = rawAgents[i];
+      if (!item || typeof item !== 'object') continue;
+
+      var agentName = textValue(item.agent || 'orchestrator') || 'orchestrator';
+      var rawCats = (item.categories && typeof item.categories === 'object') ? item.categories : {};
+      var inp = Math.max(0, finiteNumber(rawCats.input, finiteNumber(item.input, 0)));
+      var out = Math.max(0, finiteNumber(rawCats.output, finiteNumber(item.output, 0)));
+      var rea = Math.max(0, finiteNumber(rawCats.reasoning, finiteNumber(item.reasoning, 0)));
+      var cRd = Math.max(0, finiteNumber(rawCats.cacheRead, finiteNumber(item.cacheRead, 0)));
+      var cWr = Math.max(0, finiteNumber(rawCats.cacheWrite, finiteNumber(item.cacheWrite, 0)));
+      var itemTotal = Math.max(0, finiteNumber(item.total, finiteNumber(rawCats.total, (inp + out + rea + cRd + cWr))));
+
+      var itemCost = (typeof item.cost === 'number' && isFinite(item.cost) && item.cost >= 0) ? item.cost : undefined;
+      if (itemCost !== undefined) {
+        calcCost += itemCost;
+        anyCost = true;
+      }
+
+      var modelsList = Array.isArray(item.models) ? item.models.map(String).filter(Boolean) : (item.model ? [String(item.model)] : []);
+      var evidence = String(item.evidence || 'measured');
+      if (evidence !== 'measured' && evidence !== 'derived' && evidence !== 'estimated') {
+        evidence = 'measured';
+      }
+      var confidence = (typeof item.confidence === 'number' && isFinite(item.confidence))
+        ? Math.max(0, Math.min(1, item.confidence))
+        : (evidence === 'estimated' ? 0.35 : 1.0);
+
+      var sessions = Math.max(0, Math.round(finiteNumber(item.sessions, 0)));
+      var messages = Math.max(0, Math.round(finiteNumber(item.messages, 0)));
+
+      byAgent.push({
+        agent: agentName,
+        model: modelsList[0] || (typeof item.model === 'string' ? item.model : undefined),
+        models: modelsList.length ? modelsList : undefined,
+        categories: {
+          input: inp,
+          output: out,
+          reasoning: rea,
+          cacheRead: cRd,
+          cacheWrite: cWr,
+          total: itemTotal
+        },
+        total: itemTotal,
+        cost: itemCost,
+        sessions: sessions,
+        messages: messages,
+        evidence: evidence,
+        confidence: confidence
+      });
+
+      calcInput += inp;
+      calcOutput += out;
+      calcReasoning += rea;
+      calcCacheRead += cRd;
+      calcCacheWrite += cWr;
+      calcTotal += itemTotal;
+    }
+
+    // Sort descending by total tokens
+    byAgent.sort(function (a, b) { return b.total - a.total; });
+
+    var rawTotals = (raw.totals && typeof raw.totals === 'object') ? raw.totals : {};
+    var totInput = Math.max(0, finiteNumber(rawTotals.input, calcInput));
+    var totOutput = Math.max(0, finiteNumber(rawTotals.output, calcOutput));
+    var totReasoning = Math.max(0, finiteNumber(rawTotals.reasoning, calcReasoning));
+    var totCacheRead = Math.max(0, finiteNumber(rawTotals.cacheRead, calcCacheRead));
+    var totCacheWrite = Math.max(0, finiteNumber(rawTotals.cacheWrite, calcCacheWrite));
+    var totTotal = Math.max(0, finiteNumber(rawTotals.total, calcTotal));
+    var totCost = (typeof rawTotals.cost === 'number' && isFinite(rawTotals.cost) && rawTotals.cost >= 0)
+      ? rawTotals.cost
+      : (anyCost ? Number(calcCost.toFixed(6)) : undefined);
+
+    var hasData = byAgent.length > 0 && totTotal > 0;
+
+    return {
+      hasData: hasData,
+      schemaVersion: '1.0',
+      updatedAt: updatedAt,
+      isStale: isStale,
+      source: String(raw.source || 'opencode-sdk'),
+      scope: String(raw.scope || ''),
+      root: String(raw.root || ''),
+      totals: {
+        input: totInput,
+        output: totOutput,
+        reasoning: totReasoning,
+        cacheRead: totCacheRead,
+        cacheWrite: totCacheWrite,
+        total: totTotal,
+        cost: totCost
+      },
+      byAgent: byAgent
+    };
+  }
+
+  function deriveActivityTokens(state) {
+    if (!state || typeof state !== 'object') return null;
+    var tasks = [];
+    if (Array.isArray(state.phases)) {
+      for (var p = 0; p < state.phases.length; p++) {
+        var phase = state.phases[p];
+        if (Array.isArray(phase.tasks)) {
+          tasks = tasks.concat(phase.tasks);
+        }
+      }
+    }
+    if (Array.isArray(state.tasks)) {
+      tasks = tasks.concat(state.tasks);
+    }
+    if (!tasks.length) return null;
+
+    var agentUnits = {};
+    var grandTotal = 0;
+    for (var i = 0; i < tasks.length; i++) {
+      var t = tasks[i];
+      var owner = (t.owner || 'orchestrator').trim() || 'orchestrator';
+      var weight = 2;
+      var status = String(t.status || '').toLowerCase();
+      if (status === 'completed') weight = 10;
+      else if (status === 'in-progress' || status === 'inprogress') weight = 5;
+      else if (status === 'blocked') weight = 3;
+
+      if (Array.isArray(t.subtasks)) {
+        for (var s = 0; s < t.subtasks.length; s++) {
+          if (t.subtasks[s] && t.subtasks[s].done) weight += 2;
+        }
+      }
+
+      if (!agentUnits[owner]) agentUnits[owner] = { units: 0, count: 0 };
+      agentUnits[owner].units += weight;
+      agentUnits[owner].count += 1;
+      grandTotal += weight;
+    }
+
+    if (grandTotal === 0) return null;
+
+    var byAgent = Object.keys(agentUnits).map(function (agent) {
+      var item = agentUnits[agent];
+      return {
+        agent: agent,
+        categories: { input: 0, output: 0, reasoning: 0, cacheRead: 0, cacheWrite: 0, total: item.units },
+        total: item.units,
+        messages: item.count,
+        sessions: 1,
+        evidence: 'estimated',
+        confidence: 0.25
+      };
+    });
+    byAgent.sort(function (a, b) { return b.total - a.total; });
+
+    return {
+      hasData: true,
+      schemaVersion: '1.0',
+      updatedAt: (state.meta && state.meta.lastUpdated) || new Date().toISOString(),
+      isStale: false,
+      source: 'activity-estimation',
+      scope: (state.meta && state.meta.scope) || '',
+      root: (state.meta && state.meta.root) || '',
+      totals: { input: 0, output: 0, reasoning: 0, cacheRead: 0, cacheWrite: 0, total: grandTotal, cost: undefined },
+      byAgent: byAgent
+    };
+  }
+
   function deriveInsights(state, validation) {
     var diagnostics = { errors: [], warnings: [] };
     if (validation) {
@@ -342,6 +536,14 @@
       }
     }
     var history = normalizeHistory(state, diagnostics);
+    var rawTokens = state && (state.tokenUsage || (state.meta && state.meta.tokenUsage));
+    var tokenUsage = normalizeTokenUsage(rawTokens);
+    if (!tokenUsage.hasData) {
+      var activityFallback = deriveActivityTokens(state);
+      if (activityFallback) {
+        tokenUsage = activityFallback;
+      }
+    }
     return {
       metrics: deriveMetrics(state),
       tasks: tasks,
@@ -349,7 +551,8 @@
       blockers: blockers,
       diagnostics: diagnostics,
       history: history,
-      forecast: deriveForecast(history)
+      forecast: deriveForecast(history),
+      tokenUsage: tokenUsage
     };
   }
 
@@ -478,6 +681,7 @@
     isEnabled: isEnabled,
     deriveMetrics: deriveMetrics,
     deriveInsights: deriveInsights,
+    normalizeTokenUsage: normalizeTokenUsage,
     normalizeCodegraph: normalizeCodegraph,
     matchesTask: matchesTask,
     getStateFromDocument: getStateFromDocument,
