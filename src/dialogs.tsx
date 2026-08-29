@@ -605,7 +605,7 @@ export function showProfilesMenu(api: any) {
         {
           title: NAV_TEXT.createProfile,
           value: "create",
-          description: "Crea un perfil SDD vacío para configurarlo manualmente.",
+          description: "Crea un nuevo perfil a partir de la configuración actual.",
         },
         {
           title: NAV_TEXT.manageProfiles,
@@ -623,16 +623,6 @@ export function showProfilesMenu(api: any) {
           description: "Abre el menú de plugins integrados (Suite de Agentes, Task Manager).",
         },
         {
-          title: `Badge: ${showModelBadge() ? "On" : "Off"}`,
-          value: "toggle_badge_visible",
-          description: "Show or hide the badge.",
-        },
-        {
-          title: `Badge mode: ${badgeDisplayMode() === "profile" ? "Profile" : "Model"}`,
-          value: "toggle_badge_mode",
-          description: "Show model info or active profile name on the badge.",
-        },
-        {
           title: "✕ Close",
           value: "__close__",
           category: NAV_CATEGORY,
@@ -643,21 +633,7 @@ export function showProfilesMenu(api: any) {
         else if (opt.value === "list") showProfileListFn(api);
         else if (opt.value === "view_memories") showProjectMemoriesMenuFn(api);
         else if (opt.value === "plugins") showPluginsMenu(api);
-        else if (opt.value === "toggle_badge_visible") {
-          const next = !showModelBadge();
-          setShowModelBadge(next);
-          Promise.resolve().then(() => api.kv.set(BADGE_VISIBLE_KV_KEY, next)).catch((e) => {
-            log.warn(`toggle_badge_visible: failed to persist '${BADGE_VISIBLE_KV_KEY}'`, e);
-          });
-          showProfilesMenu(api);
-        } else if (opt.value === "toggle_badge_mode") {
-          const next: BadgeDisplayMode = badgeDisplayMode() === "model" ? "profile" : "model";
-          setBadgeDisplayMode(next);
-          Promise.resolve().then(() => api.kv.set(BADGE_DISPLAY_MODE_KV_KEY, next)).catch((e) => {
-            log.warn(`toggle_badge_mode: failed to persist '${BADGE_DISPLAY_MODE_KV_KEY}'`, e);
-          });
-          showProfilesMenu(api);
-        } else api.ui.dialog.clear();
+        else api.ui.dialog.clear();
       }}
       onCancel={() => api.ui.dialog.clear()}
     />
