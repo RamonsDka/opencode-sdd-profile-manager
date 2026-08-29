@@ -121,20 +121,20 @@
     var health = errors.length ? 'error' : warnings.length ? 'warning' : 'healthy';
     var title = errors.length ? 'Estado con errores' : warnings.length ? 'Estado utilizable con advertencias' : 'Estado saludable';
     var summary = errors.length ? 'La inspección avanzada se abrió para facilitar la recuperación.' : warnings.length ? 'El panel sigue disponible; revisa las advertencias cuando lo necesites.' : 'No se detectaron problemas en el estado actual.';
-    var diagnosticsHtml = '<div id="tm-diagnostics" role="status">'
+    var diagnosticsHtml = '<div id=\"tm-diagnostics\" role=\"status\">'
       + (errors.length ? '<strong>Errores</strong><ul>' + errors.map(function (item) { return '<li>' + esc(item) + '</li>'; }).join('') + '</ul>' : '')
       + (warnings.length ? '<strong>Advertencias</strong><ul>' + warnings.map(function (item) { return '<li>' + esc(item) + '</li>'; }).join('') + '</ul>' : '')
       + (!errors.length && !warnings.length ? '<p>Sin diagnósticos pendientes.</p>' : '')
       + '</div>';
-    mount.innerHTML = '<section class="state-tools" aria-label="Diagnóstico e inspección del estado">'
-      + '<div class="state-health-card" data-health="' + health + '"><span class="state-health-icon">' + (errors.length ? '!' : warnings.length ? 'i' : '✓') + '</span><div><strong>' + title + '</strong><p>' + summary + '</p></div><div class="state-health-counts"><span class="badge ' + (errors.length ? 'badge-blocked' : 'badge-completed') + '">' + errors.length + ' errores</span><span class="badge ' + (warnings.length ? 'badge-pending' : 'badge-tag') + '">' + warnings.length + (warnings.length === 1 ? ' advertencia' : ' advertencias') + '</span></div></div>'
-      + '<details class="state-tools-advanced"' + (errors.length ? ' open' : '') + '><summary>Inspección avanzada del JSON</summary><div class="state-tools-advanced-body">'
+    mount.innerHTML = '<section class=\"state-tools\" aria-label=\"Diagnóstico e inspección del estado\">'
+      + '<div class=\"state-health-card\" data-health=\"' + health + '\"><span class=\"state-health-icon\">' + (errors.length ? '!' : warnings.length ? 'i' : '✓') + '</span><div><strong>' + title + '</strong><p>' + summary + '</p></div><div class=\"state-health-counts\"><span class=\"badge ' + (errors.length ? 'badge-blocked' : 'badge-completed') + '\">' + errors.length + ' errores</span><span class=\"badge ' + (warnings.length ? 'badge-pending' : 'badge-tag') + '\">' + warnings.length + (warnings.length === 1 ? ' advertencia' : ' advertencias') + '</span></div></div>'
+      + '<details class=\"state-tools-advanced\"' + (errors.length ? ' open' : '') + '><summary>Inspección avanzada del JSON</summary><div class=\"state-tools-advanced-body\">'
       + diagnosticsHtml
-      + '<pre id="tm-state-json" aria-label="Read-only state JSON">' + esc(text) + '</pre>'
-      + '<div class="state-tools-actions">'
-      + '<button type="button" class="btn btn-secondary btn-sm" data-state-copy>Copy State JSON</button>'
-      + '<button type="button" class="btn btn-secondary btn-sm" data-state-export>Export JSON</button>'
-      + '<span data-state-copy-feedback aria-live="polite"></span><span data-state-export-feedback aria-live="polite"></span>'
+      + '<pre id=\"tm-state-json\" aria-label=\"Read-only state JSON\">' + esc(text) + '</pre>'
+      + '<div class=\"state-tools-actions\">'
+      + '<button type=\"button\" class=\"btn btn-secondary btn-sm\" data-state-copy>Copy State JSON</button>'
+      + '<button type=\"button\" class=\"btn btn-secondary btn-sm\" data-state-export>Export JSON</button>'
+      + '<span data-state-copy-feedback aria-live=\"polite\"></span><span data-state-export-feedback aria-live=\"polite\"></span>'
       + '</div></div></details></section>';
     var copy = mount.querySelector('[data-state-copy]');
     var exportButton = mount.querySelector('[data-state-export]');
@@ -262,13 +262,13 @@
       var badgeCls = priorityBadgeClass(priority);
       var pLabel = esc(priorityLabel(priority));
 
-      html += '<div class="todo-item' + (done ? ' done' : '') + '" role="button" tabindex="0" aria-haspopup="dialog" data-id="' + id + '" data-priority="' + priority + '" data-done="' + (done ? '1' : '0') + '" title="Clic para ver detalles y recomendaciones de esta señal">'
-        + '<div class="todo-left">'
-        + '<span class="todo-text">' + text + '</span>'
+      html += '<div class=\"todo-item' + (done ? ' done' : '') + '\" role=\"button\" tabindex=\"0\" aria-haspopup=\"dialog\" data-id=\"' + id + '\" data-priority=\"' + priority + '\" data-done=\"' + (done ? '1' : '0') + '\" title=\"Clic para ver detalles y recomendaciones de esta señal\">'
+        + '<div class=\"todo-left\">'
+        + '<span class=\"todo-text\">' + text + '</span>'
         + '</div>'
-        + '<div style="display:flex;gap:6px;align-items:center;">'
-        + '<span class="badge ' + badgeCls + '">' + pLabel + '</span>'
-        + '<span class="badge-tag">Informativo</span>'
+        + '<div style=\"display:flex;gap:6px;align-items:center;\">'
+        + '<span class=\"badge ' + badgeCls + '\">' + pLabel + '</span>'
+        + '<span class=\"badge-tag\">Informativo</span>'
         + '</div>'
         + '</div>';
     }
@@ -298,114 +298,21 @@
   }
 
   function getMasterPrompt() {
-    return 'Usa la skill task-tracker-manager.\n\n'
-      + 'Mantén actualizado el archivo ./Task-Manager-Portable.html según avances en el proyecto. Si en el repositorio ya existe ./drop-in-task-manager.html, mantén ese archivo existente. NUNCA crees un archivo HTML nuevo con otro nombre.\n\n'
-      + 'MODO AUTÓNOMO (NO HAGAS PREGUNTAS AL USUARIO):\n'
-      + '1. Autodescubrimiento:\n'
-      + '   - Detecta el nombre del proyecto desde package.json, git remote o el nombre del directorio raíz.\n'
-      + '   - Analiza el código y los planes actuales para estructurar o actualizar fases, tareas y sub-tareas.\n'
-      + '2. Delegación y Subagente (Recomendado):\n'
-      + '   - Si tu entorno soporta subagentes o workers (ej: OpenCode Task, Claude Code agents, sub-workers), puedes delegar la edición de este HTML a un subagente con un modelo rápido o económico.\n'
-      + '   - El agente principal solo debe indicarle al subagente: la tarea completada, la próxima tarea y los cambios de estado en las tareas/subtareas.\n'
-      + '3. Reglas Técnicas Obligatorias:\n'
-      + '   - Edita ÚNICAMENTE el bloque \\x3cscript type="application/json" id="tm-state">. NUNCA toques el HTML ni scripts fuera de esa etiqueta.\n'
-      + '   - Mantén schemaVersion: "1.0".\n'
-      + '   - Escapa </script> dentro de strings como \\u003c/script\\u003e.\n'
-      + '   - Usa solo status: pending | in-progress | completed | blocked (desconocidos → pending).\n'
-      + '   - Soporta sub-tareas en tareas con: "subtasks": [{"id": "ST1", "title": "...", "status": "completed"|"in-progress"|"pending"|"blocked"}].\n'
-      + '   - No uses fetch, XHR, import ni leas .git en runtime.\n'
-      + '   - No hardcodees overallPct — se deriva automáticamente en la interfaz.\n\n'
-      + 'Cada vez que completes una tarea o iteración, actualiza las fases/tareas/subtareas en el JSON island, guarda el archivo y confirma brevemente el nuevo progreso (ej: 9/14 tareas → 64%).';
-  }
-
-  function dismissWelcome(doc, dialog) {
-    if (!dialog) return;
-    if (typeof dialog.close === 'function') dialog.close();
-    dialog.removeAttribute('open');
-    dialog.dataset.open = 'false';
-    if (doc) doc.__tmWelcomeSeen = true;
-    var win = doc && doc.defaultView || (typeof window !== 'undefined' ? window : null);
-    if (win) {
-      try { if (win.sessionStorage) win.sessionStorage.setItem('tm-welcome-dismissed', '1'); } catch (_) {}
-    }
-  }
-
-  function isWelcomeSeen(doc) {
-    if (doc && doc.__tmWelcomeSeen) return true;
-    var win = doc && doc.defaultView || (typeof window !== 'undefined' ? window : null);
-    if (!win) return false;
-    try {
-      if (win.sessionStorage && win.sessionStorage.getItem('tm-welcome-dismissed') === '1') return true;
-    } catch (_) {}
-    return false;
-  }
-
-  function initWelcomeModal(doc) {
-    doc = doc || (typeof document !== 'undefined' ? document : null);
-    if (!doc) return;
-    var dialog = doc.getElementById('welcome-dialog');
-    if (!dialog) return;
-
-    var promptPre = dialog.querySelector('[data-welcome-prompt]');
-    if (promptPre) {
-      promptPre.textContent = getMasterPrompt();
-    }
-
-    var copyBtn = dialog.querySelector('[data-copy-welcome-prompt]');
-    var feedback = dialog.querySelector('[data-copy-welcome-feedback]');
-    if (copyBtn && copyBtn.getAttribute('data-welcome-bound') !== '1') {
-      copyBtn.setAttribute('data-welcome-bound', '1');
-      copyBtn.addEventListener('click', function () {
-        var text = promptPre ? promptPre.textContent : getMasterPrompt();
-        copyText(doc, text, function (ok) {
-          if (ok) {
-            if (feedback) { feedback.textContent = '¡Copiado con éxito!'; feedback.style.display = 'inline'; }
-            copyBtn.textContent = '✓ Copiado al portapapeles!';
-            setTimeout(function () {
-              if (feedback) feedback.style.display = 'none';
-              copyBtn.textContent = '📋 Copiar Prompt Maestro';
-            }, 2000);
-          } else {
-            if (feedback) { feedback.textContent = 'Selecciona y copia el texto manualmente.'; feedback.style.display = 'inline'; }
-          }
-        });
-      });
-    }
-
-    var closeButtons = dialog.querySelectorAll('[data-welcome-close]');
-    closeButtons.forEach(function (btn) {
-      if (btn.getAttribute('data-welcome-bound') !== '1') {
-        btn.setAttribute('data-welcome-bound', '1');
-        btn.addEventListener('click', function () {
-          dismissWelcome(doc, dialog);
-        });
-      }
-    });
-
-    if (dialog.getAttribute('data-backdrop-bound') !== '1') {
-      dialog.setAttribute('data-backdrop-bound', '1');
-      dialog.addEventListener('click', function (event) {
-        if (event.target === dialog) {
-          dismissWelcome(doc, dialog);
-        }
-      });
-    }
-
-    if (!isWelcomeSeen(doc) && dialog.getAttribute('data-welcome-auto-opened') !== '1') {
-      dialog.setAttribute('data-welcome-auto-opened', '1');
-      try {
-        if (typeof dialog.showModal === 'function') {
-          dialog.showModal();
-          dialog.dataset.open = 'true';
-        } else {
-          dialog.setAttribute('open', '');
-          dialog.dataset.open = 'true';
-        }
-      } catch (_) {
-        dialog.setAttribute('open', '');
-        dialog.dataset.open = 'true';
-      }
-    }
+    return 'Usa la skill task-tracker-manager.\\\\n\\\\n'
+      + 'Eres Agent Task Manager, la autoridad de ejecución directa para mantener y sincronizar el panel HTML portable en ./Task-Manager-Portable.html (o ./drop-in-task-manager.html si ya existe en el proyecto). Ejecuta todas las mutaciones de forma directa y autónoma sin transferir tareas. NUNCA crees un archivo HTML nuevo con otro nombre.\\\\n\\\\n'
+      + 'NOTA DE SINCRONIZACIÓN EN SEGUNDO PLANO (RECUPERACIÓN / REFERENCIA):\\\\n'
+      + 'Este prompt sirve como referencia técnica o recuperación manual. La sincronización habitual opera en segundo plano de manera continua: se inicializa en la primera apertura (Plugins > Task Manager) y se refresca automáticamente en posteriores aperturas y durante hitos clave del flujo SDD (sdd-tasks, sdd-verify, sdd-archive). No es necesario copiar y pegar este prompt en condiciones normales.\\\\n\\\\n'
+      + 'REGLAS TÉCNICAS OBLIGATORIAS:\\\\n'
+      + '1. Edita ÚNICAMENTE el bloque \\\\x3cscript type=\\"application/json\\" id=\\"tm-state\\">. NUNCA modifiques marcado HTML, estilos CSS ni scripts JavaScript fuera de esa etiqueta.\\\\n'
+      + '2. Mantén schemaVersion: \\"1.0\\" intacto siempre.\\\\n'
+      + '3. Escapa cualquier ocurrencia de </script> dentro de strings JSON como \\\\u003c/script\\\\u003e.\\\\n'
+      + '4. Usa exclusivamente los estados válidos: \\"pending\\", \\"in-progress\\", \\"completed\\", \\"blocked\\" (estados desconocidos se mapean a \\"pending\\").\\\\n'
+      + '5. Soporta sub-tareas estructuradas en tareas con: \\"subtasks\\": [{\\"id\\": \\"ST1\\", \\"title\\": \\"...\\", \\"status\\": \\"pending\\"|\\"in-progress\\"|\\"completed\\"|\\"blocked\\"}].\\\\n'
+      + '6. Preserva IDs existentes, notas personalizadas del usuario, etiquetas y propietarios. Todas las actualizaciones deben ser aditivas y orientadas al estado.\\\\n'
+      + '7. Compatibilidad pura offline sobre file://: sin fetch, XMLHttpRequest, importaciones ESM ni dependencias externas en runtime.\\\\n'
+      + '8. No hardcodees métricas derivadas (como overallPct o conteos de estado), ya que se calculan dinámicamente en el renderizador.\\\\n'
+      + '9. La propiedad \\"tokenUsage\\" es telemetría gestionada por el host. PRESERVA el objeto tokenUsage intacto; NUNCA inventes, estimes ni sobrescribas tokenUsage.\\\\n\\\\n'
+      + 'Al finalizar, guarda el archivo con el JSON island actualizado de forma atómica y reporta un resumen conciso del estado de fases y tareas.';
   }
 
   function renderHelp(state, doc, validation) {
@@ -430,63 +337,63 @@
     var filterActive = label('filterActive', state, 'Activas');
 
     var helpHtml = ''
-      + '<h3 style="color:#fff;margin-bottom:8px;">' + esc(helpTitle) + '</h3>'
-      + '<p style="font-size:13px;color:#a0a0a0;margin-bottom:8px;">Este es un archivo HTML <strong>drop-in</strong>. Cópialo a cualquier carpeta de proyecto y ábrelo con doble clic (<code style="background:#12161d;padding:2px 6px;border-radius:4px;">file://</code>). No necesita servidor ni instalación.</p>'
-      + '<div style="background:#12161d;border:1px solid #30363d;border-radius:8px;padding:12px;margin-bottom:12px;">'
-      + '<h4 style="color:#fff;font-size:13px;margin-bottom:6px;">📋 Cómo copiar</h4>'
-      + '<ol style="font-size:13px;color:#a0a0a0;padding-left:18px;display:flex;flex-direction:column;gap:4px;">'
-      + '<li>Copia <code style="background:#1c222b;padding:2px 6px;border-radius:4px;">Task-Manager-Portable.html</code> a la raíz del proyecto</li>'
+      + '<h3 style=\"color:#fff;margin-bottom:8px;\">' + esc(helpTitle) + '</h3>'
+      + '<p style=\"font-size:13px;color:#a0a0a0;margin-bottom:8px;\">Este es un archivo HTML <strong>drop-in</strong>. Cópialo a cualquier carpeta de proyecto y ábrelo con doble clic (<code style=\"background:#12161d;padding:2px 6px;border-radius:4px;\">file://</code>). No necesita servidor ni instalación.</p>'
+      + '<div style=\"background:#12161d;border:1px solid #30363d;border-radius:8px;padding:12px;margin-bottom:12px;\">'
+      + '<h4 style=\"color:#fff;font-size:13px;margin-bottom:6px;\">📋 Cómo copiar</h4>'
+      + '<ol style=\"font-size:13px;color:#a0a0a0;padding-left:18px;display:flex;flex-direction:column;gap:4px;\">'
+      + '<li>Copia <code style=\"background:#1c222b;padding:2px 6px;border-radius:4px;\">Task-Manager-Portable.html</code> a la raíz del proyecto</li>'
       + '<li>Doble clic para abrir en el navegador (file://)</li>'
       + '<li>Verás fases, tareas, progreso y paneles opcionales</li>'
       + '</ol>'
       + '</div>'
 
-      + '<div style="background:#12161d;border:1px solid #30363d;border-radius:8px;padding:12px;margin-bottom:12px;">'
-      + '<h4 style="color:#fff;font-size:13px;margin-bottom:6px;">🤖 Cómo la IA actualiza</h4>'
-      + '<p style="font-size:13px;color:#a0a0a0;margin-bottom:6px;">La IA orquestadora actualiza <strong>SOLO</strong> el bloque <code style="background:#1c222b;padding:2px 6px;border-radius:4px;">#tm-state</code> en JSON. Todo lo visual se recalcula desde ahí.</p>'
-      + '<ul style="font-size:13px;color:#a0a0a0;padding-left:18px;display:flex;flex-direction:column;gap:4px;">'
+      + '<div style=\"background:#12161d;border:1px solid #30363d;border-radius:8px;padding:12px;margin-bottom:12px;\">'
+      + '<h4 style=\"color:#fff;font-size:13px;margin-bottom:6px;\">🤖 Cómo la IA actualiza</h4>'
+      + '<p style=\"font-size:13px;color:#a0a0a0;margin-bottom:6px;\">La IA orquestadora actualiza <strong>SOLO</strong> el bloque <code style=\"background:#1c222b;padding:2px 6px;border-radius:4px;\">#tm-state</code> en JSON. Todo lo visual se recalcula desde ahí.</p>'
+      + '<ul style=\"font-size:13px;color:#a0a0a0;padding-left:18px;display:flex;flex-direction:column;gap:4px;\">'
       + '<li>Asigna una IA: &quot;actualiza el task manager según avances en el proyecto&quot;</li>'
       + '<li>La IA edita solo el JSON island y guarda el HTML</li>'
       + '<li>Recarga el archivo en el navegador para ver progreso</li>'
-      + '<li>Esquema: <code style="background:#1c222b;padding:2px 6px;border-radius:4px;">meta</code> + <code style="background:#1c222b;padding:2px 6px;border-radius:4px;">phases[]</code> + <code style="background:#1c222b;padding:2px 6px;border-radius:4px;">todos[]</code> + <code style="background:#1c222b;padding:2px 6px;border-radius:4px;">git/tree/codegraph</code></li>'
+      + '<li>Esquema: <code style=\"background:#1c222b;padding:2px 6px;border-radius:4px;\">meta</code> + <code style=\"background:#1c222b;padding:2px 6px;border-radius:4px;\">phases[]</code> + <code style=\"background:#1c222b;padding:2px 6px;border-radius:4px;\">todos[]</code> + <code style=\"background:#1c222b;padding:2px 6px;border-radius:4px;\">git/tree/codegraph</code></li>'
       + '</ul>'
       + '</div>'
 
-      + '<div style="background:#12161d;border:1px solid #30363d;border-radius:8px;padding:12px;margin-bottom:12px;">'
-      + '<h4 style="color:#fff;font-size:13px;margin-bottom:6px;">📐 Esquema</h4>'
-      + '<pre style="font-family:var(--font-mono);font-size:11px;color:#a0a0a0;overflow-x:auto;background:#0b0e14;padding:8px;border-radius:4px;">{'
-      + '\n  &quot;schemaVersion&quot;: &quot;1.0&quot;,'
-      + '\n  &quot;meta&quot;: { &quot;projectName&quot;, &quot;version&quot;, &quot;branch&quot;, &quot;labels&quot;: {&quot;es&quot;:{}}, &quot;features&quot;: {&quot;git&quot;, &quot;tree&quot;, &quot;codegraph&quot;} },'
-      + '\n  &quot;phases&quot;: [{ &quot;id&quot;, &quot;title&quot;, &quot;status&quot;, &quot;tasks&quot;: [{&quot;id&quot;, &quot;title&quot;, &quot;status&quot;}] }],'
-      + '\n  &quot;todos&quot;: [{&quot;id&quot;, &quot;text&quot;, &quot;priority&quot;, &quot;done&quot;}],'
-      + '\n  &quot;git&quot;, &quot;tree&quot;, &quot;codegraph&quot;'
-      + '\n}</pre>'
+      + '<div style=\"background:#12161d;border:1px solid #30363d;border-radius:8px;padding:12px;margin-bottom:12px;\">'
+      + '<h4 style=\"color:#fff;font-size:13px;margin-bottom:6px;\">📐 Esquema</h4>'
+      + '<pre style=\"font-family:var(--font-mono);font-size:11px;color:#a0a0a0;overflow-x:auto;background:#0b0e14;padding:8px;border-radius:4px;\">{'
+      + '\\n  &quot;schemaVersion&quot;: &quot;1.0&quot;,'
+      + '\\n  &quot;meta&quot;: { &quot;projectName&quot;, &quot;version&quot;, &quot;branch&quot;, &quot;labels&quot;: {&quot;es&quot;:{}}, &quot;features&quot;: {&quot;git&quot;, &quot;tree&quot;, &quot;codegraph&quot;} },'
+      + '\\n  &quot;phases&quot;: [{ &quot;id&quot;, &quot;title&quot;, &quot;status&quot;, &quot;tasks&quot;: [{&quot;id&quot;, &quot;title&quot;, &quot;status&quot;}] }],'
+      + '\\n  &quot;todos&quot;: [{&quot;id&quot;, &quot;text&quot;, &quot;priority&quot;, &quot;done&quot;}],'
+      + '\\n  &quot;git&quot;, &quot;tree&quot;, &quot;codegraph&quot;'
+      + '\\n}</pre>'
       + '</div>'
 
-      + '<div id="ai-instructions" style="background:rgba(88,166,255,0.08);border:1px solid #58a6ff;border-radius:8px;padding:12px;">'
-      + '<h4 style="color:#58a6ff;font-size:13px;margin-bottom:6px;">🧠 Instrucciones para IA Orquestadora (AI-EDITABLE)</h4>'
-      + '<ul style="font-size:12px;color:#a0a0a0;padding-left:18px;display:flex;flex-direction:column;gap:4px;">'
-      + '<li><strong>SOLO</strong> edita el bloque <code style="background:#1c222b;padding:1px 4px;border-radius:3px;">&lt;script type=&quot;application/json&quot; id=&quot;tm-state&quot;&gt;</code> — nunca toques el HTML fuera del island</li>'
+      + '<div id=\"ai-instructions\" style=\"background:rgba(88,166,255,0.08);border:1px solid #58a6ff;border-radius:8px;padding:12px;\">'
+      + '<h4 style=\"color:#58a6ff;font-size:13px;margin-bottom:6px;\">🧠 Instrucciones para IA Orquestadora (AI-EDITABLE)</h4>'
+      + '<ul style=\"font-size:12px;color:#a0a0a0;padding-left:18px;display:flex;flex-direction:column;gap:4px;\">'
+      + '<li><strong>SOLO</strong> edita el bloque <code style=\"background:#1c222b;padding:1px 4px;border-radius:3px;\">&lt;script type=&quot;application/json&quot; id=&quot;tm-state&quot;&gt;</code> — nunca toques el HTML fuera del island</li>'
       + '<li>Mantén <code>schemaVersion</code> como <code>&quot;1.0&quot;</code> siempre</li>'
-      + '<li>Escapa <code>&lt;/script&gt;</code> como <code>\\u003c/script\\u003e</code> dentro de cualquier texto de tarea/nota para no romper el HTML</li>'
+      + '<li>Escapa <code>&lt;/script&gt;</code> como <code>\\\\u003c/script\\\\u003e</code> dentro de cualquier texto de tarea/nota para no romper el HTML</li>'
       + '<li>Usa <code>status</code> solo con: <code>pending</code>, <code>in-progress</code>, <code>completed</code>, <code>blocked</code> — desconocidos se mapean a <code>pending</code></li>'
       + '<li>No hagas <code>fetch</code>, <code>XML' + 'HttpRequest</code>, <code>import</code> ni leas <code>.git</code> en runtime — todo es estático</li>'
-      + '<li>Ejemplo válido: <code style="background:#1c222b;padding:1px 4px;border-radius:3px;">{&quot;id&quot;:&quot;T1-01&quot;,&quot;title&quot;:&quot;Definir esquema&quot;,&quot;status&quot;:&quot;completed&quot;}</code></li>'
+      + '<li>Ejemplo válido: <code style=\"background:#1c222b;padding:1px 4px;border-radius:3px;\">{&quot;id&quot;:&quot;T1-01&quot;,&quot;title&quot;:&quot;Definir esquema&quot;,&quot;status&quot;:&quot;completed&quot;}</code></li>'
       + '</ul>'
-      + '<p style="font-size:11px;color:#8b949e;margin-top:8px;">Filtros: ' + esc(filterAll) + ' / ' + esc(filterActive) + ' · Todo: ' + esc(todoTitle) + ' · Código en inglés, UI en español vía <code>meta.labels.es</code></p>'
+      + '<p style=\"font-size:11px;color:#8b949e;margin-top:8px;\">Filtros: ' + esc(filterAll) + ' / ' + esc(filterActive) + ' · Todo: ' + esc(todoTitle) + ' · Código en inglés, UI en español vía <code>meta.labels.es</code></p>'
       + '</div>'
 
-      + '<div id="prompt-inicial" style="background:#12161d;border:1px solid #3fb950;border-radius:8px;padding:12px;margin-top:12px;">'
-      + '<h4 style="color:#3fb950;font-size:13px;margin-bottom:6px;display:flex;align-items:center;gap:6px;">📋 Prompt Maestro para la IA — Copiar y pegar</h4>'
-      + '<p style="font-size:12px;color:#8b949e;margin-bottom:8px;">Copia este prompt y envíaselo a tu IA orquestadora al iniciar cada sesión. La IA trabajará de forma autónoma sin hacer preguntas innecesarias:</p>'
-      + '<pre id="initial-prompt-text" data-help-prompt style="font-family:var(--font-mono);font-size:11px;color:#c9d1d9;background:#0b0e14;padding:10px;border-radius:6px;overflow-x:auto;white-space:pre-wrap;word-break:break-word;border:1px solid #30363d;line-height:1.5;max-height:280px;overflow-y:auto;">' + esc(getMasterPrompt()) + '</pre>'
-      + '<button id="btn-copy-prompt" data-copy-prompt type="button" style="margin-top:8px;background:#238636;border:1px solid #3fb950;color:#fff;padding:6px 12px;border-radius:6px;cursor:pointer;font-size:13px;display:inline-flex;align-items:center;gap:6px;">📋 Copiar prompt</button>'
-      + '<span id="copy-feedback" data-copy-prompt-feedback role="status" aria-live="polite" style="margin-left:8px;font-size:12px;color:#3fb950;display:none;"></span>'
+      + '<div id=\"prompt-inicial\" style=\"background:#12161d;border:1px solid #3fb950;border-radius:8px;padding:12px;margin-top:12px;\">'
+      + '<h4 style=\"color:#3fb950;font-size:13px;margin-bottom:6px;display:flex;align-items:center;gap:6px;\">📋 Prompt para Agent Task Manager (Recuperación / Manual)</h4>'
+      + '<p style=\"font-size:12px;color:#8b949e;margin-bottom:8px;\">La sincronización normal es automática desde Plugins > Task Manager y durante hitos soportados. Si necesitas sincronizar manualmente, copia este prompt:</p>'
+      + '<pre id=\"initial-prompt-text\" data-help-prompt style=\"font-family:var(--font-mono);font-size:11px;color:#c9d1d9;background:#0b0e14;padding:10px;border-radius:6px;overflow-x:auto;white-space:pre-wrap;word-break:break-word;border:1px solid #30363d;line-height:1.5;max-height:280px;overflow-y:auto;\">' + esc(getMasterPrompt()) + '</pre>'
+      + '<button id=\"btn-copy-prompt\" data-copy-prompt type=\"button\" style=\"margin-top:8px;background:#238636;border:1px solid #3fb950;color:#fff;padding:6px 12px;border-radius:6px;cursor:pointer;font-size:13px;display:inline-flex;align-items:center;gap:6px;\">📋 Copiar prompt</button>'
+      + '<span id=\"copy-feedback\" data-copy-prompt-feedback role=\"status\" aria-live=\"polite\" style=\"margin-left:8px;font-size:12px;color:#3fb950;display:none;\"></span>'
       + '</div>'
 
-      + '<aside class="help-portability-note" aria-label="Portabilidad y documentación"><span class="help-portability-icon">i</span><div><strong>Referencia técnica local</strong><p>Documentación: <code>openspec/changes/drop-in-task-manager/</code></p><div class="help-portability-tags"><span>Tokens del prototipo</span><span><code>file://</code> compatible</span><span>Sin dependencias externas</span></div></div></aside>';
+      + '<aside class=\"help-portability-note\" aria-label=\"Portabilidad y documentación\"><span class=\"help-portability-icon\">i</span><div><strong>Referencia técnica local</strong><p>Documentación: <code>openspec/changes/drop-in-task-manager/</code></p><div class=\"help-portability-tags\"><span>Tokens del prototipo</span><span><code>file://</code> compatible</span><span>Sin dependencias externas</span></div></div></aside>';
 
-    panel.innerHTML = helpHtml + '<div id="state-inspection-mount"></div>';
+    panel.innerHTML = helpHtml + '<div id=\"state-inspection-mount\"></div>';
     renderStateTools(state, doc, validation, 'state-inspection-mount');
 
     // Attach copy handler for prompt (file:// compatible, no inline script)
@@ -523,7 +430,6 @@
   function renderAllTodoHelp(state, doc, validation) {
     renderTodo(state, doc);
     renderHelp(state, doc, validation);
-    initWelcomeModal(doc);
   }
 
   var TMTodoHelp = {
@@ -533,8 +439,7 @@
     renderStateTools: renderStateTools,
     copyText: copyText,
     exportState: exportState,
-    getMasterPrompt: getMasterPrompt,
-    initWelcomeModal: initWelcomeModal
+    getMasterPrompt: getMasterPrompt
   };
 
   try { if (typeof window !== 'undefined') window.TMTodoHelp = TMTodoHelp; } catch (_) {}

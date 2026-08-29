@@ -41,12 +41,10 @@ test('fixed offline artifact preserves boundaries and browser behavior', async (
   assert.deepEqual(blockedUrls, ['https://example.invalid/']);
 
   const welcomeDialog = page.locator('#welcome-dialog');
-  if (await welcomeDialog.isVisible()) {
-    await expect(page.locator('#welcome-dialog-title')).toBeVisible();
-    await expect(page.locator('[data-welcome-prompt]')).toBeVisible();
-    await page.locator('[data-welcome-close]').first().click();
-    await expect(welcomeDialog).not.toBeVisible();
-  }
+  await expect(welcomeDialog).toHaveCount(0);
+
+  const projectSubtitle = page.locator('#project-subtitle');
+  await expect(projectSubtitle).toHaveCount(0);
 
   for (const viewport of viewports) {
     await page.setViewportSize(viewport);
@@ -136,10 +134,6 @@ test('fixed offline artifact preserves boundaries and browser behavior', async (
   assert.equal(keys.includes('tm-ui-preferences'), false, 'file:// uses in-memory preferences to avoid opaque-origin storage access');
   await page.reload({ waitUntil: 'load' });
   assert.equal(await page.evaluate(() => localStorage.getItem('tm-ui-preferences')), null);
-  if (await welcomeDialog.isVisible()) {
-    await page.locator('[data-welcome-close]').first().click();
-    await expect(welcomeDialog).not.toBeVisible();
-  }
   await page.locator('#tab-btn-overview').click();
   const clock = page.locator('#tm-digital-clock');
   await expect(clock).toBeVisible();
@@ -200,6 +194,66 @@ test('fixed offline artifact preserves boundaries and browser behavior', async (
   await page.keyboard.press('1');
   const metricIds = await page.locator('#metrics-overview > .metric-card').evaluateAll((cards) => cards.map((card) => card.id));
   assert.deepEqual(metricIds, ['metric-overview-risk', 'metric-overall-card', 'metric-current-focus', 'metric-distribution', 'metric-git', 'metric-phase-coverage', 'metric-active-workload', 'metric-data-coverage', 'metric-insights']);
+
+  // Verify token insights capability marker, full-width token telemetry chart, and horizontal owners/tags strip in real browser
+  const insightsCard = page.locator('#metric-insights');
+  await expect(insightsCard).toHaveAttribute('data-tm-capability', 'token-insights-v2');
+  await expect(insightsCard.locator('.insight-tokens-main')).toBeVisible();
+  await expect(insightsCard.locator('.insight-meta-strip')).toBeVisible();
+  await expect(insightsCard.locator('.insight-owners')).toBeVisible();
+  await expect(insightsCard.locator('.insight-tags')).toBeVisible();
+  await expect(insightsCard.locator('.insight-status-region')).toHaveCount(0);
+  await expect(insightsCard.locator('.insight-risk-region')).toHaveCount(0);
+  await expect(insightsCard.locator('.insight-trend-region')).toHaveCount(0);
+
+  // Test Desglose de consumo y actividad por agente Detail Dialog layout and ordering
+  await insightsCard.focus();
+  await insightsCard.press('Enter');
+  const insightsDialog = page.locator('#overview-detail-dialog');
+  await expect(insightsDialog).toBeVisible();
+  await expect(insightsDialog.locator('#overview-detail-title')).toHaveText('Desglose de consumo y actividad por agente');
+
+  // Verify full-width prominent table directly below header
+  const customRegion = insightsDialog.locator('.overview-detail-main-custom');
+  await expect(customRegion).toBeVisible();
+  const tokenTable = customRegion.locator('.token-details-table');
+  await expect(tokenTable).toBeVisible();
+  await expect(tokenTable.locator('caption')).toHaveText('Desglose de consumo y actividad por agente');
+  await expect(tokenTable.locator('tbody tr')).toHaveCount(4);
+
+  // Verify compact 4-group metadata strip below full-width table
+  const metaStrip = insightsDialog.locator('.overview-detail-meta-strip');
+  await expect(metaStrip).toBeVisible();
+  const metaSections = metaStrip.locator('.overview-detail-section');
+  await expect(metaSections).toHaveCount(4);
+  const sectionHeaders = await metaSections.locator('h3').allTextContents();
+  assert.deepEqual(sectionHeaders.map((h) => h.trim()), ['Responsables', 'Etiquetas', 'Riesgo', 'Historial']);
+
+  // Verify table bounding box and responsive reflow across wide, intermediate, and 320px viewports
+  for (const vp of [{ width: 1280, height: 720 }, { width: 768, height: 1024 }, { width: 320, height: 568 }]) {
+    await page.setViewportSize(vp);
+    const dialogGeometry = await page.evaluate(() => {
+      const doc = document.documentElement;
+      const dlg = document.getElementById('overview-detail-dialog');
+      const tblContainer = dlg?.querySelector('.token-table-container');
+      return {
+        docScrollWidth: doc.scrollWidth,
+        docClientWidth: doc.clientWidth,
+        tableContainerClientWidth: tblContainer?.clientWidth || 0,
+        tableContainerScrollWidth: tblContainer?.scrollWidth || 0,
+      };
+    });
+    assert.ok(dialogGeometry.docScrollWidth <= dialogGeometry.docClientWidth, `modal dialog causes horizontal document overflow at ${vp.width}px`);
+    if (vp.width === 320) {
+      assert.ok(dialogGeometry.tableContainerScrollWidth >= dialogGeometry.tableContainerClientWidth, 'table container provides bounded scroll at 320px');
+    }
+  }
+
+  // Close Insights dialog and test focus restoration
+  await page.keyboard.press('Escape');
+  await expect(insightsDialog).not.toBeVisible();
+  await expect(insightsCard).toBeFocused();
+
   const metric = page.locator('#metric-overall-card');
   await metric.focus();
   await metric.press('Enter');
@@ -213,5 +267,59 @@ test('fixed offline artifact preserves boundaries and browser behavior', async (
   await page.locator('#tab-btn-help').click();
   await expect(page.locator('.state-health-card')).toBeVisible();
   await expect(page.locator('.state-tools-advanced')).not.toHaveAttribute('open', '');
+
+  // Test Synchronization Banner in browser DOM: running, error, and synced states
+  await page.evaluate(() => {
+    const runningState = {
+      meta: {
+        syncStatus: 'running',
+        projectName: 'E2E Sync Test'
+      }
+    };
+    window.TMHeaderHud.renderSyncStatus(runningState, document);
+  });
+  const syncBanner = page.locator('#tm-sync-banner');
+  await expect(syncBanner).toBeVisible();
+  await expect(syncBanner).toHaveClass(/sync-running/);
+  await expect(syncBanner.locator('.sync-agent-badge')).toHaveText('Agent Task Manager');
+  await expect(syncBanner.locator('.sync-signal-node')).toHaveCount(4);
+  await expect(syncBanner.locator('.sync-kbd')).toHaveText('F5');
+
+  // Verify responsive containment of running banner at narrow 320px viewport
+  await page.setViewportSize({ width: 320, height: 568 });
+  const bannerBox = await syncBanner.boundingBox();
+  assert.ok(bannerBox && bannerBox.x >= 0 && bannerBox.x + bannerBox.width <= 320, 'running sync banner exceeds 320px viewport');
+  const narrowGeometry = await page.evaluate(() => ({
+    clientWidth: document.documentElement.clientWidth,
+    scrollWidth: document.documentElement.scrollWidth,
+  }));
+  assert.ok(narrowGeometry.scrollWidth <= narrowGeometry.clientWidth, 'running sync banner causes horizontal overflow on 320px viewport');
+
+  // Error state
+  await page.evaluate(() => {
+    const errorState = {
+      meta: {
+        syncStatus: 'error',
+        lastError: 'Simulated connection timeout'
+      }
+    };
+    window.TMHeaderHud.renderSyncStatus(errorState, document);
+  });
+  await expect(syncBanner).toBeVisible();
+  await expect(syncBanner).toHaveClass(/sync-error/);
+  await expect(syncBanner).toHaveAttribute('role', 'alert');
+  await expect(syncBanner).toContainText('Simulated connection timeout');
+
+  // Synced state hides banner
+  await page.evaluate(() => {
+    const syncedState = {
+      meta: {
+        syncStatus: 'synced'
+      }
+    };
+    window.TMHeaderHud.renderSyncStatus(syncedState, document);
+  });
+  await expect(syncBanner).toBeHidden();
+
   assert.deepEqual(errors, []);
 });

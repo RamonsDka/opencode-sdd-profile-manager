@@ -215,13 +215,41 @@ describe('header-hud — global %, totals, badges', () => {
     assert.equal(focusEl.textContent.includes('Sin fase') || focusEl.textContent.includes('Sin'), true);
   });
 
-  it('renders semantic insight SVGs with bounded values, workload text, risks, and conservative forecast', () => {
+  it('renders panoramic Insights band with token telemetry chart and compact side rail (Owners & Tags)', () => {
     const state = createState({
-      meta: {
-        history: [
-          { timestamp: '2026-08-18T00:00:00Z', completed: 0, total: 4 },
-          { timestamp: '2026-08-19T00:00:00Z', completed: 1, total: 4 },
-          { timestamp: '2026-08-20T00:00:00Z', completed: 2, total: 4 },
+      tokenUsage: {
+        schemaVersion: '1.0',
+        updatedAt: '2026-08-29T12:00:00Z',
+        source: 'opencode-sdk',
+        scope: '/app',
+        root: '/app',
+        byAgent: [
+          {
+            agent: 'sdd-apply',
+            model: 'claude-3-7-sonnet',
+            categories: { input: 12000, output: 4000, reasoning: 1500, cacheRead: 25000, cacheWrite: 500, total: 43000 },
+            total: 43000,
+            cost: 0.035,
+            evidence: 'measured',
+            confidence: 1.0,
+          },
+          {
+            agent: 'Orquestador',
+            model: 'claude-3-7-sonnet',
+            categories: { input: 6000, output: 2000, reasoning: 800, cacheRead: 10000, cacheWrite: 200, total: 19000 },
+            total: 19000,
+            cost: 0.015,
+            evidence: 'derived',
+            confidence: 1.0,
+          },
+          {
+            agent: 'sdd-verify',
+            model: 'gemini-2.5-flash',
+            categories: { input: 2000, output: 800, reasoning: 200, cacheRead: 3000, cacheWrite: 0, total: 6000 },
+            total: 6000,
+            evidence: 'estimated',
+            confidence: 0.35,
+          },
         ],
       },
       phases: [{ id: 'p1', number: 1, title: 'Core <UI>', status: 'in-progress', tasks: [
@@ -235,29 +263,57 @@ describe('header-hud — global %, totals, badges', () => {
 
     const card = document.getElementById('metric-insights');
     assert.notEqual(card, null);
-    const svg = card.querySelector('svg');
-    assert.notEqual(svg, null);
-    assert.equal(svg.getAttribute('role'), 'img');
-    assert.match(svg.getAttribute('viewBox'), /^0 0 \d+ \d+$/);
-    assert.notEqual(svg.querySelector('title'), null);
-    assert.equal(/NaN|Infinity/.test(card.innerHTML), false);
-    assert.equal(card.textContent.includes('AI'), true);
-    assert.equal(card.textContent.includes('Blockers: 1'), true);
-    assert.equal(card.textContent.includes('High risk: 1'), true);
-    assert.match(card.textContent, /Low confidence|trend only/i);
-    assert.equal(/deadline|promise|due date/i.test(card.textContent), false);
+    assert.equal(card.classList.contains('metric-insights-band'), true);
+    assert.equal(card.getAttribute('data-tm-capability'), 'token-insights-v2');
+
+    // Main token telemetry region (full width)
+    const tokensMain = card.querySelector('.insight-tokens-main');
+    assert.notEqual(tokensMain, null, 'main area must contain token telemetry');
+    assert.equal(tokensMain.textContent.includes('sdd-apply'), true);
+    assert.equal(tokensMain.textContent.includes('Orquestador'), true);
+    assert.equal(tokensMain.textContent.includes('sdd-verify'), true);
+    assert.equal(tokensMain.textContent.includes('Medido'), true);
+    assert.equal(tokensMain.textContent.includes('Derivado'), true);
+    assert.equal(tokensMain.textContent.includes('Estimado'), true);
+    assert.equal(tokensMain.textContent.includes('claude-3-7-sonnet'), true);
+
+    // Horizontal strip with Owners and Tags
+    const metaStrip = card.querySelector('.insight-meta-strip');
+    assert.notEqual(metaStrip, null, 'compact metadata strip must exist');
+    assert.notEqual(card.querySelector('.insight-owners'), null);
+    assert.notEqual(card.querySelector('.insight-tags'), null);
+    assert.equal(card.querySelector('.insight-dimension-list').children.length > 0, true);
+
+    // Removed old visible sections from main band
+    assert.equal(card.querySelector('.insight-status-region'), null, 'old status region must be removed from main band');
+    assert.equal(card.querySelector('.insight-risk-region'), null, 'old risk region must be removed from main band');
+    assert.equal(card.querySelector('.insight-trend-region'), null, 'old trend region must be removed from main band');
+
+    // Check summary chips
+    assert.equal(card.querySelector('.token-chip-total').textContent.includes('68.0k'), true);
   });
 
-  it('renders a finite zero-task insight state without trend or non-finite SVG attributes', () => {
+  it('renders a clean empty telemetry state and handles stale telemetry', () => {
     const state = createState({ phases: [{ id: 'empty', number: 1, title: 'Empty', status: 'pending', tasks: [] }] });
     const { document, hud } = mountWithState(state);
     hud.renderAll(state, document);
     const card = document.getElementById('metric-insights');
     assert.notEqual(card, null);
-    assert.equal(card.textContent.includes('Blockers: 0'), true);
-    assert.equal(card.querySelectorAll('svg').length > 0, true);
-    assert.equal(/NaN|Infinity/.test(card.innerHTML), false);
-    assert.equal(card.querySelector('.insight-trend'), null);
+    assert.notEqual(card.querySelector('.insight-empty-telemetry'), null);
+    assert.equal(card.textContent.includes('Sin telemetría de tokens registrada'), true);
+
+    // Test stale state
+    const staleState = createState({
+      tokenUsage: {
+        updatedAt: new Date(Date.now() - 30 * 60 * 60 * 1000).toISOString(),
+        byAgent: [{ agent: 'sdd-apply', total: 500, categories: { input: 400, output: 100, total: 500 } }],
+      },
+    });
+    const { document: staleDoc, hud: staleHud } = mountWithState(staleState);
+    staleHud.renderAll(staleState, staleDoc);
+    const staleCard = staleDoc.getElementById('metric-insights');
+    assert.notEqual(staleCard.querySelector('.token-chip-stale'), null);
+    assert.equal(staleCard.querySelector('.token-chip-stale').textContent.includes('Desactualizado'), true);
   });
 
   it('renders semantic mobile containment hooks without changing metric or status text', () => {
@@ -303,32 +359,96 @@ describe('header-hud — global %, totals, badges', () => {
     assert.equal(kanban.hidden, true);
   });
 
-  it('renders insights as a panoramic band with separate compact regions', () => {
+  it('renders accessible data table in Insights details dialog', () => {
     const state = createState({
-      meta: {
-        history: [
-          { timestamp: '2026-08-18T00:00:00Z', completed: 1, total: 4 },
-          { timestamp: '2026-08-19T00:00:00Z', completed: 2, total: 4 },
-          { timestamp: '2026-08-20T00:00:00Z', completed: 3, total: 4 },
+      tokenUsage: {
+        schemaVersion: '1.0',
+        updatedAt: '2026-08-29T12:00:00Z',
+        source: 'opencode-sdk',
+        scope: '/app',
+        root: '/app',
+        totals: { input: 15000, output: 5000, reasoning: 1000, cacheRead: 20000, cacheWrite: 500, total: 41500, cost: 0.05 },
+        byAgent: [
+          {
+            agent: 'sdd-apply',
+            model: 'claude-3-7-sonnet',
+            models: ['claude-3-7-sonnet'],
+            categories: { input: 10000, output: 3500, reasoning: 800, cacheRead: 15000, cacheWrite: 300, total: 29600 },
+            total: 29600,
+            cost: 0.035,
+            sessions: 2,
+            messages: 8,
+            evidence: 'measured',
+            confidence: 1.0,
+          },
+          {
+            agent: 'sdd-verify',
+            model: 'gemini-2.5-flash',
+            models: ['gemini-2.5-flash'],
+            categories: { input: 5000, output: 1500, reasoning: 200, cacheRead: 5000, cacheWrite: 200, total: 11900 },
+            total: 11900,
+            cost: 0.015,
+            sessions: 1,
+            messages: 4,
+            evidence: 'derived',
+            confidence: 1.0,
+          },
         ],
       },
       phases: [{ id: 'p1', number: 1, title: 'Phase', status: 'in-progress', tasks: [
         { id: 'T1', title: 'One', status: 'completed', owner: 'AI', tag: 'Core' },
         { id: 'T2', title: 'Two', status: 'in-progress', owner: 'Ops', tag: 'UI' },
       ] }],
+      meta: {
+        history: [
+          { timestamp: '2026-08-28T12:00:00Z', completed: 1, total: 2 },
+          { timestamp: '2026-08-29T12:00:00Z', completed: 1, total: 2 },
+        ],
+      },
     });
     const { document, hud } = mountWithState(state);
     hud.renderAll(state, document);
 
     const card = document.getElementById('metric-insights');
     assert.equal(card.classList.contains('metric-insights-band'), true);
-    assert.notEqual(card.querySelector('.insight-status-region'), null);
-    assert.notEqual(card.querySelector('.insight-owners'), null);
-    assert.notEqual(card.querySelector('.insight-tags'), null);
-    assert.notEqual(card.querySelector('.insight-trend-region'), null);
-    assert.equal(card.querySelector('.insight-dimension-list').children.length > 1, true);
-    assert.equal(card.querySelector('.insight-band-grid').classList.contains('insight-workloads'), false, 'the internal grid must not inherit obsolete workload display rules');
-    assert.equal(card.querySelector('svg[role="img"]'), card.querySelector('svg'), 'semantic insight SVG must remain intact');
+
+    // Open detail dialog
+    card.click();
+    const dialog = document.getElementById('overview-detail-dialog');
+    assert.notEqual(dialog, null);
+    assert.equal(dialog.querySelector('#overview-detail-title')?.textContent, 'Desglose de consumo y actividad por agente');
+
+    const content = dialog.querySelector('#overview-detail-content');
+    assert.notEqual(content, null);
+
+    // Verify ordering: custom table region comes first
+    const customRegion = content.querySelector('.overview-detail-main-custom');
+    assert.notEqual(customRegion, null, 'detail dialog must contain prominent full-width custom region');
+
+    const table = customRegion.querySelector('.token-details-table');
+    assert.notEqual(table, null, 'detail dialog must contain accessible token table');
+    assert.notEqual(table.querySelector('caption'), null);
+    assert.notEqual(table.querySelector('thead'), null);
+    assert.notEqual(table.querySelector('tbody'), null);
+    assert.notEqual(table.querySelector('tfoot'), null);
+    assert.equal(table.textContent.includes('sdd-apply'), true);
+    assert.equal(table.textContent.includes('claude-3-7-sonnet'), true);
+    assert.equal(table.textContent.includes('Totales'), true);
+    assert.equal(table.textContent.includes('41,500'), true);
+
+    // Verify compact 4-group horizontal metadata strip below table
+    const metaStrip = content.querySelector('.overview-detail-meta-strip');
+    assert.notEqual(metaStrip, null, 'detail dialog must contain compact metadata strip');
+
+    const sections = metaStrip.querySelectorAll('.overview-detail-section');
+    assert.equal(sections.length, 4, 'metadata strip must contain 4 compact sections');
+
+    const headings = Array.from(sections).map((s) => s.querySelector('h3')?.textContent?.trim());
+    assert.deepEqual(headings, ['Responsables', 'Etiquetas', 'Riesgo', 'Historial']);
+
+    // Check that customRegion precedes metaStrip in DOM
+    const children = Array.from(content.children);
+    assert.equal(children.indexOf(customRegion) < children.indexOf(metaStrip), true, 'table must appear directly before metadata strip');
   });
 
   it('fills the executive summary with three additional truthful informational cards', () => {
@@ -585,5 +705,143 @@ describe('header-hud — digital clock and last update cockpit hub', () => {
     const logo = document.getElementById('project-logo-icon');
     assert.notEqual(logo, null, 'project logo icon must exist');
     assert.equal(logo.querySelector('svg') !== null, true, 'logo must contain svg');
+  });
+
+  it('permanently avoids creating or rendering project-subtitle element', () => {
+    const state = createState({
+      meta: {
+        projectName: 'Subtitle Test',
+        description: 'Existing project description that must not render',
+        labels: {
+          es: {
+            headerSubtitle: 'Legacy header subtitle'
+          }
+        }
+      }
+    });
+    const { document, hud } = mountWithState(state);
+    hud.renderHeader(state, document);
+
+    const subtitle = document.getElementById('project-subtitle');
+    assert.equal(subtitle, null, '#project-subtitle must never exist in the rendered DOM');
+    assert.equal(document.querySelector('.header-titles #project-subtitle'), null);
+    assert.equal(document.body.innerHTML.includes('id="project-subtitle"'), false);
+  });
+
+  it('renders truthful running, error, and synced states in synchronization banner', () => {
+    // 1. Running state: authored signal focal motion with activity nodes, agent badge, and F5 advice
+    const runningState = createState({
+      meta: {
+        syncStatus: 'running',
+        projectName: 'Sync Test',
+      }
+    });
+    const { document, hud } = mountWithState(runningState);
+    hud.renderAll(runningState, document);
+
+    const banner = document.getElementById('tm-sync-banner');
+    assert.notEqual(banner, null, '#tm-sync-banner must exist');
+    assert.equal(banner.hidden, false);
+    assert.equal(banner.getAttribute('role'), 'status');
+    assert.equal(banner.getAttribute('aria-live'), 'polite');
+    assert.ok(banner.className.includes('sync-running'));
+    assert.ok(banner.textContent.includes('Agent Task Manager'));
+    assert.ok(banner.textContent.includes('Sincronización en curso en segundo plano'));
+    assert.ok(banner.textContent.includes('F5'));
+    assert.notEqual(banner.querySelector('.sync-signal-cluster'), null);
+    assert.equal(banner.querySelectorAll('.sync-signal-node').length, 4);
+    assert.notEqual(banner.querySelector('.sync-energy-beam'), null);
+    assert.notEqual(banner.querySelector('.sync-glow-sweep'), null);
+    assert.notEqual(banner.querySelector('.sync-agent-badge'), null);
+    assert.notEqual(banner.querySelector('.sync-kbd'), null);
+
+    // 2. Prolonged state: reassuring segmented neon rail, no red, polite status
+    const prolongedState = createState({
+      meta: {
+        syncStatus: 'prolonged',
+        projectName: 'Prolonged Test',
+      }
+    });
+    hud.renderSyncStatus(prolongedState, document);
+    assert.equal(banner.hidden, false);
+    assert.equal(banner.getAttribute('role'), 'status');
+    assert.equal(banner.getAttribute('aria-live'), 'polite');
+    assert.ok(banner.className.includes('sync-prolonged'));
+    assert.ok(!banner.className.includes('sync-error'), 'Prolonged must not have error styling');
+    assert.ok(banner.textContent.includes('Agent Task Manager'));
+    assert.ok(banner.textContent.includes('segundo plano'));
+    assert.ok(banner.textContent.includes('F5'));
+    assert.notEqual(banner.querySelector('.sync-segmented-rail'), null, 'Segmented rail must exist');
+    assert.ok(banner.querySelectorAll('.sync-rail-seg').length >= 4, 'Segmented rail must have illuminated blocks');
+
+    // 3. Error state: distinct, non-animated emphasis with alert role
+    const errorState = createState({
+      meta: {
+        syncStatus: 'error',
+        lastError: 'Agent timeout after 30s',
+      }
+    });
+    hud.renderSyncStatus(errorState, document);
+    assert.equal(banner.hidden, false);
+    assert.equal(banner.getAttribute('role'), 'alert');
+    assert.equal(banner.getAttribute('aria-live'), 'assertive');
+    assert.ok(banner.className.includes('sync-error'));
+    assert.ok(banner.textContent.includes('Agent timeout after 30s'));
+    assert.ok(banner.textContent.includes('Plugins → Task Manager para reintentar'));
+    assert.notEqual(banner.querySelector('.sync-error-icon-box'), null);
+
+    // 3. Synced state hides the banner completely
+    const syncedState = createState({
+      meta: {
+        syncStatus: 'synced',
+      }
+    });
+    hud.renderSyncStatus(syncedState, document);
+    assert.equal(banner.hidden, true);
+    assert.equal(banner.style.display, 'none');
+    assert.equal(banner.innerHTML, '');
+  });
+
+  it('truthfully formats git snapshot counts with totalCount and latest limit', () => {
+    const state = createState({
+      git: {
+        branch: 'main',
+        totalCount: 151,
+        limit: 5,
+        commits: [
+          { hash: '1111111', message: 'c1' },
+          { hash: '2222222', message: 'c2' },
+          { hash: '3333333', message: 'c3' },
+          { hash: '4444444', message: 'c4' },
+          { hash: '5555555', message: 'c5' },
+        ],
+        syncStatus: 'synced',
+      },
+    });
+    const { document, hud } = mountWithState(state);
+    hud.renderAll(state, document);
+
+    const gitCard = document.getElementById('metric-git');
+    gitCard.click();
+
+    const dialog = document.getElementById('overview-detail-dialog');
+    assert.match(dialog.textContent, /5 de 151 commits recientes/);
+  });
+
+  it('resolveLastUpdatedDate includes lastSyncCompletedAt and lastSyncAt but not prolonged start', () => {
+    const completedTimestamp = '2026-08-29T14:30:00.000Z';
+    const state = createState({
+      meta: {
+        lastSyncCompletedAt: completedTimestamp,
+        lastSyncStartAt: '2026-08-29T14:00:00.000Z',
+        lastSyncProlongedAt: '2026-08-29T14:05:00.000Z',
+      },
+    });
+    const { document, hud } = mountWithState(state);
+    hud.renderAll(state, document);
+
+    const elExact = document.getElementById('last-update-exact');
+    assert.notEqual(elExact, null);
+    assert.match(elExact.textContent, /29\/08\/2026|8\/29\/2026/);
   });
 });

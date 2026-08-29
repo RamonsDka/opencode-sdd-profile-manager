@@ -18,11 +18,184 @@
   function finiteNumber(value, fallback) { value = Number(value); return isFinite(value) ? value : fallback; }
   function clamp(value, min, max) { return Math.max(min, Math.min(max, finiteNumber(value, min))); }
   function svgNumber(value) { return String(Math.round(clamp(value, -100000, 100000) * 100) / 100); }
+
+  function formatNumber(n) {
+    if (typeof n !== 'number' || !isFinite(n)) return '0';
+    return String(Math.round(n)).replace(/\B(?=(\d{3})+(?!\d))/g, ',');
+  }
+
+  function formatCompactTokens(n) {
+    if (typeof n !== 'number' || !isFinite(n)) return '0';
+    if (n >= 1000000) return (n / 1000000).toFixed(1) + 'M';
+    if (n >= 1000) return (n / 1000).toFixed(1) + 'k';
+    return String(Math.round(n));
+  }
+
   function resolveInsights(state, metrics, core, supplied) {
     return supplied || (core && state && typeof core.deriveInsights === 'function' ? core.deriveInsights(state) : {
       metrics: metrics, tasks: [], dimensions: { owner: {}, tag: {} }, blockers: { total: 0 }, history: [],
-      forecast: { available: false, label: 'Forecast unavailable', reason: 'No history data' }
+      forecast: { available: false, label: 'Forecast unavailable', reason: 'No history data' },
+      tokenUsage: { hasData: false, totals: { input: 0, output: 0, reasoning: 0, cacheRead: 0, cacheWrite: 0, total: 0, cost: undefined }, byAgent: [] }
     });
+  }
+
+  function renderTokenChart(tokenUsage) {
+    if (!tokenUsage || !tokenUsage.hasData || !tokenUsage.byAgent || !tokenUsage.byAgent.length) {
+      return '<div class="insight-empty-telemetry">'
+        + '<span class="insight-empty-title">Sin telemetría de tokens registrada</span>'
+        + '<span class="insight-empty-copy">La telemetría se recopilará automáticamente en la próxima sincronización del orquestador.</span>'
+        + '</div>';
+    }
+
+    var isActivityEstimation = tokenUsage.source === 'activity-estimation';
+    var byAgent = tokenUsage.byAgent;
+    var maxTotal = byAgent.reduce(function (max, item) { return Math.max(max, item.total); }, 1);
+    var anyEstimated = false;
+
+    var rows = byAgent.map(function (item) {
+      if (item.evidence === 'estimated') anyEstimated = true;
+      var agentPct = clamp(Math.round(item.total / maxTotal * 100), 4, 100);
+      var cats = item.categories || {};
+      var inpPct = item.total ? clamp(Math.round(cats.input / item.total * 100), 0, 100) : 0;
+      var outPct = item.total ? clamp(Math.round(cats.output / item.total * 100), 0, 100) : 0;
+      var cRdPct = item.total ? clamp(Math.round(cats.cacheRead / item.total * 100), 0, 100) : 0;
+      var reaPct = item.total ? clamp(Math.round(cats.reasoning / item.total * 100), 0, 100) : 0;
+      var cWrPct = (item.total && cats.cacheWrite > 0) ? clamp(Math.round(cats.cacheWrite / item.total * 100), 0, 100) : 0;
+
+      var evidenceLabel = isActivityEstimation
+        ? 'Estimación por actividad'
+        : (item.evidence === 'measured' ? 'Medido' : (item.evidence === 'derived' ? 'Derivado' : 'Estimado'));
+      var evidenceClass = isActivityEstimation ? 'token-evidence-estimated' : ('token-evidence-' + item.evidence);
+      var costText = (!isActivityEstimation && item.cost !== undefined) ? ' · $' + item.cost.toFixed(3) : '';
+      var unitLabel = isActivityEstimation ? ' u. activ.' : ' tokens';
+
+      var barInnerHtml = isActivityEstimation
+        ? '<div class="token-seg token-seg-activity" style="width:100%;" title="' + esc('Actividad: ' + formatNumber(item.total) + ' unidades') + '"></div>'
+        : ('<div class="token-seg token-seg-input" style="width:' + inpPct + '%;" title="' + esc('Entrada: ' + formatNumber(cats.input)) + '"></div>'
+          + '<div class="token-seg token-seg-output" style="width:' + outPct + '%;" title="' + esc('Salida: ' + formatNumber(cats.output)) + '"></div>'
+          + '<div class="token-seg token-seg-cache-read" style="width:' + cRdPct + '%;" title="' + esc('Lectura Caché: ' + formatNumber(cats.cacheRead)) + '"></div>'
+          + '<div class="token-seg token-seg-reasoning" style="width:' + reaPct + '%;" title="' + esc('Razonamiento: ' + formatNumber(cats.reasoning)) + '"></div>'
+          + (cats.cacheWrite > 0 ? '<div class="token-seg token-seg-cache-write" style="width:' + cWrPct + '%;" title="' + esc('Escritura Caché: ' + formatNumber(cats.cacheWrite)) + '"></div>' : ''));
+
+      return '<div class="token-agent-row">'
+        + '<div class="token-agent-meta">'
+        + '<div class="token-agent-meta-left">'
+        + '<span class="token-agent-name">' + esc(item.agent) + '</span>'
+        + (item.model ? '<span class="token-agent-model-badge">' + esc(item.model) + '</span>' : '')
+        + '<span class="token-evidence-badge ' + evidenceClass + '">' + evidenceLabel + '</span>'
+        + '</div>'
+        + '<span class="token-agent-total">' + formatNumber(item.total) + unitLabel + costText + '</span>'
+        + '</div>'
+        + '<div class="token-bar-track" role="progressbar" aria-valuenow="' + item.total + '" aria-valuemin="0" aria-valuemax="' + maxTotal + '" aria-label="' + esc(item.agent + ': ' + formatNumber(item.total) + unitLabel) + '">'
+        + '<div class="token-bar-fill" style="width:' + agentPct + '%;">'
+        + barInnerHtml
+        + '</div>'
+        + '</div>'
+        + '</div>';
+    }).join('');
+
+    var anyCacheWrite = !isActivityEstimation && byAgent.some(function (item) { return item.categories && item.categories.cacheWrite > 0; });
+
+    var legendHtml = isActivityEstimation
+      ? ('<div class="token-chart-legend">'
+        + '<span class="legend-item"><span class="legend-swatch" style="background:linear-gradient(90deg,#38bdf8,#818cf8);"></span> Unidades relativas de actividad</span>'
+        + '<span class="token-estimate-note">* Estimación por actividad basada en asignación y avance de tareas (sin telemetría directa de tokens)</span>'
+        + '</div>')
+      : ('<div class="token-chart-legend">'
+        + '<span class="legend-item"><span class="legend-swatch legend-input"></span> Entrada</span>'
+        + '<span class="legend-item"><span class="legend-swatch legend-output"></span> Salida</span>'
+        + '<span class="legend-item"><span class="legend-swatch legend-cache-read"></span> Lectura Caché</span>'
+        + '<span class="legend-item"><span class="legend-swatch legend-reasoning"></span> Razonamiento</span>'
+        + (anyCacheWrite ? '<span class="legend-item"><span class="legend-swatch legend-cache-write"></span> Escritura Caché</span>' : '')
+        + (anyEstimated ? '<span class="token-estimate-note">* Estimación determinista (caracteres / 4)</span>' : '')
+        + '</div>');
+
+    return '<div class="token-chart-container">' + rows + '</div>' + legendHtml;
+  }
+
+  function renderTokenDetailsTable(tokenUsage) {
+    if (!tokenUsage || !tokenUsage.hasData || !tokenUsage.byAgent || !tokenUsage.byAgent.length) {
+      return '<p class="overview-section-copy">No hay telemetría de tokens registrada para este proyecto.</p>';
+    }
+
+    var isActivityEstimation = tokenUsage.source === 'activity-estimation';
+    var byAgent = tokenUsage.byAgent;
+    var totals = tokenUsage.totals;
+    var anyEstimated = false;
+
+    var rows = byAgent.map(function (item) {
+      if (item.evidence === 'estimated') anyEstimated = true;
+      var cats = item.categories || {};
+      var costStr = (!isActivityEstimation && item.cost !== undefined) ? '$' + item.cost.toFixed(4) : '—';
+      var evidenceLabel = isActivityEstimation
+        ? 'Estimación por actividad'
+        : (item.evidence === 'measured' ? 'Medido' : (item.evidence === 'derived' ? 'Derivado' : 'Estimado'));
+      var modelsStr = (item.models && item.models.length) ? item.models.join(', ') : (item.model || '—');
+
+      return '<tr>'
+        + '<td><strong>' + esc(item.agent) + '</strong></td>'
+        + '<td><code>' + esc(modelsStr) + '</code></td>'
+        + '<td class="num-col">' + (isActivityEstimation ? '—' : formatNumber(cats.input)) + '</td>'
+        + '<td class="num-col">' + (isActivityEstimation ? '—' : formatNumber(cats.output)) + '</td>'
+        + '<td class="num-col">' + (isActivityEstimation ? '—' : formatNumber(cats.reasoning)) + '</td>'
+        + '<td class="num-col">' + (isActivityEstimation ? '—' : formatNumber(cats.cacheRead)) + '</td>'
+        + '<td class="num-col">' + (isActivityEstimation ? '—' : formatNumber(cats.cacheWrite)) + '</td>'
+        + '<td class="num-col"><strong>' + formatNumber(item.total) + (isActivityEstimation ? ' u' : '') + '</strong></td>'
+        + '<td class="num-col">' + costStr + '</td>'
+        + '<td class="num-col">' + formatNumber(item.sessions || 0) + '</td>'
+        + '<td class="num-col">' + formatNumber(item.messages || 0) + '</td>'
+        + '<td><span class="token-evidence-badge token-evidence-' + item.evidence + '">' + evidenceLabel + '</span></td>'
+        + '</tr>';
+    }).join('');
+
+    var totalCostStr = (!isActivityEstimation && totals.cost !== undefined) ? '$' + totals.cost.toFixed(4) : '—';
+    var totalSessions = byAgent.reduce(function (sum, a) { return sum + (a.sessions || 0); }, 0);
+    var totalMessages = byAgent.reduce(function (sum, a) { return sum + (a.messages || 0); }, 0);
+    var totalColLabel = isActivityEstimation ? 'Total Actividad' : 'Total Tokens';
+
+    var tableHtml = '<div class="token-table-container">'
+      + '<table class="token-details-table" role="table" aria-label="Desglose detallado de telemetría por agente">'
+      + '<caption>Desglose de consumo y actividad por agente</caption>'
+      + '<thead>'
+      + '<tr>'
+      + '<th scope="col">Agente</th>'
+      + '<th scope="col">Modelo(s)</th>'
+      + '<th scope="col" class="num-col">Entrada</th>'
+      + '<th scope="col" class="num-col">Salida</th>'
+      + '<th scope="col" class="num-col">Razonamiento</th>'
+      + '<th scope="col" class="num-col">Lectura Caché</th>'
+      + '<th scope="col" class="num-col">Escritura Caché</th>'
+      + '<th scope="col" class="num-col">' + totalColLabel + '</th>'
+      + '<th scope="col" class="num-col">Costo</th>'
+      + '<th scope="col" class="num-col">Sesiones</th>'
+      + '<th scope="col" class="num-col">Tareas / Msg</th>'
+      + '<th scope="col">Evidencia</th>'
+      + '</tr>'
+      + '</thead>'
+      + '<tbody>' + rows + '</tbody>'
+      + '<tfoot>'
+      + '<tr>'
+      + '<th scope="row">Totales</th>'
+      + '<td>—</td>'
+      + '<td class="num-col">' + (isActivityEstimation ? '—' : formatNumber(totals.input)) + '</td>'
+      + '<td class="num-col">' + (isActivityEstimation ? '—' : formatNumber(totals.output)) + '</td>'
+      + '<td class="num-col">' + (isActivityEstimation ? '—' : formatNumber(totals.reasoning)) + '</td>'
+      + '<td class="num-col">' + (isActivityEstimation ? '—' : formatNumber(totals.cacheRead)) + '</td>'
+      + '<td class="num-col">' + (isActivityEstimation ? '—' : formatNumber(totals.cacheWrite)) + '</td>'
+      + '<td class="num-col"><strong>' + formatNumber(totals.total) + (isActivityEstimation ? ' u' : '') + '</strong></td>'
+      + '<td class="num-col">' + totalCostStr + '</td>'
+      + '<td class="num-col">' + formatNumber(totalSessions) + '</td>'
+      + '<td class="num-col">' + formatNumber(totalMessages) + '</td>'
+      + '<td>—</td>'
+      + '</tr>'
+      + '</tfoot>'
+      + '</table>'
+      + '</div>'
+      + (isActivityEstimation
+        ? '<p class="token-table-note">* Estimación determinista por volumen de tareas y subtareas asignadas.</p>'
+        : (anyEstimated ? '<p class="token-table-note">* Estimación determinista basada en longitud de caracteres (chars / 4).</p>' : ''));
+
+    return tableHtml;
   }
   function renderStatusSvg(insights) {
     var d = insights && insights.metrics && insights.metrics.distribution || {};
@@ -110,7 +283,7 @@
       },
       'metric-git': {
         title: 'Git', value: (git.branch || state && state.meta && state.meta.branch || 'Sin rama'), summary: git.syncStatus || state && state.meta && state.meta.syncStatus || 'Estado de sincronización no informado.',
-        sections: [detailSection('Snapshot', [Array.isArray(git.commits) ? git.commits.length + ' commits visibles' : 'Commits no informados', state && state.meta && state.meta.commit ? 'Commit actual: ' + String(state.meta.commit).substring(0, 7) : 'Commit actual no informado'])],
+        sections: [detailSection('Snapshot', [Array.isArray(git.commits) ? (git.totalCount && git.totalCount > git.commits.length ? git.commits.length + ' de ' + git.totalCount + ' commits recientes' : (git.commits.length ? git.commits.length + ' commits recientes' : '0 commits visibles')) : 'Commits no informados', state && state.meta && state.meta.commit ? 'Commit actual: ' + String(state.meta.commit).substring(0, 7) : 'Commit actual no informado'])],
         missing: !(git.branch || git.syncStatus || (Array.isArray(git.commits) && git.commits.length)) ? [{ field: 'git', guidance: 'Añade branch, syncStatus o commits al objeto git.' }] : [], targetView: 'view-git'
       },
       'metric-phase-coverage': {
@@ -129,9 +302,24 @@
         missing: missingCoverage, targetView: null
       },
       'metric-insights': {
-        title: 'Insights', value: context.total + ' tareas analizadas', summary: 'Resumen derivado de estado, riesgos, responsables, etiquetas e historial disponible.',
-        sections: [detailSection('Riesgo', ['Bloqueos: ' + Math.max(0, finiteNumber(insights.blockers && insights.blockers.total, 0)), 'Riesgo alto: ' + riskCount(insights, 'high'), 'Riesgo medio: ' + riskCount(insights, 'med')]), detailSection('Responsables', ownerLines), detailSection('Etiquetas', tagLines), detailSection('Historial', insights.history && insights.history.length ? [insights.history.length + ' puntos disponibles', insights.forecast && insights.forecast.label || 'Pronóstico no disponible'] : [])],
-        missing: insights.history && insights.history.length ? [] : [{ field: 'meta.history', guidance: 'Añade historial acotado para mostrar tendencia y pronóstico.' }], targetView: null
+        title: 'Desglose de consumo y actividad por agente',
+        value: (insights.tokenUsage && insights.tokenUsage.hasData ? formatNumber(insights.tokenUsage.totals.total) + ' tokens' : context.total + ' tareas analizadas'),
+        summary: (insights.tokenUsage && insights.tokenUsage.hasData
+          ? 'Telemetría de tokens por agente recopilada de OpenCode SDK. Desglose detallado y costos.'
+          : 'Resumen derivado de estado, riesgos, responsables y etiquetas disponibles.'),
+        customHtml: renderTokenDetailsTable(insights.tokenUsage),
+        sections: [
+          detailSection('Responsables', ownerLines),
+          detailSection('Etiquetas', tagLines),
+          detailSection('Riesgo', [
+            'Bloqueos: ' + Math.max(0, finiteNumber(insights.blockers && insights.blockers.total, 0)),
+            'Riesgo alto: ' + riskCount(insights, 'high'),
+            'Riesgo medio: ' + riskCount(insights, 'med')
+          ]),
+          detailSection('Historial', insights.history && insights.history.length ? [insights.history.length + ' puntos disponibles', insights.forecast && insights.forecast.label || 'Pronóstico no disponible'] : [])
+        ],
+        missing: insights.history && insights.history.length ? [] : [{ field: 'meta.history', guidance: 'Añade historial acotado para mostrar tendencia y pronóstico.' }],
+        targetView: null
       }
     };
   }
@@ -159,10 +347,40 @@
     dialog.querySelector('#overview-detail-title').textContent = model.title;
     dialog.querySelector('#overview-detail-value').textContent = model.value;
     dialog.querySelector('#overview-detail-summary').textContent = model.summary;
-    content.innerHTML = model.sections.map(function (section) {
-      if (!section.items.length) return '';
-      return '<section class="overview-detail-section"><h3>' + esc(section.label) + '</h3><ul>' + section.items.map(function (item) { return '<li>' + esc(item) + '</li>'; }).join('') + '</ul></section>';
-    }).join('') + (model.missing.length ? '<section class="overview-detail-missing"><h3>Información no disponible</h3><p>No se inventa información ausente.</p><ul>' + model.missing.map(function (item) { return '<li><code>' + esc(item.field) + '</code> — ' + esc(item.guidance) + '</li>'; }).join('') + '</ul></section>' : '');
+    var custom = model.customHtml || '';
+
+    var sectionsHtml = '';
+    if (model.sections && model.sections.length) {
+      var sectionCards = model.sections.map(function (section) {
+        if (!section.items.length) return '';
+        var itemsHtml = section.items.map(function (item) {
+          return '<li>' + esc(item) + '</li>';
+        }).join('');
+        return '<section class="overview-detail-section overview-meta-group">'
+          + '<h3>' + esc(section.label) + '</h3>'
+          + '<ul class="overview-meta-list">' + itemsHtml + '</ul>'
+          + '</section>';
+      }).filter(Boolean).join('');
+
+      if (sectionCards) {
+        sectionsHtml = '<div class="overview-detail-meta-strip">' + sectionCards + '</div>';
+      }
+    }
+
+    var missingHtml = '';
+    if (model.missing && model.missing.length) {
+      missingHtml = '<section class="overview-detail-missing"><h3>Información no disponible</h3><p>No se inventa información ausente.</p><ul>'
+        + model.missing.map(function (item) { return '<li><code>' + esc(item.field) + '</code> — ' + esc(item.guidance) + '</li>'; }).join('')
+        + '</ul></section>';
+    }
+
+    var mainHtml = '';
+    if (custom) {
+      mainHtml = '<div class="overview-detail-main-custom">' + custom + '</div>';
+    }
+
+    content.innerHTML = mainHtml + sectionsHtml + missingHtml;
+
     var viewButton = dialog.querySelector('[data-overview-view-section]');
     viewButton.hidden = !model.targetView;
     viewButton.setAttribute('data-target-view', model.targetView || '');
@@ -326,8 +544,16 @@
       }
     } catch (_) {}
 
-    // Check meta.lastUpdated or meta.updatedAt
+    // Check meta timestamps: lastSyncCompletedAt, lastSyncAt, lastUpdated, updatedAt
     if (state && state.meta) {
+      if (state.meta.lastSyncCompletedAt) {
+        var dComp = new Date(state.meta.lastSyncCompletedAt);
+        if (!isNaN(dComp.getTime())) dates.push(dComp);
+      }
+      if (state.meta.lastSyncAt) {
+        var dSync = new Date(state.meta.lastSyncAt);
+        if (!isNaN(dSync.getTime())) dates.push(dSync);
+      }
       if (state.meta.lastUpdated) {
         var d1 = new Date(state.meta.lastUpdated);
         if (!isNaN(d1.getTime())) dates.push(d1);
@@ -390,9 +616,12 @@
     }
     if (elExact) {
       try {
+        var syncRaw = state && state.meta && state.meta.syncStatus;
+        var syncLower = String(syncRaw || '').trim().toLowerCase();
+        var isSynced = syncLower === 'synced' || syncLower === 'sincronizado';
         var timeStr = date.toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' });
         var dateStr = date.toLocaleDateString(undefined, { day: '2-digit', month: '2-digit', year: 'numeric' });
-        elExact.textContent = dateStr + ' ' + timeStr;
+        elExact.textContent = (isSynced ? '✓ ' : '') + dateStr + ' ' + timeStr;
       } catch (_) {
         elExact.textContent = date.toLocaleString();
       }
@@ -430,6 +659,11 @@
         }
         var fmt = clockCard.getAttribute('data-clock-format') === '24h';
         updateClockDisplay(doc, fmt);
+        var elRel = doc.getElementById('last-update-relative');
+        if (elRel) {
+          var date = resolveLastUpdatedDate(window.__TM_STATE__ || null, doc);
+          elRel.textContent = formatRelativeTime(date);
+        }
       }, 1000);
       if (_clockTicker && typeof _clockTicker.unref === 'function') {
         _clockTicker.unref();
@@ -439,7 +673,7 @@
 
   /**
    * Render header panel from state.
-   * Updates #project-title, #project-subtitle, header-meta badges.
+   * Updates #project-title, header-meta badges.
    * @param {object} state
    * @param {Document} doc
    */
@@ -461,13 +695,6 @@
       } else {
         titleEl.innerHTML = '<span>' + esc(nameRaw) + '</span> ' + (versionRaw ? '<span class=\"badge\">v' + esc(versionRaw.replace(/^v/, '')) + '</span>' : '');
       }
-    }
-
-    // Subtitle: use meta.description or fallback
-    var subtitleEl = doc.getElementById('project-subtitle');
-    if (subtitleEl) {
-      var subtitle = meta.description || label('headerSubtitle', state, 'Obsidian Technical Cockpit — sincronizado con orquestador IA');
-      subtitleEl.textContent = subtitle;
     }
 
     // Dynamic digital clock, last update & harness card
@@ -506,9 +733,26 @@
       }
       if (badges.length >= 2) {
         var syncBadge = badges[1];
-        var syncText = syncRaw ? syncRaw : '—';
+        var syncText = syncRaw;
+        var syncLower = String(syncRaw || '').trim().toLowerCase();
+        if (syncLower === 'running' || syncLower === 'sincronizando') {
+          syncText = 'Sincronizando...';
+        } else if (syncLower === 'synced') {
+          syncText = 'Sincronizado';
+        } else if (syncLower === 'error') {
+          syncText = 'Error';
+        } else if (!syncText) {
+          syncText = '—';
+        }
         var dot2 = syncBadge.querySelector('.badge-dot');
         if (dot2) {
+          if (syncLower === 'running' || syncLower === 'sincronizando') {
+            dot2.className = 'badge-dot inprogress';
+          } else if (syncLower === 'error') {
+            dot2.className = 'badge-dot blocked';
+          } else if (syncLower === 'synced' || syncLower === 'sincronizado') {
+            dot2.className = 'badge-dot completed';
+          }
           var removes = [];
           syncBadge.childNodes.forEach(function (n) { if (n !== dot2 && n.nodeType === 3) removes.push(n); });
           removes.forEach(function (n) { syncBadge.removeChild(n); });
@@ -518,6 +762,7 @@
         }
       }
     }
+    renderSyncStatus(state, doc);
   }
 
   /**
@@ -660,14 +905,36 @@
       + '<div class="metric-summary-copy">Git · árbol · Codegraph según datos disponibles</div>'
       + '</div>'
 
-      + '<div class="metric-card accent-blue metric-insights-band" id="metric-insights">'
-      + '<div class="panel-title" style="grid-column:1 / -1;">Insights</div>'
-      + '<div class="insight-band-grid">'
-      + '<div class="insight-band-region insight-status-region"><span class="insight-region-label">Status composition</span>' + renderStatusSvg(insights) + '</div>'
-      + '<div class="insight-band-region insight-risk-region"><span class="insight-region-label">Risk & blockers</span><div class="insight-risk-values"><span>Blockers: ' + Math.round(Math.max(0, finiteNumber(insights.blockers && insights.blockers.total, 0))) + '</span><span>High risk: ' + riskCount(insights, 'high') + '</span><span>Med risk: ' + riskCount(insights, 'med') + '</span></div></div>'
-      + '<div class="insight-band-region insight-owners"><span class="insight-region-label">Owners</span>' + renderDimensionLines(insights.dimensions && insights.dimensions.owner) + '</div>'
-      + '<div class="insight-band-region insight-tags"><span class="insight-region-label">Tags</span>' + renderDimensionLines(insights.dimensions && insights.dimensions.tag) + '</div>'
-      + '<div class="insight-band-region insight-trend-region"><span class="insight-region-label">Bounded trend</span>' + renderTrend(insights) + '</div>'
+      + '<div class="metric-card accent-blue metric-insights-band" id="metric-insights" data-tm-capability="token-insights-v2">'
+      + '<div class="panel-title" style="grid-column:1 / -1;">Desglose de consumo y actividad por agente</div>'
+      + '<div class="insight-band-stack">'
+      + '<div class="insight-band-region insight-tokens-main">'
+      + '<div class="insight-tokens-header">'
+      + '<span class="insight-region-label">' + (insights.tokenUsage && insights.tokenUsage.source === 'activity-estimation' ? 'Estimación de Actividad por Agente' : 'Telemetría de Tokens por Agente') + '</span>'
+      + (function () {
+        var tokenUsage = insights.tokenUsage || { hasData: false, totals: { total: 0 } };
+        if (tokenUsage.hasData) {
+          var isAct = tokenUsage.source === 'activity-estimation';
+          var totals = tokenUsage.totals;
+          var cacheShare = (!isAct && totals.total > 0 && totals.cacheRead > 0) ? Math.round(totals.cacheRead / totals.total * 100) : 0;
+          return '<div class="insight-tokens-summary-chips">'
+            + '<span class="token-chip token-chip-total">' + formatCompactTokens(totals.total) + (isAct ? ' u. activ.' : ' tokens') + '</span>'
+            + '<span class="token-chip">' + tokenUsage.byAgent.length + ' agentes</span>'
+            + (cacheShare > 0 ? '<span class="token-chip">' + cacheShare + '% caché</span>' : '')
+            + (totals.cost !== undefined ? '<span class="token-chip">$' + totals.cost.toFixed(3) + '</span>' : '')
+            + (isAct ? '<span class="token-chip token-chip-estimate">Estimación por actividad</span>' : '')
+            + (tokenUsage.isStale ? '<span class="token-chip token-chip-stale">⚠️ Desactualizado (&gt;24h)</span>' : '')
+            + '</div>';
+        }
+        return '<div class="insight-tokens-summary-chips"><span class="token-chip">Sin telemetría</span></div>';
+      })()
+      + '</div>'
+      + renderTokenChart(insights.tokenUsage)
+      + '</div>'
+      + '<div class="insight-band-region insight-meta-strip insight-side-rail">'
+      + '<div class="insight-subregion insight-owners"><span class="insight-region-label">Owners</span>' + renderDimensionLines(insights.dimensions && insights.dimensions.owner) + '</div>'
+      + '<div class="insight-subregion insight-tags"><span class="insight-region-label">Tags</span>' + renderDimensionLines(insights.dimensions && insights.dimensions.tag) + '</div>'
+      + '</div>'
       + '</div>'
       + '</div>';
 
@@ -694,9 +961,10 @@
       return !!(target && (target.isContentEditable || ['INPUT', 'TEXTAREA', 'SELECT'].indexOf(target.tagName) !== -1));
     }
     function activateView(targetId) {
-      var targetButton = Array.prototype.find.call(tabButtons, function (button) { return button.getAttribute('data-target-view') === targetId; });
+      var currentTabButtons = doc.querySelectorAll('.tab-btn[data-target-view]');
+      var targetButton = Array.prototype.find.call(currentTabButtons, function (button) { return button.getAttribute('data-target-view') === targetId; });
       if (!targetButton) return;
-      tabButtons.forEach(function (b) {
+      currentTabButtons.forEach(function (b) {
         var active = b === targetButton;
         b.classList.toggle('active', active);
         b.setAttribute('aria-selected', active ? 'true' : 'false');
@@ -747,7 +1015,8 @@
         if (isEditable(e.target)) return;
         var num = parseInt(e.key, 10);
         if (num >= 1 && num <= 7) {
-          var targetBtn = tabButtons[num - 1];
+          var btns = doc.querySelectorAll('.tab-btn[data-target-view]');
+          var targetBtn = btns[num - 1];
           if (targetBtn) activateView(targetBtn.getAttribute('data-target-view'));
         } else if (e.key === 'e' || e.key === 'E') {
           var expandBtn = doc.getElementById('btn-expand-all');
@@ -757,6 +1026,97 @@
           if (searchInput) searchInput.focus();
         }
       });
+    }
+  }
+
+  /**
+   * Render Synchronization Status Overlay / Banner.
+   * Truthful, state-driven representation of running, error, or idle/synced states.
+   * @param {object} state
+   * @param {Document} doc
+   */
+  function renderSyncStatus(state, doc) {
+    doc = doc || (typeof document !== 'undefined' ? document : null);
+    if (!doc) return;
+    var banner = doc.getElementById('tm-sync-banner');
+    if (!banner) return;
+
+    var meta = (state && state.meta) || {};
+    var rawStatus = String(meta.syncStatus || '').trim().toLowerCase();
+    var lastError = meta.lastError || '';
+
+    if (rawStatus === 'running' || rawStatus === 'sincronizando' || rawStatus === 'sincronizando...') {
+      banner.hidden = false;
+      banner.removeAttribute('hidden');
+      banner.style.display = 'flex';
+      banner.className = 'sync-banner sync-running';
+      banner.setAttribute('role', 'status');
+      banner.setAttribute('aria-live', 'polite');
+      banner.innerHTML = '<div class=\"sync-energy-beam\" aria-hidden=\"true\"></div>'
+        + '<div class=\"sync-glow-sweep\" aria-hidden=\"true\"></div>'
+        + '<div class=\"sync-banner-content\">'
+        + '<div class=\"sync-signal-cluster\" aria-hidden=\"true\">'
+        + '<span class=\"sync-signal-node\"></span>'
+        + '<span class=\"sync-signal-node\"></span>'
+        + '<span class=\"sync-signal-node\"></span>'
+        + '<span class=\"sync-signal-node\"></span>'
+        + '</div>'
+        + '<div class=\"sync-banner-text\">'
+        + '<div class=\"sync-banner-header-row\">'
+        + '<span class=\"sync-agent-badge\">Agent Task Manager</span>'
+        + '<span class=\"sync-banner-title\">Sincronización en curso en segundo plano</span>'
+        + '</div>'
+        + '<span class=\"sync-banner-subtitle\">Analizando el workspace y sincronizando el estado técnico. Si no ves los cambios al terminar, presiona <kbd class=\"sync-kbd\">F5</kbd> para recargar.</span>'
+        + '</div>'
+        + '</div>';
+    } else if (rawStatus === 'prolonged' || rawStatus === 'prolongado') {
+      banner.hidden = false;
+      banner.removeAttribute('hidden');
+      banner.style.display = 'flex';
+      banner.className = 'sync-banner sync-prolonged';
+      banner.setAttribute('role', 'status');
+      banner.setAttribute('aria-live', 'polite');
+      banner.innerHTML = '<div class=\"sync-banner-content\">'
+        + '<div class=\"sync-segmented-rail\" aria-hidden=\"true\">'
+        + '<span class=\"sync-rail-seg\"></span>'
+        + '<span class=\"sync-rail-seg\"></span>'
+        + '<span class=\"sync-rail-seg\"></span>'
+        + '<span class=\"sync-rail-seg\"></span>'
+        + '<span class=\"sync-rail-seg\"></span>'
+        + '<span class=\"sync-rail-seg\"></span>'
+        + '</div>'
+        + '<div class=\"sync-banner-text\">'
+        + '<div class=\"sync-banner-header-row\">'
+        + '<span class=\"sync-agent-badge\" style=\"color:#7dd3fc;background:rgba(56,189,248,0.14);border-color:rgba(56,189,248,0.35);\">Agent Task Manager</span>'
+        + '<span class=\"sync-banner-title\">Procesando sincronización en segundo plano</span>'
+        + '</div>'
+        + '<span class=\"sync-banner-subtitle\">El agente sigue procesando el workspace de forma autónoma. La tarea puede tardar unos momentos más; cuando finalice, presiona <kbd class=\"sync-kbd\">F5</kbd> para ver el estado actualizado.</span>'
+        + '</div>'
+        + '</div>';
+    } else if (rawStatus === 'error') {
+      banner.hidden = false;
+      banner.removeAttribute('hidden');
+      banner.style.display = 'flex';
+      banner.className = 'sync-banner sync-error';
+      banner.setAttribute('role', 'alert');
+      banner.setAttribute('aria-live', 'assertive');
+      var errText = lastError ? lastError : 'No se pudo completar la sincronización automática.';
+      banner.innerHTML = '<div class=\"sync-banner-content\">'
+        + '<div class=\"sync-error-icon-box\" aria-hidden=\"true\">⚠️</div>'
+        + '<div class=\"sync-banner-text\">'
+        + '<div class=\"sync-banner-header-row\">'
+        + '<span class=\"sync-agent-badge\" style=\"color:#ff7b72;background:rgba(248,81,73,0.15);border-color:rgba(248,81,73,0.4);\">Agent Task Manager</span>'
+        + '<span class=\"sync-banner-title\">Error en la sincronización del Task Manager</span>'
+        + '</div>'
+        + '<span class=\"sync-banner-subtitle\">' + esc(errText) + ' — Abre Plugins → Task Manager para reintentar.</span>'
+        + '</div>'
+        + '</div>';
+    } else {
+      // Synced / Idle / unknown -> hide banner
+      banner.hidden = true;
+      banner.setAttribute('hidden', '');
+      banner.style.display = 'none';
+      banner.innerHTML = '';
     }
   }
 
@@ -775,6 +1135,7 @@
     var insights = context && context.viewModels || (core && typeof core.deriveInsights === 'function' ? core.deriveInsights(immutableState) : null);
     renderHeader(immutableState, doc);
     renderHud(immutableState, metrics, doc, insights);
+    renderSyncStatus(immutableState, doc);
     setupNavTabs(doc);
     return context;
   }
@@ -782,6 +1143,7 @@
   var TMHeaderHud = {
     renderHeader: renderHeader,
     renderHud: renderHud,
+    renderSyncStatus: renderSyncStatus,
     initDigitalClock: initDigitalClock,
     renderLastUpdate: renderLastUpdate,
     renderHarness: renderHarness,
