@@ -2,7 +2,7 @@
 
 ## Overview
 
-The `opencode-sdd-engram-manage` plugin implements screen-aware, tiered dialog sizing to provide optimal readability for large catalogs, detailed memory observations, and structured confirmation flows while degrading gracefully on constrained terminals.
+The `opencode-sdd-profile-manager` plugin implements screen-aware, tiered dialog sizing to provide optimal readability for large catalogs, detailed memory observations, and structured confirmation flows while degrading gracefully on constrained terminals.
 
 ---
 

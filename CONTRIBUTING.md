@@ -1,6 +1,6 @@
 # Contributing
 
-Thanks for your interest in contributing to `opencode-sdd-engram-manage`.
+Thanks for your interest in contributing to `opencode-sdd-profile-manager`.
 
 ## Ground Rules
 

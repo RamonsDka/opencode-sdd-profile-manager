@@ -36,7 +36,7 @@ describe("offline Suite and multi-plugin help", () => {
     expect(tmDoc).toContain("Task Manager Portable");
 
     const hubDoc = loadOfflineHelp("hub");
-    expect(hubDoc).toContain("opencode-sdd-engram-manage");
+    expect(hubDoc).toContain("SDD Profile Manager");
   });
 
   it("resolves exact file paths for task-manager and hub topics", () => {

@@ -1,18 +1,15 @@
 name: Release and Publish
 
 on:
+  push:
+    tags:
+      - 'v*'
   workflow_dispatch:
 
 jobs:
-  release:
-    name: Release
+  build-and-test:
+    name: Build & Verify
     runs-on: ubuntu-latest
-    permissions:
-      contents: write
-      issues: write
-      pull-requests: write
-      id-token: write
-
     steps:
       - name: Checkout
         uses: actions/checkout@v6
@@ -28,11 +25,39 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
+      - name: Run typecheck
+        run: npm run typecheck
+
       - name: Run tests
         run: npm test
 
-      - name: Release
-        run: npx semantic-release
+      - name: Build bundle
+        run: npm run build
+
+      - name: Verify plugins & smoke test
+        run: |
+          npm run verify:plugins
+          node ./scripts/smoke-plugins.ts
+
+      - name: Package release archives
+        run: npm run package:release
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        if: startsWith(github.ref, 'refs/tags/v') || github.event_name == 'workflow_dispatch'
+        with:
+          files: |
+            dist-release/*.zip
+            dist-release/*.tar.gz
+            dist-release/SHA256SUMS
+          generate_release_notes: true
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Publish to NPM (optional)
+        if: env.NPM_TOKEN != ''
+        run: npm publish --access public
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
           NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
+

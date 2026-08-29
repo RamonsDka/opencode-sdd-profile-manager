@@ -1584,7 +1584,7 @@ export function buildPluginHelpOptions() {
   return [
     { title: "Suite de Agentes", value: "suite", description: "Documentación offline de la Suite de Agentes." },
     { title: "Task Manager", value: "task-manager", description: "Documentación offline del Task Manager portátil." },
-    { title: "Hub (opencode-sdd-engram-manage)", value: "hub", description: "Documentación del hub y gestión de perfiles/plugins." },
+    { title: "Hub (opencode-sdd-profile-manager)", value: "hub", description: "Documentación del hub y gestión de perfiles/plugins." },
     { title: "← Volver", value: "__back__", description: "Volver al menú de plugins." },
   ];
 }

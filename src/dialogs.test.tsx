@@ -64,7 +64,7 @@ describe("Plugins Help flow (Unit 1)", () => {
   it.each([
     ["suite" as HelpTopic, "Suite de Agentes"],
     ["task-manager" as HelpTopic, "Task Manager"],
-    ["hub" as HelpTopic, "opencode-sdd-engram-manage"],
+    ["hub" as HelpTopic, "opencode-sdd-profile-manager"],
   ])("showPluginHelpDetail renders DialogAlert with offline documentation for topic '%s'", (topic, expectedContent) => {
     const api = createMockApi();
     showPluginHelpDetail(api, topic);

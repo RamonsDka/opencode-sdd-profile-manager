@@ -25,7 +25,7 @@ export function safeSlotRender<T>(label: string, render: () => T): T | null {
 				rendererMissingReported = true;
 				log.warn(
 					`slot '${label}' disabled: host TUI did not expose a Solid renderer. ` +
-						"Pin opencode to a compatible version or upgrade opencode-sdd-engram-manage.",
+						"Pin opencode to a compatible version or upgrade opencode-sdd-profile-manager.",
 				);
 			}
 			return null;

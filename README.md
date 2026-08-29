@@ -134,16 +134,36 @@ Use this method to run the repository exactly as checked out.
 
 6. Open the manager with `Alt+K`, `Super+K`, `:sdd-model`, or `/sdd-model`.
 
-### Option B — npm package
+### Option B — versioned release archive (recommended)
 
-The inherited package identifier is `opencode-sdd-engram-manage`. Use this option only after a compatible package release is available:
+Download the latest versioned executable release archive (`sdd-profile-manager-v2.0.0.zip` or `sdd-profile-manager-v2.0.0.tar.gz`) from [GitHub Releases](https://github.com/RamonsDka/opencode-sdd-profile-manager/releases).
+
+1. Extract the release archive into a permanent folder (e.g. `~/.config/opencode/plugins/sdd-profile-manager`).
+2. Add the bundled executable plugin `dist/tui.js` to your OpenCode TUI configuration (`~/.config/opencode/tui.json` or Windows `C:\Users\<user>\.config\opencode\tui.json`):
+
+   ```json
+   {
+     "$schema": "https://opencode.ai/tui.json",
+     "plugin": [
+       "C:\\Users\\<user>\\.config\\opencode\\plugins\\sdd-profile-manager\\dist\\tui.js"
+     ]
+   }
+   ```
+
+3. Restart OpenCode.
+
+### Option C — npm package
+
+Install or configure the canonical npm package `opencode-sdd-profile-manager`:
 
 ```json
 {
   "$schema": "https://opencode.ai/tui.json",
-  "plugin": ["opencode-sdd-engram-manage"]
+  "plugin": ["opencode-sdd-profile-manager"]
 }
 ```
+
+> **Migration from legacy package:** If upgrading from legacy `opencode-sdd-engram-manage` (v1.x), replace `"opencode-sdd-engram-manage"` with `"opencode-sdd-profile-manager"` in your `tui.json`. Profiles in `~/.config/opencode/profiles/` and version history in `~/.config/opencode/profile-versions/` remain fully compatible.
 
 OpenCode installs and caches npm plugins automatically. Restart OpenCode after changing the plugin specification.
 
