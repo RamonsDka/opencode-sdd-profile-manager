@@ -34,7 +34,7 @@ These artifacts are preserved as product history and continuation context. This 
 - The complete recovered Suite state is committed locally on `master` in the standalone repository.
 - Second-generation UI source, replacement tests, documentation, and Suite OpenSpec artifacts are tracked together in the recovery baseline.
 - The former `revision-selector-agente` checkout remains unchanged as a rollback/reference copy, but it is no longer the canonical project directory.
-- The canonical source is this repository: `C:/Users/DELL/projects/0.-MEJORA-OPENCODE-TRABAJANDO/suite-de-agentes`.
+- The canonical source is this repository at `plugins/suite-de-agentes`.
 
 ### Evidence boundary
 
@@ -67,7 +67,7 @@ Historical snapshots are not pending apply work. Do not treat historical snapsho
 
 ## Installation note
 
-The active installation may continue pointing temporarily to the old canonical checkout. Updating it is a separate, explicitly authorized configuration task; do not change `C:/Users/DELL/.config/opencode` as part of this migration.
+The active installation may continue pointing temporarily to the old canonical checkout. Updating it is a separate, explicitly authorized configuration task; do not change global OpenCode configuration as part of this migration.
 
 ## Migration boundary
 
