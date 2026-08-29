@@ -14,6 +14,8 @@ execSync("npm run build", { cwd: root, stdio: "inherit" });
 execSync(`node "${path.join(root, "scripts", "smoke-plugins.ts")}"`, { cwd: root, stdio: "inherit" });
 const taskManagerRunner = path.join(root, "plugins", "task-manager", "scripts", "run-tests.mjs");
 if (fs.existsSync(taskManagerRunner)) execSync(`node "${taskManagerRunner}"`, { cwd: path.dirname(taskManagerRunner), stdio: "inherit" });
+const suitePluginDir = path.join(root, "plugins", "suite-de-agentes");
+if (fs.existsSync(path.join(suitePluginDir, "package.json"))) execSync("npm test", { cwd: suitePluginDir, stdio: "inherit" });
 const requiredAssets = [
   path.join(root, "dist", "plugins/task-manager/Task-Manager-Portable.html"),
   path.join(root, "dist", "plugins/suite-de-agentes/README.md"),
