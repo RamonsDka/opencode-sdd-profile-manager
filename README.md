@@ -34,12 +34,12 @@ The **OpenCode SDD Profile Manager** unifies these capabilities into an integrat
 
 | Component | Identifier / Package | Version | Distribution Location | Role & Purpose |
 |---|---|---|---|---|
-| **SDD Profile Manager** | `opencode-sdd-profile-manager` | `2.0.0` | Root / `dist/tui.js` | Principal plugin pack, OpenTUI host, profile versioning, Engram browser |
+| **SDD Profile Manager** | `opencode-sdd-profile-manager` | `2.0.1` | Root / `dist/tui.js` | Principal plugin pack, OpenTUI host, profile versioning, Engram browser |
 | **Suite de Agentes** | `opencode-agent-suite` | `1.1.0` | `plugins/suite-de-agentes` | Agent catalog, custom agent authoring, per-turn consent enforcement |
 | **Task Manager Portable** | `task-manager-portable` | `1.1.0` | `plugins/task-manager` | Single-file offline project cockpit, Kanban, Git history, CodeGraph maps |
 | **Agent Task Manager** | `task-tracker-manager` | `1.1.0` | Embedded Skill / Adapter | Automated task synchronization and JSON island state updates for AI agents |
-| **GitHub Integration** | `gh-actions-workflows` | `2.0.0` | `.github/workflows` | Semantic release automation, CI/CD verification, issue/PR management |
-| **Native Agents Manager** | `built-in-agents` | `2.0.0` | `src/catalog.ts` | Unified management of OpenCode built-ins (`build`, `plan`, `general`, etc.) |
+| **GitHub Integration** | `gh-actions-workflows` | `2.0.1` | `.github/workflows` | Semantic release automation, CI/CD verification, issue/PR management |
+| **Native Agents Manager** | `built-in-agents` | `2.0.1` | `src/catalog.ts` | Unified management of OpenCode built-ins (`build`, `plan`, `general`, etc.) |
 
 ---
 
@@ -211,7 +211,7 @@ The SDD Profile Manager plugin pack can be deployed via release archives, npm pa
 
 ### Option A — Versioned Release Archive (Recommended)
 
-Download the latest versioned release archive (`sdd-profile-manager-v2.0.0.zip` or `.tar.gz`) from [GitHub Releases](https://github.com/RamonsDka/opencode-sdd-profile-manager/releases).
+Download the latest versioned release archive (`sdd-profile-manager-v2.0.1.zip` or `.tar.gz`) from [GitHub Releases](https://github.com/RamonsDka/opencode-sdd-profile-manager/releases).
 
 1. Extract the release archive into your OpenCode plugins directory:
    - **Linux / macOS**: `~/.config/opencode/plugins/sdd-profile-manager`
