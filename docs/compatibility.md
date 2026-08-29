@@ -1,5 +1,11 @@
 # Host Compatibility & Graceful Degradation
 
+## Packaged Plugin Assets
+
+After `npm run build`, `node scripts/smoke-plugins.ts` changes to a temporary
+directory outside the repository and verifies the packaged Task Manager HTML,
+Suite offline help, and both provenance records from `dist/plugins/`.
+
 ## Host API Support Matrix
 
 The plugin interacts with the OpenCode TUI host through safe compatibility helpers:

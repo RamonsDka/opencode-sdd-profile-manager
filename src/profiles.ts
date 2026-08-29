@@ -214,6 +214,26 @@ export function extractPersistedAgentModels(config: any): ProfileModels {
 /**
  * Extracts managed fallback model mapping from a profile payload
  */
+/**
+ * Extracts models for all valid agent keys from a configuration object (persisted layer)
+ */
+export function extractPersistedAgentModels(config: any): ProfileModels {
+  const agents = config?.agent || {};
+  return Object.fromEntries(
+    Object.entries(agents)
+      .filter(
+        ([name, value]: any) =>
+          isValidAgentKey(name) &&
+          typeof value?.model === "string" &&
+          value.model.trim()
+      )
+      .map(([name, value]: any) => [name, value.model.trim()])
+  );
+}
+
+/**
+ * Extracts managed fallback model mapping from a profile payload
+ */
 export function extractSddFallbackModels(raw: any): ProfileFallbackModels {
   if (!raw || typeof raw !== "object" || Array.isArray(raw)) return {};
 
@@ -243,11 +263,9 @@ export function extractPersistedProfileExtras(raw: unknown): Record<string, unkn
   if (!raw || typeof raw !== "object" || Array.isArray(raw)) return {};
 
   return Object.fromEntries(
-    Object.entries(raw).filter(([key]) => {
-      if (key === "models" || key === "fallback" || key === "configs" || key === "agent") return false;
-      if (isPrimarySddAgent(key) || isSddFallbackAgent(key)) return false;
-      return true;
-    })
+    Object.entries(raw).filter(
+      ([key]) => key !== "models" && key !== "fallback" && key !== "configs" && key !== "agent" && !isPrimarySddAgent(key)
+    )
   );
 }
 
@@ -1699,7 +1717,7 @@ export async function activateProfileFile(api: any, profilePath: string, profile
       throw new Error(fallbackValidationErrors.join(" | "));
     }
 
-    const nextConfigWithFallback = syncSddFallbackAgents(nextConfigWithModels, profileData.fallback || {});
+    const nextConfigWithFallback = syncSddFallbackAgents(nextConfigWithModels, profileData.fallback || {}, profileData.configs);
     const reasoningResult = applyProfileReasoningEffort(nextConfigWithFallback, profileData, api?.state?.provider || [], policy);
     const nextConfig = reasoningResult.config;
 

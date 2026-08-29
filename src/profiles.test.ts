@@ -5,6 +5,7 @@ import { BULK_ASSIGNMENT_MODE, BULK_ASSIGNMENT_TARGET, PROFILE_VERSION_SOURCE } 
 import { formatProfileVersionPreviewLines, resolveRuntimeOrchestratorPolicy } from './dialogs';
 import {
   extractSddAgentModels, 
+  extractPersistedAgentModels,
   extractSddFallbackModels, 
   extractPersistedProfileExtras,
   readProfileModels, 
@@ -24,13 +25,13 @@ import {
   listProfileVersions,
   readProfileVersion,
   restoreProfileVersion,
-    commitPendingModelSelection,
-    stageProfileModelSelection,
-    updateProfileWithBulkPhaseAssignment,
-    buildBulkProfileOverwrite,
-    updateProfileWithBulkOverwrite,
-    updateProfilePhaseModel,
-    updateProfileReasoningWithoutVersion,
+  commitPendingModelSelection,
+  stageProfileModelSelection,
+  updateProfileWithBulkPhaseAssignment,
+  buildBulkProfileOverwrite,
+  updateProfileWithBulkOverwrite,
+  updateProfileReasoningWithoutVersion,
+   updateProfilePhaseModel,
     detectActiveProfileFile,
     discoverInstalledAgentDefinitions,
     activateProfileFile,
@@ -107,6 +108,23 @@ describe('profiles logic', () => {
 
     it('should return empty object if no agent field', () => {
       expect(extractSddAgentModels({})).toEqual({});
+    });
+  });
+
+  describe('extractPersistedAgentModels', () => {
+    it('extracts models for all valid agent keys', () => {
+      const config = {
+        agent: {
+          'sdd-init': { model: 'gpt-4' },
+          'custom-agent': { model: 'custom-model' },
+          'invalid/agent': { model: 'bad' },
+          'no-model': { description: 'test' },
+        },
+      };
+      expect(extractPersistedAgentModels(config)).toEqual({
+        'sdd-init': 'gpt-4',
+        'custom-agent': 'custom-model',
+      });
     });
   });
 
@@ -289,25 +307,23 @@ describe('profiles logic', () => {
 
     it('writes canonical profile payloads without stale legacy or config-shaped fields', () => {
       writeProfileData('/mock/profiles/compatible.json', {
-        models: { 'sdd-init': ' gpt-4 ', '__proto__': 'ignore-me' } as any,
-        fallback: { 'sdd-init': ' gpt-3.5 ', 'a/b': 'ignore-me' } as any,
+        models: { 'sdd-init': ' gpt-4 ', 'not-sdd': 'ignore-me', '__proto__': 'stale', 'bad name': 'stale' } as any,
+        fallback: { 'sdd-init': ' gpt-3.5 ', 'invalid': 'ignore-me', 'bad fallback': 'stale' } as any,
         description: 'team defaults',
         agent: { 'sdd-init': { model: 'stale/model' } },
         'sdd-init': 'legacy/model',
       } as any);
 
       expect(fs.writeFileSync).toHaveBeenCalledWith(
-        expect.stringMatching(/^\/mock\/profiles\/compatible\.json\.tmp-[0-9a-f]{8}$/),
+        expect.stringMatching(/^[\/\\]mock[\/\\]profiles[\/\\]compatible\.json\.tmp-[0-9a-f]{8}$/),
         JSON.stringify({
           description: 'team defaults',
-          models: { 'sdd-init': 'gpt-4' },
-          fallback: { 'sdd-init': 'gpt-3.5' }
+          models: { 'sdd-init': 'gpt-4', 'not-sdd': 'ignore-me' },
+          fallback: { 'sdd-init': 'gpt-3.5', 'invalid': 'ignore-me' }
         }, null, 2)
       );
-      expect(fs.renameSync).toHaveBeenCalledWith(
-        expect.stringMatching(/^\/mock\/profiles\/compatible\.json\.tmp-[0-9a-f]{8}$/),
-        '/mock/profiles/compatible.json'
-      );
+      expect(toPosix(vi.mocked(fs.renameSync).mock.calls[0][0])).toMatch(/^\/mock\/profiles\/compatible\.json\.tmp-[0-9a-f]{8}$/);
+      expect(toPosix(vi.mocked(fs.renameSync).mock.calls[0][1])).toBe('/mock/profiles/compatible.json');
     });
 
     it('omits empty fallback maps when reading and writing full profile data', () => {
@@ -525,391 +541,6 @@ describe('profiles logic', () => {
     });
   });
 
-  describe('persisted profile maps and custom preservation (T04-T09, T21, T22)', () => {
-    it('T04: covers approved fallback persistence and runtime eligibility filtering', () => {
-      const fallback = Object.fromEntries([
-        'sdd-ORCHETATOR',
-        'sdd-propose',
-        'sdd-design',
-        'sdd-apply',
-        'sdd-verify',
-        'sdd-spec',
-        'sdd-onboard',
-        'sdd-explore',
-        'sdd-init',
-        'sdd-tasks',
-        'sdd-archive',
-        'jd-judge-a',
-        'jd-judge-b',
-        'jd-fix-agent',
-        'review-readability',
-        'review-reliability',
-        'review-resilience',
-        'review-validator',
-        'review-refuter',
-        'review-risk',
-        'gentle-ai-windows-validator',
-        'compaction',
-        'summary',
-        'title',
-      ].map((name) => [name, `fallback/${name}`]));
-      const profile = { models: { 'sdd-apply': 'primary/model' }, fallback } as ProfileData;
-      vi.mocked(fs.readFileSync).mockReturnValue(JSON.stringify(profile));
-
-      expect(readProfileData('/mock/profiles/all-fallbacks.json').fallback).toEqual(fallback);
-      writeProfileData('/mock/profiles/all-fallbacks.json', profile);
-      expect(JSON.parse(String(vi.mocked(fs.writeFileSync).mock.calls[0]?.[1])).fallback).toEqual(fallback);
-
-      const synced = syncSddFallbackAgents({
-        agent: {
-          'sdd-apply': { model: 'primary/model' },
-          'gentle-ai-windows-validator': { model: 'validator/model' },
-          compaction: { model: 'compaction/model' },
-          summary: { model: 'summary/model' },
-          title: { model: 'title/model' },
-        },
-      }, fallback);
-
-      expect(synced.agent['sdd-apply-fallback']?.model).toBe('fallback/sdd-apply');
-      expect(synced.agent['gentle-ai-windows-validator-fallback']?.model).toBe('fallback/gentle-ai-windows-validator');
-      expect(synced.agent['compaction-fallback']).toBeUndefined();
-      expect(synced.agent['summary-fallback']).toBeUndefined();
-      expect(synced.agent['title-fallback']).toBeUndefined();
-      expect(synced.agent['sdd-ORCHETATOR-fallback']).toBeUndefined();
-    });
-
-    it('T04: preserves an existing runtime-ineligible fallback while refusing to synthesize it', () => {
-      const currentConfig = {
-        agent: {
-          compaction: { model: 'runtime/compaction' },
-          'compaction-fallback': { model: 'runtime/old-compaction', custom: true },
-        },
-      };
-
-      const synced = syncSddFallbackAgents(currentConfig, {
-        compaction: 'profile/compaction',
-      });
-
-      expect(synced.agent['compaction-fallback']).toEqual(currentConfig.agent['compaction-fallback']);
-      expect(synced.agent['compaction-fallback']?.model).toBe('runtime/old-compaction');
-    });
-
-    it('T05: normalizes legacy aliases idempotently without dropping unknown valid assignments', () => {
-      const legacy = {
-        models: {
-          'sdd-orchestrator': ' legacy/orchestrator ',
-          'security-auditor': ' custom/model ',
-        },
-        fallback: { 'security-auditor': ' custom/fallback ' },
-        configs: { 'security-auditor': { reasoningEffort: ' high ' } },
-        description: 'team defaults',
-      };
-      vi.mocked(fs.readFileSync).mockReturnValue(JSON.stringify(legacy));
-
-      const normalized = readProfileData('/mock/profiles/legacy-custom.json');
-      expect(normalized).toEqual({
-        models: {
-          'sdd-orchestrator': 'legacy/orchestrator',
-          'security-auditor': 'custom/model',
-        },
-        fallback: { 'security-auditor': 'custom/fallback' },
-        configs: { 'security-auditor': { reasoningEffort: 'high' } },
-        description: 'team defaults',
-      });
-
-      writeProfileData('/mock/profiles/legacy-custom.json', normalized);
-      const persisted = JSON.parse(String(vi.mocked(fs.writeFileSync).mock.calls[0]?.[1]));
-      expect(persisted).toEqual(normalized);
-
-      vi.clearAllMocks();
-      vi.mocked(fs.readFileSync).mockReturnValue(JSON.stringify(persisted));
-      expect(readProfileData('/mock/profiles/legacy-custom.json')).toEqual(normalized);
-    });
-
-    it('T05: preserves unknown valid assignments in a legacy flat profile', () => {
-      vi.mocked(fs.readFileSync).mockReturnValue(JSON.stringify({
-        'security-auditor': { model: ' custom/model ' },
-        description: 'team defaults',
-      }));
-
-      expect(readProfileData('/mock/profiles/legacy-flat-custom.json')).toEqual({
-        models: {
-          'security-auditor': 'custom/model',
-          description: 'team defaults',
-        },
-      });
-    });
-
-    it('T05: retains the catalog orchestrator alias in persisted intent while runtime sync excludes it', () => {
-      const profile = {
-        models: { 'sdd-ORCHETATOR': 'catalog/orchestrator' },
-        fallback: { 'sdd-ORCHETATOR': 'catalog/fallback' },
-      } as ProfileData;
-      vi.mocked(fs.readFileSync).mockReturnValue(JSON.stringify(profile));
-
-      expect(readProfileData('/mock/profiles/catalog-alias.json')).toEqual({
-        models: { 'sdd-orchestrator': 'catalog/orchestrator' },
-        fallback: profile.fallback,
-      });
-      writeProfileData('/mock/profiles/catalog-alias.json', profile);
-      expect(JSON.parse(String(vi.mocked(fs.writeFileSync).mock.calls[0]?.[1]))).toEqual(profile);
-
-      const synced = syncSddFallbackAgents({ agent: {} }, profile.fallback || {});
-      expect(synced.agent['sdd-ORCHETATOR-fallback']).toBeUndefined();
-    });
-
-    it('T04: validates runtime-eligible catalog fallbacks without rejecting stored-only catalog intent', () => {
-      const errors = validateProfileFallbackMapping({
-        agent: {
-          'gentle-ai-windows-validator': { model: 'runtime/validator' },
-        },
-      }, {
-        'gentle-ai-windows-validator': 'profile/validator',
-        'sdd-ORCHETATOR': 'profile/orchestrator',
-        compaction: 'profile/compaction',
-        summary: 'profile/summary',
-        title: 'profile/title',
-      });
-
-      expect(errors).toEqual([]);
-      expect(validateProfileFallbackMapping({ agent: { 'sdd-apply': { model: 'runtime/apply' } } }, {
-        'sdd-apply': 'profile/apply',
-        compaction: 'profile/compaction',
-      })).toEqual([]);
-    });
-
-    it.each([
-      ['modern models', { models: { 'my-agent': 'provider/custom-model', 'sdd-init': 'provider/gpt-4' } }],
-      ['legacy flat', { 'my-agent': 'provider/custom-model', 'sdd-init': 'provider/gpt-4' }],
-      ['config agent', { agent: { 'my-agent': { model: 'provider/custom-model' }, 'sdd-init': { model: 'provider/gpt-4' } } }]
-    ])('T04: preserves valid custom agent in %s format', (_, payload) => {
-      vi.mocked(fs.readFileSync).mockReturnValue(JSON.stringify(payload));
-      const expected = { 'my-agent': 'provider/custom-model', 'sdd-init': 'provider/gpt-4' };
-      expect(readProfileModels('/mock/p.json')).toEqual(expected);
-      expect(readProfileData('/mock/p.json').models).toEqual(expected);
-    });
-
-    it('T05, T08: preserves valid and ineligible custom fallback models on read/write', () => {
-      const payload: ProfileData = {
-        models: { 'sdd-init': 'p/gpt-4' },
-        fallback: { 'my-agent': 'p/custom-fb', 'sdd-init': 'p/gpt-3.5' }
-      };
-      vi.mocked(fs.readFileSync).mockReturnValue(JSON.stringify(payload));
-      expect(readProfileFallbackModels('/mock/p.json')).toEqual(payload.fallback);
-      expect(readProfileData('/mock/p.json').fallback).toEqual(payload.fallback);
-
-      writeProfileData('/mock/p.json', payload);
-      expect(JSON.parse(String(vi.mocked(fs.writeFileSync).mock.calls[0]?.[1])).fallback).toEqual(payload.fallback);
-    });
-
-    it('T06: round-trips top-level extras with nested custom models and fallbacks', () => {
-      const payload = {
-        description: 'team defaults',
-        customField: { active: true },
-        models: { 'my-agent': 'p/custom', 'sdd-init': 'p/gpt-4' },
-        fallback: { 'my-agent': 'p/custom-fb' }
-      };
-      vi.mocked(fs.readFileSync).mockReturnValue(JSON.stringify(payload));
-      const read = readProfileData('/mock/p.json');
-      expect(read).toMatchObject(payload);
-
-      writeProfileData('/mock/p.json', read);
-      expect(JSON.parse(String(vi.mocked(fs.writeFileSync).mock.calls[0]?.[1]))).toMatchObject(payload);
-    });
-
-    it('round-trips reasoning config for a custom primary agent', () => {
-      const payload = {
-        models: { 'security-auditor': 'openai/gpt-5' },
-        configs: { 'security-auditor': { reasoningEffort: 'high' } },
-      };
-      vi.mocked(fs.readFileSync).mockReturnValue(JSON.stringify(payload));
-
-      const profile = readProfileData('/mock/profiles/custom.json');
-      expect(profile.configs).toEqual(payload.configs);
-
-      writeProfileData('/mock/profiles/custom.json', profile);
-      expect(JSON.parse(String(vi.mocked(fs.writeFileSync).mock.calls[0]?.[1])).configs).toEqual(payload.configs);
-    });
-
-    it('T07: extractPersistedProfileExtras extracts only top-level extras and excludes containers/base', () => {
-      const raw = {
-        models: { 'my-agent': 'p/m' },
-        fallback: { 'sdd-init': 'p/fb' },
-        configs: { 'sdd-init': { reasoningEffort: 'high' } },
-        agent: { 'sdd-init': { model: 'p/m' } },
-        'sdd-init': 'legacy/model',
-        'my-agent': 'top-level-value',
-        description: 'team defaults'
-      };
-      expect(extractPersistedProfileExtras(raw)).toEqual({
-        'my-agent': 'top-level-value',
-        description: 'team defaults'
-      });
-    });
-
-    it('T09: syncSddFallbackAgents never synthesizes fallback for ineligible/custom primaries', () => {
-      const synced = syncSddFallbackAgents({ agent: { 'my-agent': { model: 'p/m' }, 'sdd-init': { model: 'p/m' } } }, {});
-      expect(synced.agent['sdd-init-fallback']).toBeDefined();
-      expect(synced.agent['my-agent-fallback']).toBeUndefined();
-    });
-
-    it('T21: bulk assignment does not modify custom agent models in profile', () => {
-      const profile: ProfileData = {
-        models: { 'sdd-init': 'old/m', 'my-agent': 'custom/m' },
-        fallback: { 'sdd-init': 'old/fb', 'my-agent': 'custom/fb' }
-      };
-      const res = applyBulkProfilePhaseAssignment(profile, ['sdd-init', 'my-agent'], 'new/m', {
-        target: BULK_ASSIGNMENT_TARGET.BOTH,
-        mode: BULK_ASSIGNMENT_MODE.OVERWRITE
-      });
-      expect(res.profile.models).toEqual({ 'sdd-init': 'new/m', 'my-agent': 'custom/m' });
-      expect(res.profile.fallback).toEqual({ 'sdd-init': 'new/m', 'my-agent': 'custom/fb' });
-    });
-
-    it('T22: activation preserves unmentioned external agents in config', () => {
-      const config = {
-        agent: {
-          'external-agent': { model: 'ext/m', provider: 'other', temperature: 0.7 },
-          'sdd-init': { model: 'old/m' }
-        }
-      };
-      const next = applyProfileDataToConfig(config, { models: { 'sdd-init': 'new/model' } });
-      expect(next.agent['external-agent']).toEqual(config.agent['external-agent']);
-      expect(next.agent['sdd-init'].model).toBe('new/model');
-    });
-
-    it('drops invalid agent keys on read and write', () => {
-      const raw = {
-        models: { '__proto__': 'bad', constructor: 'bad', 'a/b': 'bad', 'a b': 'bad', 'sdd-init': 'gpt-4', 'valid-custom': 'p/c' },
-        fallback: { prototype: 'bad', ['a'.repeat(65)]: 'bad', 'sdd-init': 'gpt-3.5', 'valid-fb': 'p/fb' }
-      };
-      vi.mocked(fs.readFileSync).mockReturnValue(JSON.stringify(raw));
-      const data = readProfileData('/mock/invalid.json');
-      const expected = {
-        models: { 'sdd-init': 'gpt-4', 'valid-custom': 'p/c' },
-        fallback: { 'sdd-init': 'gpt-3.5', 'valid-fb': 'p/fb' }
-      };
-      expect(data.models).toEqual(expected.models);
-      expect(data.fallback).toEqual(expected.fallback);
-      writeProfileData('/mock/invalid.json', data);
-      const written = JSON.parse(String(vi.mocked(fs.writeFileSync).mock.calls[0]?.[1]));
-      expect(written.models).toEqual(expected.models);
-      expect(written.fallback).toEqual(expected.fallback);
-    });
-
-    it('T17: updateProfilePhaseModel validates fallback eligibility and stores profileKey', () => {
-      const profilePath = '/mock/profiles/test.json';
-      vi.mocked(fs.readFileSync).mockReturnValue(JSON.stringify({ models: { 'sdd-apply': 'old/m' } }));
-
-      const resBase = updateProfilePhaseModel(profilePath, 'sdd-apply', 'fallback', 'provider/apply-fb');
-      expect(resBase.profile.fallback?.['sdd-apply']).toBe('provider/apply-fb');
-      expect(resBase.profile.fallback?.['sdd-apply-fallback']).toBeUndefined();
-
-      const resFuture = updateProfilePhaseModel(profilePath, 'sdd-future', 'fallback', 'provider/future-fb');
-      expect(resFuture.profile.fallback?.['sdd-future']).toBe('provider/future-fb');
-
-      expect(() => updateProfilePhaseModel(profilePath, 'model-audit', 'fallback', 'p/fb')).toThrow(/not eligible/);
-      expect(() => updateProfilePhaseModel(profilePath, 'sdd-orchestrator', 'fallback', 'p/fb')).toThrow();
-      expect(() => updateProfilePhaseModel(profilePath, 'my-agent', 'fallback', 'p/fb')).toThrow();
-    });
-
-    it('T34: syncSddFallbackAgents requires an explicit model-audit override and excludes auxiliaries/custom agents', () => {
-      const config = {
-        agent: {
-          'sdd-init': { model: 'p/init' },
-          'sdd-future': { model: 'p/future' },
-          'model-audit': { model: 'p/audit', description: 'Review provider output' },
-          'my-agent': { model: 'p/custom' },
-          compaction: { model: 'p/compaction' },
-          summary: { model: 'p/summary' },
-          title: { model: 'p/title' },
-        }
-      };
-      const fallbackWithoutModelAuditOverride = {
-        'sdd-init': 'p/init-fb',
-        'sdd-future': 'p/future-fb',
-      };
-      const withoutModelAuditOverride = syncSddFallbackAgents(config, fallbackWithoutModelAuditOverride);
-      expect(withoutModelAuditOverride.agent['model-audit-fallback']).toBeUndefined();
-
-      const retainedWithoutModelAuditOverride = syncSddFallbackAgents({
-        agent: {
-          ...config.agent,
-          'model-audit-fallback': { model: 'p/audit-existing', description: 'Preserve this definition' },
-        }
-      }, fallbackWithoutModelAuditOverride);
-      expect(retainedWithoutModelAuditOverride.agent['model-audit-fallback']).toEqual({
-        model: 'p/audit-existing',
-        description: 'Preserve this definition',
-      });
-
-      const fallback = {
-        'sdd-init': 'p/init-fb',
-        'sdd-future': 'p/future-fb',
-        'model-audit': 'p/audit-fb',
-        'my-agent': 'p/custom-fb',
-        compaction: 'p/compaction-fb',
-        summary: 'p/summary-fb',
-        title: 'p/title-fb',
-      };
-      const synced = syncSddFallbackAgents(config, fallback);
-      expect(synced.agent['sdd-init-fallback'].model).toBe('p/init-fb');
-      expect(synced.agent['sdd-future-fallback'].model).toBe('p/future-fb');
-      expect(synced.agent['model-audit-fallback']).toEqual({
-        model: 'p/audit-fb',
-        description: 'Review provider output',
-      });
-      expect(synced.agent['my-agent-fallback']).toBeUndefined();
-      expect(synced.agent['compaction-fallback']).toBeUndefined();
-      expect(synced.agent['summary-fallback']).toBeUndefined();
-      expect(synced.agent['title-fallback']).toBeUndefined();
-    });
-
-    it('T34: applyProfileDataToConfig and activation preserves explicit future pairs and external agents', () => {
-      const currentConfig = {
-        agent: {
-          'external-agent': { model: 'ext/m', provider: 'other' },
-          'sdd-init': { model: 'old/init' },
-        }
-      };
-      const profile: ProfileData = {
-        models: { 'sdd-init': 'new/init', 'sdd-future': 'new/future' },
-        fallback: { 'sdd-init': 'new/init-fb', 'sdd-future': 'new/future-fb' },
-      };
-      const next = applyProfileDataToConfig(currentConfig, profile);
-      expect(next.agent['external-agent']).toEqual(currentConfig.agent['external-agent']);
-      expect(next.agent['sdd-init'].model).toBe('new/init');
-      expect(next.agent['sdd-init-fallback'].model).toBe('new/init-fb');
-      expect(next.agent['sdd-future'].model).toBe('new/future');
-      expect(next.agent['sdd-future-fallback'].model).toBe('new/future-fb');
-    });
-
-    it('T21: bulk assignment updates only managed primary and eligible fallback agents', () => {
-      const profile: ProfileData = {
-        models: { 'sdd-init': 'old/m', 'sdd-future': 'old/m', 'model-audit': 'old/m', 'my-agent': 'old/m' },
-        fallback: { 'sdd-init': 'old/fb', 'sdd-future': 'old/fb', 'model-audit': 'old/fb', 'my-agent': 'old/fb' }
-      };
-      const res = applyBulkProfilePhaseAssignment(
-        profile,
-        ['sdd-init', 'sdd-future', 'model-audit', 'my-agent'],
-        'bulk/new',
-        { target: BULK_ASSIGNMENT_TARGET.BOTH, mode: BULK_ASSIGNMENT_MODE.OVERWRITE }
-      );
-      expect(res.profile.models).toEqual({
-        'sdd-init': 'bulk/new',
-        'sdd-future': 'bulk/new',
-        'model-audit': 'bulk/new',
-        'my-agent': 'old/m',
-      });
-      expect(res.profile.fallback).toEqual({
-        'sdd-init': 'bulk/new',
-        'sdd-future': 'bulk/new',
-        'model-audit': 'old/fb',
-        'my-agent': 'old/fb',
-      });
-    });
-  });
-
   describe('validateProfileFallbackMapping', () => {
     it('should return empty list on success', () => {
       const config = {
@@ -995,7 +626,6 @@ describe('profiles logic', () => {
       
       expect(firstPass).toEqual(secondPass);
     });
-
     it('applies a persisted suffixed fallback effort without contaminating the primary agent', () => {
       const config = {
         agent: {
@@ -1113,6 +743,7 @@ describe('profiles logic', () => {
         expect(fallback.model).toBe(`provider/exhaustive-${String(index + 1).padStart(2, '0')}`);
       }
     });
+
   });
 
   describe('applyProfileDataToConfig', () => {
@@ -1648,8 +1279,8 @@ describe('profiles logic', () => {
       expect(version.beforeRaw).toContain('old/model');
       expect(version.preview.models).toEqual({ 'sdd-init': 'old/model' });
       expect(version.preview.fallback).toEqual({ 'sdd-init': 'old/fallback' });
-      expect(toPosix(vi.mocked(fs.writeFileSync).mock.calls[0]?.[0])).toMatch(/^\/mock\/config\/profile-versions\/team\.json\/\d{4}-/);
-      expect(vi.mocked(fs.writeFileSync).mock.calls[0]?.[1]).toContain('"beforeRaw"');
+      expect(toPosix(vi.mocked(fs.writeFileSync).mock.calls[0][0])).toMatch(/^\/mock\/config\/profile-versions\/team\.json\/\d{4}-/);
+      expect(vi.mocked(fs.writeFileSync).mock.calls[0][1]).toContain('"beforeRaw"');
     });
 
     it('normalizes legacy versions without source as bulk versions', () => {
@@ -1687,7 +1318,7 @@ describe('profiles logic', () => {
       createProfileVersion('/mock/profiles/team.json', operation, 'Bulk fill both');
 
       expect(fs.unlinkSync).toHaveBeenCalledTimes(1);
-      expect(toPosix(vi.mocked(fs.unlinkSync).mock.calls[0]?.[0])).toBe('/mock/config/profile-versions/team.json/2026-04-26T00-00-00-000Z-0.json');
+      expect(toPosix(vi.mocked(fs.unlinkSync).mock.calls[0][0])).toBe('/mock/config/profile-versions/team.json/2026-04-26T00-00-00-000Z-0.json');
     });
 
     it('lists newest versions and reads previews by safe version id', () => {
@@ -1816,16 +1447,16 @@ describe('profiles logic', () => {
         operationSummary: 'Bulk fill both',
         beforeRaw: '{"models":{"sdd-init":"old"}}',
         preview: {
-          models: { 'sdd-init': 'old', 'sdd-apply': 42, '__proto__': 'ignored' },
-          fallback: { 'sdd-init': 'fallback', 'sdd-design': null, 'a/b': 'ignored' }
+          models: { 'sdd-init': 'old', 'sdd-apply': 42, random: 'ignored', '__proto__': 'dropped', 'invalid key': 'dropped' },
+          fallback: { 'sdd-init': 'fallback', 'sdd-design': null, random: 'ignored', '': 'dropped' }
         }
       }));
 
       const version = readProfileVersion('team.json/2026-04-26T10-00-00-000Z-a.json');
 
       expect(version.preview).toEqual({
-        models: { 'sdd-init': 'old' },
-        fallback: { 'sdd-init': 'fallback' }
+        models: { 'sdd-init': 'old', random: 'ignored' },
+        fallback: { 'sdd-init': 'fallback', random: 'ignored' }
       });
       expect(() => formatProfileVersionPreviewLines(version)).not.toThrow();
     });
@@ -1860,12 +1491,12 @@ describe('profiles logic', () => {
       expect(writes[0].filePath).toContain('/mock/config/profile-versions/team.json/');
       expect(writes[0].content).toContain('Snapshot before restoring 2026-04-26T10-00-00-000Z-a.json');
       expect(writes[0].content).toContain('live/model');
-      expect(writes[1].filePath).toMatch(/^[/\\]mock[/\\]profiles[/\\]team\.json\.tmp-[0-9a-f]{8}$/);
+      expect(writes[1].filePath).toMatch(/^\/mock\/profiles\/team\.json\.tmp-[0-9a-f]{8}$/);
       expect(writes[1].content).toBe('{"models":{"sdd-init":"old/model"}}');
-      expect(fs.renameSync).toHaveBeenCalledWith(
-        expect.stringMatching(/^[/\\]mock[/\\]profiles[/\\]team\.json\.tmp-[0-9a-f]{8}$/),
-        expect.stringMatching(/^[/\\]mock[/\\]profiles[/\\]team\.json$/)
-      );
+      const profileRename = vi.mocked(fs.renameSync).mock.calls.find(([from]) => toPosix(from).includes('/mock/profiles/team.json.tmp-'));
+      expect(profileRename).toBeDefined();
+      expect(toPosix(profileRename![0])).toMatch(/^\/mock\/profiles\/team\.json\.tmp-[0-9a-f]{8}$/);
+      expect(toPosix(profileRename![1])).toBe('/mock/profiles/team.json');
       expect(() => restoreProfileVersion('other.json', 'team.json/2026-04-26T10-00-00-000Z-a.json')).toThrow('does not match selected profile');
     });
 
@@ -1897,12 +1528,12 @@ describe('profiles logic', () => {
       expect(writes[0].filePath).toContain('/mock/config/profile-versions/team.json/');
       expect(writes[0].content).toContain('"beforeRaw": "{invalid current profile"');
       expect(writes[0].content).toContain('"preview": {\n    "models": {},\n    "fallback": {}\n  }');
-      expect(writes[1].filePath).toMatch(/^[/\\]mock[/\\]profiles[/\\]team\.json\.tmp-[0-9a-f]{8}$/);
+      expect(writes[1].filePath).toMatch(/^\/mock\/profiles\/team\.json\.tmp-[0-9a-f]{8}$/);
       expect(writes[1].content).toBe('{"models":{"sdd-init":"old/model"}}');
-      expect(fs.renameSync).toHaveBeenCalledWith(
-        expect.stringMatching(/^[/\\]mock[/\\]profiles[/\\]team\.json\.tmp-[0-9a-f]{8}$/),
-        expect.stringMatching(/^[/\\]mock[/\\]profiles[/\\]team\.json$/)
-      );
+      const profileRename = vi.mocked(fs.renameSync).mock.calls.find(([from]) => toPosix(from).includes('/mock/profiles/team.json.tmp-'));
+      expect(profileRename).toBeDefined();
+      expect(toPosix(profileRename![0])).toMatch(/^\/mock\/profiles\/team\.json\.tmp-[0-9a-f]{8}$/);
+      expect(toPosix(profileRename![1])).toBe('/mock/profiles/team.json');
     });
 
     it('restores snapshot configs and drops unsupported config keys', () => {
@@ -1974,12 +1605,12 @@ describe('profiles logic', () => {
       });
 
       expect(() => restoreProfileVersion('team.json', 'team.json/2026-04-26T10-00-00-000Z-a.json')).not.toThrow();
-      expect(writes[1].filePath).toMatch(/^[/\\]mock[/\\]profiles[/\\]team\.json\.tmp-[0-9a-f]{8}$/);
+      expect(writes[1].filePath).toMatch(/^\/mock\/profiles\/team\.json\.tmp-[0-9a-f]{8}$/);
       expect(writes[1].content).toBe('{invalid snapshot payload');
-      expect(fs.renameSync).toHaveBeenCalledWith(
-        expect.stringMatching(/^[/\\]mock[/\\]profiles[/\\]team\.json\.tmp-[0-9a-f]{8}$/),
-        expect.stringMatching(/^[/\\]mock[/\\]profiles[/\\]team\.json$/)
-      );
+      const profileRename = vi.mocked(fs.renameSync).mock.calls.find(([from]) => toPosix(from).includes('/mock/profiles/team.json.tmp-'));
+      expect(profileRename).toBeDefined();
+      expect(toPosix(profileRename![0])).toMatch(/^\/mock\/profiles\/team\.json\.tmp-[0-9a-f]{8}$/);
+      expect(toPosix(profileRename![1])).toBe('/mock/profiles/team.json');
     });
 
     it('creates a version before mutating bulk write and skips versioning for no-op or validation failure', () => {
@@ -1993,11 +1624,11 @@ describe('profiles logic', () => {
 
       expect(result.assignment.changed).toBe(true);
       expect(writes[0]).toContain('/mock/config/profile-versions/team.json/');
-      expect(writes[1]).toMatch(/^[/\\]mock[/\\]profiles[/\\]team\.json\.tmp-[0-9a-f]{8}$/);
-      expect(fs.renameSync).toHaveBeenCalledWith(
-        expect.stringMatching(/^[/\\]mock[/\\]profiles[/\\]team\.json\.tmp-[0-9a-f]{8}$/),
-        expect.stringMatching(/^[/\\]mock[/\\]profiles[/\\]team\.json$/)
-      );
+      expect(writes[1]).toMatch(/^\/mock\/profiles\/team\.json\.tmp-[0-9a-f]{8}$/);
+      const profileRename = vi.mocked(fs.renameSync).mock.calls.find(([from]) => toPosix(from).includes('/mock/profiles/team.json.tmp-'));
+      expect(profileRename).toBeDefined();
+      expect(toPosix(profileRename![0])).toMatch(/^\/mock\/profiles\/team\.json\.tmp-[0-9a-f]{8}$/);
+      expect(toPosix(profileRename![1])).toBe('/mock/profiles/team.json');
 
       vi.clearAllMocks();
       vi.mocked(fs.readFileSync).mockReturnValue(JSON.stringify({ models: { 'sdd-init': 'existing' }, fallback: { 'sdd-init': 'existing' } }));
@@ -2043,7 +1674,7 @@ describe('profiles logic', () => {
         updatedPolicy as any,
       );
 
-      const profileWrite = writes.find((write) => /^\/mock\/profiles\/team\.json\.tmp-[0-9a-f]{8}$/.test(toPosix(write.filePath)));
+      const profileWrite = writes.find((write) => /^\/mock\/profiles\/team\.json\.tmp-[0-9a-f]{8}$/.test(write.filePath));
       expect(profileWrite).toBeDefined();
       const persistedProfile = JSON.parse(profileWrite!.content);
       expect(persistedProfile.models['gentle-orchestrator']).toBe('legacy/orchestrator');
@@ -2077,11 +1708,11 @@ describe('profiles logic', () => {
       expect(result.profile.fallback?.['sdd-design']).toBe('old/fallback');
       expect((result.profile as any).description).toBe('team defaults');
       expect(writes[0]).toContain('/mock/config/profile-versions/team.json/');
-      expect(writes[1]).toMatch(/^[/\\]mock[/\\]profiles[/\\]team\.json\.tmp-[0-9a-f]{8}$/);
-      expect(fs.renameSync).toHaveBeenCalledWith(
-        expect.stringMatching(/^[/\\]mock[/\\]profiles[/\\]team\.json\.tmp-[0-9a-f]{8}$/),
-        expect.stringMatching(/^[/\\]mock[/\\]profiles[/\\]team\.json$/)
-      );
+      expect(writes[1]).toMatch(/^\/mock\/profiles\/team\.json\.tmp-[0-9a-f]{8}$/);
+      const profileRename = vi.mocked(fs.renameSync).mock.calls.find(([from]) => toPosix(from).includes('/mock/profiles/team.json.tmp-'));
+      expect(profileRename).toBeDefined();
+      expect(toPosix(profileRename![0])).toMatch(/^\/mock\/profiles\/team\.json\.tmp-[0-9a-f]{8}$/);
+      expect(toPosix(profileRename![1])).toBe('/mock/profiles/team.json');
     });
 
     it('does not persist version metadata in the profile payload for phase model updates', () => {
@@ -2094,12 +1725,12 @@ describe('profiles logic', () => {
         description: 'team defaults'
       }));
       vi.mocked(fs.writeFileSync).mockImplementation((filePath: any, content: any) => {
-        writes.push({ filePath: toPosix(filePath), content: String(content) });
+        writes.push({ filePath: String(filePath), content: String(content) });
       });
 
       updateProfilePhaseModel('/mock/profiles/team.json', 'sdd-design', 'primary', 'new/model');
 
-      const profileWrite = writes.find((write) => /^\/mock\/profiles\/team\.json\.tmp-[0-9a-f]{8}$/.test(toPosix(write.filePath)));
+      const profileWrite = writes.find((write) => /^\/mock\/profiles\/team\.json\.tmp-[0-9a-f]{8}$/.test(write.filePath));
       expect(profileWrite).toBeDefined();
 
       const persistedProfile = JSON.parse(profileWrite!.content);
@@ -2449,28 +2080,6 @@ describe('profiles logic', () => {
       expect(persisted.configs['sdd-ORCHETATOR']).toBeUndefined();
     });
 
-    it('aborts before the profile write when snapshot creation fails', () => {
-      vi.mocked(fs.existsSync).mockReturnValue(false);
-      vi.mocked(fs.readdirSync).mockReturnValue([] as any);
-      vi.mocked(fs.readFileSync).mockReturnValue(JSON.stringify({
-        models: { 'sdd-apply': 'openai/old' },
-      }));
-      vi.mocked(fs.writeFileSync).mockImplementation((filePath: any) => {
-        if (toPosix(filePath).includes('/profile-versions/team.json/')) {
-          throw new Error('snapshot write failed');
-        }
-      });
-
-      expect(() => commitPendingModelSelection(
-        '/mock/profiles/team.json',
-        { agentName: 'sdd-apply', field: 'primary', modelId: 'openai/new' },
-        'provider-default',
-      )).toThrow('snapshot write failed');
-      expect(vi.mocked(fs.writeFileSync).mock.calls.some(([filePath]) =>
-        toPosix(filePath).includes('/profiles/team.json.tmp-')
-      )).toBe(false);
-    });
-
     it('clears provider default without persisting its token or display label', () => {
       const writes: string[] = [];
       vi.mocked(fs.existsSync).mockReturnValue(false);
@@ -2520,6 +2129,28 @@ describe('profiles logic', () => {
       expect(writes.filter(({ filePath }) => filePath.includes('/profiles/team.json.tmp-'))).toHaveLength(1);
     });
 
+    it('aborts before the profile write when snapshot creation fails', () => {
+      vi.mocked(fs.existsSync).mockReturnValue(false);
+      vi.mocked(fs.readdirSync).mockReturnValue([] as any);
+      vi.mocked(fs.readFileSync).mockReturnValue(JSON.stringify({
+        models: { 'sdd-apply': 'openai/old' },
+      }));
+      vi.mocked(fs.writeFileSync).mockImplementation((filePath: any) => {
+        if (toPosix(filePath).includes('/profile-versions/team.json/')) {
+          throw new Error('snapshot write failed');
+        }
+      });
+
+      expect(() => updateProfilePhaseModel(
+        '/mock/profiles/team.json',
+        'sdd-apply',
+        'primary',
+        'openai/new',
+      )).toThrow('snapshot write failed');
+      expect(vi.mocked(fs.writeFileSync).mock.calls.some(([filePath]) =>
+        toPosix(filePath).includes('/profiles/team.json.tmp-')
+      )).toBe(false);
+    });
 
     it('renames matching profile version history with migrated snapshot metadata', () => {
       const files: Record<string, string> = {
@@ -2594,14 +2225,12 @@ describe('profiles logic', () => {
       ]);
       expect(read.id).toBe('new.json/2026-04-26T10-00-00-000Z-a.json');
       expect(read.profileFile).toBe('new.json');
-      expect(fs.renameSync).toHaveBeenCalledWith(
-        expect.stringMatching(/^[/\\]mock[/\\]profiles[/\\]old\.json$/),
-        expect.stringMatching(/^[/\\]mock[/\\]profiles[/\\]new\.json$/)
-      );
-      expect(fs.renameSync).toHaveBeenCalledWith(
-        expect.stringMatching(/^[/\\]mock[/\\]config[/\\]profile-versions[/\\]old\.json$/),
-        expect.stringMatching(/^[/\\]mock[/\\]config[/\\]profile-versions[/\\]new\.json$/)
-      );
+      expect(vi.mocked(fs.renameSync).mock.calls.some(([from, to]) =>
+        toPosix(from) === '/mock/profiles/old.json' && toPosix(to) === '/mock/profiles/new.json'
+      )).toBe(true);
+      expect(vi.mocked(fs.renameSync).mock.calls.some(([from, to]) =>
+        toPosix(from) === '/mock/config/profile-versions/old.json' && toPosix(to) === '/mock/config/profile-versions/new.json'
+      )).toBe(true);
     });
 
     it('renames the profile and preserves corrupt version files without blocking valid snapshot migration', () => {
@@ -2830,8 +2459,393 @@ describe('profiles logic', () => {
 
       deleteProfileFile('team.json');
 
-      expect(toPosix(vi.mocked(fs.unlinkSync).mock.calls[0]?.[0])).toBe('/mock/profiles/team.json');
-      expect(toPosix(vi.mocked(fs.rmSync).mock.calls[0]?.[0])).toBe('/mock/config/profile-versions/team.json');
+      expect(toPosix(vi.mocked(fs.unlinkSync).mock.calls[0][0])).toBe('/mock/profiles/team.json');
+      expect(toPosix(vi.mocked(fs.rmSync).mock.calls[0][0])).toBe('/mock/config/profile-versions/team.json');
+      expect(vi.mocked(fs.rmSync).mock.calls[0][1]).toEqual({ recursive: true, force: true });
+    });
+  });
+
+  describe('persisted profile maps and custom preservation (T04-T09, T21, T22)', () => {
+    it('T04: covers approved fallback persistence and runtime eligibility filtering', () => {
+      const fallback = Object.fromEntries([
+        'sdd-ORCHETATOR',
+        'sdd-propose',
+        'sdd-design',
+        'sdd-apply',
+        'sdd-verify',
+        'sdd-spec',
+        'sdd-onboard',
+        'sdd-explore',
+        'sdd-init',
+        'sdd-tasks',
+        'sdd-archive',
+        'jd-judge-a',
+        'jd-judge-b',
+        'jd-fix-agent',
+        'review-readability',
+        'review-reliability',
+        'review-resilience',
+        'review-validator',
+        'review-refuter',
+        'review-risk',
+        'gentle-ai-windows-validator',
+        'compaction',
+        'summary',
+        'title',
+      ].map((name) => [name, `fallback/${name}`]));
+      const profile = { models: { 'sdd-apply': 'primary/model' }, fallback } as ProfileData;
+      vi.mocked(fs.readFileSync).mockReturnValue(JSON.stringify(profile));
+
+      expect(readProfileData('/mock/profiles/all-fallbacks.json').fallback).toEqual(fallback);
+      writeProfileData('/mock/profiles/all-fallbacks.json', profile);
+      expect(JSON.parse(String(vi.mocked(fs.writeFileSync).mock.calls[0]?.[1])).fallback).toEqual(fallback);
+
+      const synced = syncSddFallbackAgents({
+        agent: {
+          'sdd-apply': { model: 'primary/model' },
+          'gentle-ai-windows-validator': { model: 'validator/model' },
+          compaction: { model: 'compaction/model' },
+          summary: { model: 'summary/model' },
+          title: { model: 'title/model' },
+        },
+      }, fallback);
+
+      expect(synced.agent['sdd-apply-fallback']?.model).toBe('fallback/sdd-apply');
+      expect(synced.agent['gentle-ai-windows-validator-fallback']?.model).toBe('fallback/gentle-ai-windows-validator');
+      expect(synced.agent['compaction-fallback']).toBeUndefined();
+      expect(synced.agent['summary-fallback']).toBeUndefined();
+      expect(synced.agent['title-fallback']).toBeUndefined();
+      expect(synced.agent['sdd-ORCHETATOR-fallback']).toBeUndefined();
+    });
+
+    it('T04: preserves an existing runtime-ineligible fallback while refusing to synthesize it', () => {
+      const currentConfig = {
+        agent: {
+          compaction: { model: 'runtime/compaction' },
+          'compaction-fallback': { model: 'runtime/old-compaction', custom: true },
+        },
+      };
+
+      const synced = syncSddFallbackAgents(currentConfig, {
+        compaction: 'profile/compaction',
+      });
+
+      expect(synced.agent['compaction-fallback']).toEqual(currentConfig.agent['compaction-fallback']);
+      expect(synced.agent['compaction-fallback']?.model).toBe('runtime/old-compaction');
+    });
+
+    it('T04: validates runtime-eligible catalog fallbacks without rejecting stored-only catalog intent', () => {
+      const errors = validateProfileFallbackMapping({
+        agent: {
+          'gentle-ai-windows-validator': { model: 'runtime/validator' },
+        },
+      }, {
+        'gentle-ai-windows-validator': 'profile/validator',
+        'sdd-ORCHETATOR': 'profile/orchestrator',
+        compaction: 'profile/compaction',
+        summary: 'profile/summary',
+        title: 'profile/title',
+      });
+
+      expect(errors).toEqual([]);
+      expect(validateProfileFallbackMapping({ agent: { 'sdd-apply': { model: 'runtime/apply' } } }, {
+        'sdd-apply': 'profile/apply',
+        compaction: 'profile/compaction',
+      })).toEqual([]);
+    });
+
+    it('T09: syncSddFallbackAgents never synthesizes fallback for ineligible/custom primaries', () => {
+      const synced = syncSddFallbackAgents({ agent: { 'my-agent': { model: 'p/m' }, 'sdd-init': { model: 'p/m' } } }, {});
+      expect(synced.agent['sdd-init-fallback']).toBeDefined();
+      expect(synced.agent['my-agent-fallback']).toBeUndefined();
+    });
+
+    it('T17: updateProfilePhaseModel validates fallback eligibility and stores profileKey', () => {
+      const profilePath = '/mock/profiles/test.json';
+      vi.mocked(fs.readFileSync).mockReturnValue(JSON.stringify({ models: { 'sdd-apply': 'old/m' } }));
+
+      const resBase = updateProfilePhaseModel(profilePath, 'sdd-apply', 'fallback', 'provider/apply-fb');
+      expect(resBase.profile.fallback?.['sdd-apply']).toBe('provider/apply-fb');
+      expect(resBase.profile.fallback?.['sdd-apply-fallback']).toBeUndefined();
+
+      const resFuture = updateProfilePhaseModel(profilePath, 'sdd-future', 'fallback', 'provider/future-fb');
+      expect(resFuture.profile.fallback?.['sdd-future']).toBe('provider/future-fb');
+
+      expect(() => updateProfilePhaseModel(profilePath, 'model-audit', 'fallback', 'p/fb')).toThrow(/not eligible/);
+      expect(() => updateProfilePhaseModel(profilePath, 'sdd-orchestrator', 'fallback', 'p/fb')).toThrow();
+      expect(() => updateProfilePhaseModel(profilePath, 'my-agent', 'fallback', 'p/fb')).toThrow();
+    });
+
+    it('T34: syncSddFallbackAgents requires an explicit model-audit override and excludes auxiliaries/custom agents', () => {
+      const config = {
+        agent: {
+          'sdd-init': { model: 'p/init' },
+          'sdd-future': { model: 'p/future' },
+          'model-audit': { model: 'p/audit', description: 'Review provider output' },
+          'my-agent': { model: 'p/custom' },
+          compaction: { model: 'p/compaction' },
+          summary: { model: 'p/summary' },
+          title: { model: 'p/title' },
+        }
+      };
+      const fallbackWithoutModelAuditOverride = {
+        'sdd-init': 'p/init-fb',
+        'sdd-future': 'p/future-fb',
+      };
+      const withoutModelAuditOverride = syncSddFallbackAgents(config, fallbackWithoutModelAuditOverride);
+      expect(withoutModelAuditOverride.agent['model-audit-fallback']).toBeUndefined();
+
+      const retainedWithoutModelAuditOverride = syncSddFallbackAgents({
+        agent: {
+          ...config.agent,
+          'model-audit-fallback': { model: 'p/audit-existing', description: 'Preserve this definition' },
+        }
+      }, fallbackWithoutModelAuditOverride);
+      expect(retainedWithoutModelAuditOverride.agent['model-audit-fallback']).toEqual({
+        model: 'p/audit-existing',
+        description: 'Preserve this definition',
+      });
+
+      const fallback = {
+        'sdd-init': 'p/init-fb',
+        'sdd-future': 'p/future-fb',
+        'model-audit': 'p/audit-fb',
+        'my-agent': 'p/custom-fb',
+        compaction: 'p/compaction-fb',
+        summary: 'p/summary-fb',
+        title: 'p/title-fb',
+      };
+      const synced = syncSddFallbackAgents(config, fallback);
+      expect(synced.agent['sdd-init-fallback'].model).toBe('p/init-fb');
+      expect(synced.agent['sdd-future-fallback'].model).toBe('p/future-fb');
+      expect(synced.agent['model-audit-fallback']).toEqual({
+        model: 'p/audit-fb',
+        description: 'Review provider output',
+      });
+      expect(synced.agent['my-agent-fallback']).toBeUndefined();
+      expect(synced.agent['compaction-fallback']).toBeUndefined();
+      expect(synced.agent['summary-fallback']).toBeUndefined();
+      expect(synced.agent['title-fallback']).toBeUndefined();
+    });
+
+    it('T34: applyProfileDataToConfig and activation preserves explicit future pairs and external agents', () => {
+      const currentConfig = {
+        agent: {
+          'external-agent': { model: 'ext/m', provider: 'other' },
+          'sdd-init': { model: 'old/init' },
+        }
+      };
+      const profile: ProfileData = {
+        models: { 'sdd-init': 'new/init', 'sdd-future': 'new/future' },
+        fallback: { 'sdd-init': 'new/init-fb', 'sdd-future': 'new/future-fb' },
+      };
+      const next = applyProfileDataToConfig(currentConfig, profile);
+      expect(next.agent['external-agent']).toEqual(currentConfig.agent['external-agent']);
+      expect(next.agent['sdd-init'].model).toBe('new/init');
+      expect(next.agent['sdd-init-fallback'].model).toBe('new/init-fb');
+      expect(next.agent['sdd-future'].model).toBe('new/future');
+      expect(next.agent['sdd-future-fallback'].model).toBe('new/future-fb');
+    });
+
+    it('T21: bulk assignment updates only managed primary and eligible fallback agents', () => {
+      const profile: ProfileData = {
+        models: { 'sdd-init': 'old/m', 'sdd-future': 'old/m', 'model-audit': 'old/m', 'my-agent': 'old/m' },
+        fallback: { 'sdd-init': 'old/fb', 'sdd-future': 'old/fb', 'model-audit': 'old/fb', 'my-agent': 'old/fb' }
+      };
+      const res = applyBulkProfilePhaseAssignment(
+        profile,
+        ['sdd-init', 'sdd-future', 'model-audit', 'my-agent'],
+        'bulk/new',
+        { target: BULK_ASSIGNMENT_TARGET.BOTH, mode: BULK_ASSIGNMENT_MODE.OVERWRITE }
+      );
+      expect(res.profile.models).toEqual({
+        'sdd-init': 'bulk/new',
+        'sdd-future': 'bulk/new',
+        'model-audit': 'bulk/new',
+        'my-agent': 'old/m',
+      });
+      expect(res.profile.fallback).toEqual({
+        'sdd-init': 'bulk/new',
+        'sdd-future': 'bulk/new',
+        'model-audit': 'old/fb',
+        'my-agent': 'old/fb',
+      });
+    });
+    it('T05: normalizes legacy aliases idempotently without dropping unknown valid assignments', () => {
+      const legacy = {
+        models: {
+          'sdd-orchestrator': ' legacy/orchestrator ',
+          'security-auditor': ' custom/model ',
+        },
+        fallback: { 'security-auditor': ' custom/fallback ' },
+        configs: { 'security-auditor': { reasoningEffort: ' high ' } },
+        description: 'team defaults',
+      };
+      vi.mocked(fs.readFileSync).mockReturnValue(JSON.stringify(legacy));
+
+      const normalized = readProfileData('/mock/profiles/legacy-custom.json');
+      expect(normalized).toEqual({
+        models: {
+          'sdd-orchestrator': 'legacy/orchestrator',
+          'security-auditor': 'custom/model',
+        },
+        fallback: { 'security-auditor': 'custom/fallback' },
+        configs: { 'security-auditor': { reasoningEffort: 'high' } },
+        description: 'team defaults',
+      });
+
+      writeProfileData('/mock/profiles/legacy-custom.json', normalized);
+      const persisted = JSON.parse(String(vi.mocked(fs.writeFileSync).mock.calls[0]?.[1]));
+      expect(persisted).toEqual(normalized);
+
+      vi.clearAllMocks();
+      vi.mocked(fs.readFileSync).mockReturnValue(JSON.stringify(persisted));
+      expect(readProfileData('/mock/profiles/legacy-custom.json')).toEqual(normalized);
+    });
+
+    it('T05: preserves unknown valid assignments in a legacy flat profile', () => {
+      vi.mocked(fs.readFileSync).mockReturnValue(JSON.stringify({
+        'security-auditor': { model: ' custom/model ' },
+        description: 'team defaults',
+      }));
+
+      expect(readProfileData('/mock/profiles/legacy-flat-custom.json')).toEqual({
+        models: {
+          'security-auditor': 'custom/model',
+          description: 'team defaults',
+        },
+      });
+    });
+
+    it('T05: retains the catalog orchestrator alias in persisted intent while runtime sync excludes it', () => {
+      const profile = {
+        models: { 'sdd-ORCHETATOR': 'catalog/orchestrator' },
+        fallback: { 'sdd-ORCHETATOR': 'catalog/fallback' },
+      } as ProfileData;
+      vi.mocked(fs.readFileSync).mockReturnValue(JSON.stringify(profile));
+
+      expect(readProfileData('/mock/profiles/catalog-alias.json')).toEqual({
+        models: { 'sdd-orchestrator': 'catalog/orchestrator' },
+        fallback: profile.fallback,
+      });
+      writeProfileData('/mock/profiles/catalog-alias.json', profile);
+      expect(JSON.parse(String(vi.mocked(fs.writeFileSync).mock.calls[0]?.[1]))).toEqual(profile);
+
+      const synced = syncSddFallbackAgents({ agent: {} }, profile.fallback || {});
+      expect(synced.agent['sdd-ORCHETATOR-fallback']).toBeUndefined();
+    });
+
+    it.each([
+      ['modern models', { models: { 'my-agent': 'provider/custom-model', 'sdd-init': 'provider/gpt-4' } }],
+      ['legacy flat', { 'my-agent': 'provider/custom-model', 'sdd-init': 'provider/gpt-4' }],
+      ['config agent', { agent: { 'my-agent': { model: 'provider/custom-model' }, 'sdd-init': { model: 'provider/gpt-4' } } }]
+    ])('T04: preserves valid custom agent in %s format', (_, payload) => {
+      vi.mocked(fs.readFileSync).mockReturnValue(JSON.stringify(payload));
+      const expected = { 'my-agent': 'provider/custom-model', 'sdd-init': 'provider/gpt-4' };
+      expect(readProfileModels('/mock/p.json')).toEqual(expected);
+      expect(readProfileData('/mock/p.json').models).toEqual(expected);
+    });
+
+    it('T05, T08: preserves valid and ineligible custom fallback models on read/write', () => {
+      const payload: ProfileData = {
+        models: { 'sdd-init': 'p/gpt-4' },
+        fallback: { 'my-agent': 'p/custom-fb', 'sdd-init': 'p/gpt-3.5' }
+      };
+      vi.mocked(fs.readFileSync).mockReturnValue(JSON.stringify(payload));
+      expect(readProfileFallbackModels('/mock/p.json')).toEqual(payload.fallback);
+      expect(readProfileData('/mock/p.json').fallback).toEqual(payload.fallback);
+
+      writeProfileData('/mock/p.json', payload);
+      expect(JSON.parse(String(vi.mocked(fs.writeFileSync).mock.calls[0]?.[1])).fallback).toEqual(payload.fallback);
+    });
+
+    it('T06: round-trips top-level extras with nested custom models and fallbacks', () => {
+      const payload = {
+        description: 'team defaults',
+        customField: { active: true },
+        models: { 'my-agent': 'p/custom', 'sdd-init': 'p/gpt-4' },
+        fallback: { 'my-agent': 'p/custom-fb' }
+      };
+      vi.mocked(fs.readFileSync).mockReturnValue(JSON.stringify(payload));
+      const read = readProfileData('/mock/p.json');
+      expect(read).toMatchObject(payload);
+
+      writeProfileData('/mock/p.json', read);
+      expect(JSON.parse(String(vi.mocked(fs.writeFileSync).mock.calls[0]?.[1]))).toMatchObject(payload);
+    });
+
+    it('round-trips reasoning config for a custom primary agent', () => {
+      const payload = {
+        models: { 'security-auditor': 'openai/gpt-5' },
+        configs: { 'security-auditor': { reasoningEffort: 'high' } },
+      };
+      vi.mocked(fs.readFileSync).mockReturnValue(JSON.stringify(payload));
+
+      const profile = readProfileData('/mock/profiles/custom.json');
+      expect(profile.configs).toEqual(payload.configs);
+
+      writeProfileData('/mock/profiles/custom.json', profile);
+      expect(JSON.parse(String(vi.mocked(fs.writeFileSync).mock.calls[0]?.[1])).configs).toEqual(payload.configs);
+    });
+
+    it('T07: extractPersistedProfileExtras extracts only top-level extras and excludes containers/base', () => {
+      const raw = {
+        models: { 'my-agent': 'p/m' },
+        fallback: { 'sdd-init': 'p/fb' },
+        configs: { 'sdd-init': { reasoningEffort: 'high' } },
+        agent: { 'sdd-init': { model: 'p/m' } },
+        'sdd-init': 'legacy/model',
+        'my-agent': 'top-level-value',
+        description: 'team defaults'
+      };
+      expect(extractPersistedProfileExtras(raw)).toEqual({
+        'my-agent': 'top-level-value',
+        description: 'team defaults'
+      });
+    });
+
+    it('T21: bulk assignment does not modify custom agent models in profile', () => {
+      const profile: ProfileData = {
+        models: { 'sdd-init': 'old/m', 'my-agent': 'custom/m' },
+        fallback: { 'sdd-init': 'old/fb', 'my-agent': 'custom/fb' }
+      };
+      const res = applyBulkProfilePhaseAssignment(profile, ['sdd-init', 'my-agent'], 'new/m', {
+        target: BULK_ASSIGNMENT_TARGET.BOTH,
+        mode: BULK_ASSIGNMENT_MODE.OVERWRITE
+      });
+      expect(res.profile.models).toEqual({ 'sdd-init': 'new/m', 'my-agent': 'custom/m' });
+      expect(res.profile.fallback).toEqual({ 'sdd-init': 'new/m', 'my-agent': 'custom/fb' });
+    });
+
+    it('T22: activation preserves unmentioned external agents in config', () => {
+      const config = {
+        agent: {
+          'external-agent': { model: 'ext/m', provider: 'other', temperature: 0.7 },
+          'sdd-init': { model: 'old/m' }
+        }
+      };
+      const next = applyProfileDataToConfig(config, { models: { 'sdd-init': 'new/model' } });
+      expect(next.agent['external-agent']).toEqual(config.agent['external-agent']);
+      expect(next.agent['sdd-init'].model).toBe('new/model');
+    });
+
+    it('drops invalid agent keys on read and write', () => {
+      const raw = {
+        models: { '__proto__': 'bad', constructor: 'bad', 'a/b': 'bad', 'a b': 'bad', 'sdd-init': 'gpt-4', 'valid-custom': 'p/c' },
+        fallback: { prototype: 'bad', ['a'.repeat(65)]: 'bad', 'sdd-init': 'gpt-3.5', 'valid-fb': 'p/fb' }
+      };
+      vi.mocked(fs.readFileSync).mockReturnValue(JSON.stringify(raw));
+      const data = readProfileData('/mock/invalid.json');
+      const expected = {
+        models: { 'sdd-init': 'gpt-4', 'valid-custom': 'p/c' },
+        fallback: { 'sdd-init': 'gpt-3.5', 'valid-fb': 'p/fb' }
+      };
+      expect(data.models).toEqual(expected.models);
+      expect(data.fallback).toEqual(expected.fallback);
+      writeProfileData('/mock/invalid.json', data);
+      const written = JSON.parse(String(vi.mocked(fs.writeFileSync).mock.calls[0]?.[1]));
+      expect(written.models).toEqual(expected.models);
+      expect(written.fallback).toEqual(expected.fallback);
     });
   });
 

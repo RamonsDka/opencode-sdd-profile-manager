@@ -3,8 +3,16 @@ import { BULK_ASSIGNMENT_MODE, BULK_ASSIGNMENT_TARGET, PROFILE_VERSION_SOURCE } 
 import { buildBulkProfileActionOptions, buildProfileVersionListOption, createFallbackSubmenuDialogProps, createPrimarySubmenuDialogProps, createReasoningSubmenuDialogProps, formatProfileVersionPreviewLines } from './dialogs';
 import { buildProfileAgentRows, buildProfileListOptions, createProfileListDialogProps, resolvePersistedActiveProfileFile } from './dialogs';
 import { buildProfileDetailAgentSections, resolveRuntimeOrchestratorPolicy, buildReasoningRowForAgent, buildReasoningBlockedMessage } from './dialogs';
-import { resolveProfileDetailSelectionAction } from './dialogs';
+import { resolveProfileDetailSelectionAction, wrapDisplayText, sanitizeMemoryDisplayText } from './dialogs';
 import {
+  buildModelMutationContext,
+  buildBulkModelMutationContext,
+  createModelSelectionHandler,
+  createModelPickerDialogProps,
+  createReasoningEffortPickerDialogProps,
+  createBulkModelSelectionHandler,
+  createBulkReasoningEffortPickerDialogProps,
+  createBulkModelPickerDialogProps,
   PROFILE_DETAIL_SUBMENU,
   createProfileDetailDialogProps,
   buildFallbackSubmenuOptions,
@@ -36,22 +44,11 @@ import {
   showConfirmRestoreProfileVersion,
   handleActivateProfile,
   showDeleteMemory,
-  wrapDisplayText,
-  sanitizeMemoryDisplayText,
-  buildModelMutationContext,
-  buildBulkModelMutationContext,
-  createModelSelectionHandler,
-  createModelPickerDialogProps,
-  createReasoningEffortPickerDialogProps,
-  createBulkModelSelectionHandler,
-  createBulkReasoningEffortPickerDialogProps,
-  createBulkModelPickerDialogProps,
 } from './dialogs';
 import type { DialogSize } from './types';
 import * as profiles from './profiles';
-import * as memories from './memories';
-import { buildCatalogSections, CATALOG_GROUPS, VISIBLE_CATALOG_ROWS } from './catalog';
 import { getOrchestratorPolicy } from './orchestrator';
+import { buildCatalogSections, CATALOG_GROUPS, VISIBLE_CATALOG_ROWS } from './catalog';
 
 describe('dialog pure builders', () => {
   beforeEach(() => {
@@ -243,13 +240,10 @@ describe('dialog pure builders', () => {
   });
 
   it('returns explicit blocked messages for missing-model and unsupported states', () => {
-    expect(buildReasoningBlockedMessage({ kind: 'missing-model', agentName: 'sdd-apply' }))
-      .toContain('Asigna un modelo primario');
-
-    expect(buildReasoningBlockedMessage({ kind: 'unsupported', agentName: 'sdd-apply', modelId: 'openai/gpt-4.1' }))
-      .toContain('no expone opciones de esfuerzo de razonamiento');
-
+    expect(buildReasoningBlockedMessage({ kind: 'missing-model', agentName: 'sdd-apply' })).toContain('Asigna un modelo primario');
+    expect(buildReasoningBlockedMessage({ kind: 'unsupported', agentName: 'sdd-apply', modelId: 'openai/gpt-4.1' })).toContain('no expone opciones de esfuerzo de razonamiento');
   });
+
 
   it('prioritizes a safely mapped persisted active profile name in profile list rows', () => {
     const files = ['GLOBAL-1.json', 'team.json'];
@@ -536,7 +530,7 @@ describe('dialog pure builders', () => {
     expect(showHub).toHaveBeenCalledWith(api, profileOpt);
   });
 
-  describe('catalog-driven dialogs & tiered sizing (T10, T11, T18-T20, T25, T26, T29-T31)', () => {
+  describe('catalog-driven dialogs & category ordering', () => {
     const createMockApi = (configAgent: any = {}) => ({
       ui: {
         dialog: {
@@ -549,18 +543,13 @@ describe('dialog pure builders', () => {
       state: { config: { agent: configAgent }, provider: [] },
       kv: { set: vi.fn().mockResolvedValue(undefined) },
     });
-    const profileOpt = { title: 'team', value: 'team.json' };
-    const createFlowApi = (providers: any[] = []) => ({
-      state: { config: { agent: { 'sdd-spec': {} } }, provider: providers },
-      ui: { toast: vi.fn(), dialog: { replace: vi.fn(), setSize: vi.fn() } },
-    });
 
     it.each([
-       ['primary runtime (T10)', { 'sdd-spec': {} }, 'sdd-spec', 'model:sdd-spec', undefined],
-       ['primary configured (T10)', { 'sdd-spec': {} }, 'sdd-spec', 'model:sdd-spec', undefined],
-       ['fallback runtime (T11)', { 'sdd-spec-fallback': {} }, 'sdd-spec-fallback', 'fallback:sdd-spec', undefined],
+      ['primary runtime (T10)', { 'sdd-spec': {} }, 'sdd-spec', 'model:sdd-spec', undefined],
+      ['primary configured (T10)', { 'sdd-spec': {} }, 'sdd-spec', 'model:sdd-spec', undefined],
+      ['fallback runtime (T11)', { 'sdd-spec-fallback': {} }, 'sdd-spec-fallback', 'fallback:sdd-spec', undefined],
     ])('%s', (_, agentConfig, displayName, expectedValue, expectedBadge) => {
-       const api = createMockApi(agentConfig);
+      const api = createMockApi(agentConfig);
       const catalog = buildCatalogSections(api.state.config, { models: {} });
       const isFallback = displayName.endsWith('-fallback');
       const options = isFallback
@@ -573,95 +562,21 @@ describe('dialog pure builders', () => {
     });
 
     it('displays fallback model desc from profileKey and badge from displayName hasOwn (T18)', () => {
-       const api = createMockApi({ 'sdd-apply-fallback': {} });
-       const profileData = { fallback: { 'sdd-apply': 'openai/gpt-4.1-mini' } };
-       const catalog = buildCatalogSections(api.state.config, profileData as any);
-       const options = buildFallbackSubmenuOptions(profileData, catalog, api);
-       const option = options.find((opt) => opt.value === 'fallback:sdd-apply');
+      const api = createMockApi({ 'sdd-apply-fallback': {} });
+      const profileData = { fallback: { 'sdd-apply': 'openai/gpt-4.1-mini' } };
+      const catalog = buildCatalogSections(api.state.config, profileData as any);
+      const options = buildFallbackSubmenuOptions(profileData, catalog, api);
+      const option = options.find((opt) => opt.value === 'fallback:sdd-apply');
 
-       expect(option).toBeDefined();
-       expect(option?.title).toBe('sdd-apply');
-       expect(option?.description).toContain('openai/gpt-4.1-mini');
-       expect(option?.badge).toBeUndefined();
-     });
+      expect(option).toBeDefined();
+      expect(option?.title).toBe('sdd-apply');
+      expect(option?.description).toContain('openai/gpt-4.1-mini');
+      expect(option?.badge).toBeUndefined();
+    });
 
     it('routes unconfigured primary and fallback selections to assign actions (T19, T20)', () => {
       expect(resolveProfileDetailSelectionAction('model:sdd-spec')).toEqual({ action: 'model', agentName: 'sdd-spec' });
       expect(resolveProfileDetailSelectionAction('fallback:sdd-spec')).toEqual({ action: 'fallback', agentName: 'sdd-spec' });
-    });
-
-    const sampleProfileOpt = { title: 'team', value: 'team.json' };
-    const sampleMemory = { id: 1, title: 'Memory 1', content: 'test memory', type: 'manual', scope: 'project' };
-    const sampleProvider = { id: 'test-prov', name: 'Test Provider', models: { 'model-a': { name: 'Model A' } } };
-    const sampleBulkAction = {
-      title: 'Bulk Action',
-      value: 'bulk:fill-only:primary',
-      operation: { target: BULK_ASSIGNMENT_TARGET.PRIMARY, mode: BULK_ASSIGNMENT_MODE.FILL_ONLY },
-      requiresConfirmation: false,
-    };
-
-    const TIER_MAP: Array<[string, (api: any) => Promise<any> | any, DialogSize]> = [
-       // xlarge dense selectors
-       ['showProfileList', (api) => showProfileList(api), 'xlarge'],
-       ['showProfileDetail', (api) => showProfileDetail(api, sampleProfileOpt), 'xlarge'],
-       ['showProfileDetailSubmenuPrimary', (api) => showProfileDetailSubmenuPrimary(api, sampleProfileOpt, { models: {} }), 'xlarge'],
-       ['showProfileDetailSubmenuReasoning', (api) => showProfileDetailSubmenuReasoning(api, sampleProfileOpt, { models: {} }), 'xlarge'],
-       ['showProfileDetailSubmenuFallback', (api) => showProfileDetailSubmenuFallback(api, sampleProfileOpt, { models: {} }), 'xlarge'],
-       ['showBulkProfileActions', (api) => showBulkProfileActions(api, sampleProfileOpt), 'xlarge'],
-       ['showProviderPickerForBulkProfilePhases', (api) => showProviderPickerForBulkProfilePhases(api, sampleProfileOpt, sampleBulkAction), 'xlarge'],
-       ['showMemoryDetail', (api) => showMemoryDetail(api, sampleMemory), 'xlarge'],
-       ['showModelPickerForBulkProfilePhases', (api) => showModelPickerForBulkProfilePhases(api, sampleProfileOpt, sampleProvider, sampleBulkAction), 'xlarge'],
-       ['showProfileVersions', (api) => showProfileVersions(api, sampleProfileOpt), 'xlarge'],
-       ['showProfileVersionPreview', (api) => showProfileVersionPreview(api, sampleProfileOpt, 'team.json/2026-04-26T10-00-00-000Z-a.json'), 'xlarge'],
-       ['showProviderPickerForAgent', (api) => showProviderPickerForAgent(api, sampleProfileOpt, 'sdd-init', 'model'), 'xlarge'],
-       ['showModelPickerForAgent', (api) => showModelPickerForAgent(api, sampleProfileOpt, 'sdd-init', sampleProvider, 'model'), 'xlarge'],
-
-       // large
-       ['showProjectMemoriesMenu', (api) => showProjectMemoriesMenu(api), 'large'],
-
-       // medium prompts and confirmations
-       ['showProfilesMenu', (api) => showProfilesMenu(api), 'medium'],
-       ['showCreateProfile', (api) => showCreateProfile(api), 'medium'],
-       ['showReasoningEffortPicker', (api) => showReasoningEffortPicker(api, sampleProfileOpt, 'sdd-init'), 'medium'],
-      ['showRenameProfile', (api) => showRenameProfile(api, sampleProfileOpt), 'medium'],
-      ['showDeleteProfile', (api) => showDeleteProfile(api, sampleProfileOpt), 'medium'],
-      ['showConfirmRestoreProfileVersion', (api) => showConfirmRestoreProfileVersion(api, sampleProfileOpt, 'team.json/2026-04-26T10-00-00-000Z-a.json'), 'medium'],
-      ['handleActivateProfile', (api) => handleActivateProfile(api, '/mock/team.json', 'team'), 'medium'],
-      ['showDeleteMemory', (api) => showDeleteMemory(api, sampleMemory), 'medium'],
-    ];
-
-    it.each(TIER_MAP)('sets tiered dialog size on entry for %s -> %s (T25)', async (_, showFn, expectedTier) => {
-      const api = createMockApi({ 'sdd-apply': {} });
-      vi.spyOn(profiles, 'activateProfileFile').mockResolvedValue({ agent: {} });
-      await showFn(api);
-      expect(api.ui.dialog.setSize).toHaveBeenCalledWith(expectedTier);
-    });
-
-    it('resets dialog size across xlarge -> large -> medium -> back/cancel 5x without leak (T26)', async () => {
-      const api = createMockApi({ 'sdd-apply': {} });
-      vi.spyOn(profiles, 'activateProfileFile').mockResolvedValue({ agent: {} });
-
-      for (let i = 0; i < 5; i++) {
-        // xlarge hub
-        showProfileDetail(api, sampleProfileOpt);
-        expect(api.ui.dialog.setSize).toHaveBeenLastCalledWith('xlarge');
-
-        // xlarge submenu
-        showProfileDetailSubmenuPrimary(api, sampleProfileOpt, { models: {} });
-        expect(api.ui.dialog.setSize).toHaveBeenLastCalledWith('xlarge');
-
-         // back to xlarge bulk selector
-        showBulkProfileActions(api, sampleProfileOpt);
-        expect(api.ui.dialog.setSize).toHaveBeenLastCalledWith('xlarge');
-
-        // back to xlarge hub
-        showProfileDetail(api, sampleProfileOpt);
-        expect(api.ui.dialog.setSize).toHaveBeenLastCalledWith('xlarge');
-
-        // back to medium root menu
-        showProfilesMenu(api);
-        expect(api.ui.dialog.setSize).toHaveBeenLastCalledWith('medium');
-      }
     });
 
     it('wraps memory text at >=80 at xlarge and preserves empty lines (T29)', () => {
@@ -690,21 +605,95 @@ describe('dialog pure builders', () => {
       expect(wrapped[0]).toBe('code bold -> target');
     });
 
-     it('uses native categories in exact catalog order without synthetic separator options', () => {
+    const sampleProfileOpt = { title: 'team', value: 'team.json' };
+    const sampleMemory = { id: 1, title: 'Memory 1', content: 'test memory', type: 'manual', scope: 'project' };
+    const sampleProvider = { id: 'test-prov', name: 'Test Provider', models: { 'model-a': { name: 'Model A' } } };
+    const sampleBulkAction = {
+      title: 'Bulk Action',
+      value: 'bulk:fill-only:primary',
+      operation: { target: BULK_ASSIGNMENT_TARGET.PRIMARY, mode: BULK_ASSIGNMENT_MODE.FILL_ONLY },
+      requiresConfirmation: false,
+    };
+
+    const TIER_MAP: Array<[string, (api: any) => Promise<any> | any, DialogSize]> = [
+      // xlarge dense selectors
+      ['showProfileList', (api) => showProfileList(api), 'xlarge'],
+      ['showProfileDetail', (api) => showProfileDetail(api, sampleProfileOpt), 'xlarge'],
+      ['showProfileDetailSubmenuPrimary', (api) => showProfileDetailSubmenuPrimary(api, sampleProfileOpt, { models: {} }), 'xlarge'],
+      ['showProfileDetailSubmenuReasoning', (api) => showProfileDetailSubmenuReasoning(api, sampleProfileOpt, { models: {} }), 'xlarge'],
+      ['showProfileDetailSubmenuFallback', (api) => showProfileDetailSubmenuFallback(api, sampleProfileOpt, { models: {} }), 'xlarge'],
+      ['showBulkProfileActions', (api) => showBulkProfileActions(api, sampleProfileOpt), 'xlarge'],
+      ['showProviderPickerForBulkProfilePhases', (api) => showProviderPickerForBulkProfilePhases(api, sampleProfileOpt, sampleBulkAction), 'xlarge'],
+      ['showMemoryDetail', (api) => showMemoryDetail(api, sampleMemory), 'xlarge'],
+      ['showModelPickerForBulkProfilePhases', (api) => showModelPickerForBulkProfilePhases(api, sampleProfileOpt, sampleProvider, sampleBulkAction), 'xlarge'],
+      ['showProfileVersions', (api) => showProfileVersions(api, sampleProfileOpt), 'xlarge'],
+      ['showProfileVersionPreview', (api) => showProfileVersionPreview(api, sampleProfileOpt, 'team.json/2026-04-26T10-00-00-000Z-a.json'), 'xlarge'],
+      ['showProviderPickerForAgent', (api) => showProviderPickerForAgent(api, sampleProfileOpt, 'sdd-init', 'model'), 'xlarge'],
+      ['showModelPickerForAgent', (api) => showModelPickerForAgent(api, sampleProfileOpt, 'sdd-init', sampleProvider, 'model'), 'xlarge'],
+
+      // large
+      ['showProjectMemoriesMenu', (api) => showProjectMemoriesMenu(api), 'large'],
+
+      // medium prompts and confirmations
+      ['showProfilesMenu', (api) => showProfilesMenu(api), 'medium'],
+      ['showCreateProfile', (api) => showCreateProfile(api), 'medium'],
+      ['showReasoningEffortPicker', (api) => showReasoningEffortPicker(api, sampleProfileOpt, 'sdd-init'), 'medium'],
+      ['showRenameProfile', (api) => showRenameProfile(api, sampleProfileOpt), 'medium'],
+      ['showDeleteProfile', (api) => showDeleteProfile(api, sampleProfileOpt), 'medium'],
+      ['showConfirmRestoreProfileVersion', (api) => showConfirmRestoreProfileVersion(api, sampleProfileOpt, 'team.json/2026-04-26T10-00-00-000Z-a.json'), 'medium'],
+      ['handleActivateProfile', (api) => handleActivateProfile(api, '/mock/team.json', 'team'), 'medium'],
+      ['showDeleteMemory', (api) => showDeleteMemory(api, sampleMemory), 'medium'],
+    ];
+
+    it.each(TIER_MAP)('sets tiered dialog size on entry for %s -> %s (T25)', async (_, showFn, expectedTier) => {
+      const api = createMockApi({ 'sdd-apply': {} });
+      vi.spyOn(profiles, 'activateProfileFile').mockResolvedValue({ agent: {} });
+      await showFn(api);
+      expect(api.ui.dialog.setSize).toHaveBeenCalledWith(expectedTier);
+    });
+
+    it('resets dialog size across xlarge -> large -> medium -> back/cancel 5x without leak (T26)', async () => {
+      const api = createMockApi({ 'sdd-apply': {} });
+      vi.spyOn(profiles, 'activateProfileFile').mockResolvedValue({ agent: {} });
+
+      for (let i = 0; i < 5; i++) {
+        // xlarge hub
+        showProfileDetail(api, sampleProfileOpt);
+        expect(api.ui.dialog.setSize).toHaveBeenLastCalledWith('xlarge');
+
+        // xlarge submenu
+        showProfileDetailSubmenuPrimary(api, sampleProfileOpt, { models: {} });
+        expect(api.ui.dialog.setSize).toHaveBeenLastCalledWith('xlarge');
+
+        // back to xlarge bulk selector
+        showBulkProfileActions(api, sampleProfileOpt);
+        expect(api.ui.dialog.setSize).toHaveBeenLastCalledWith('xlarge');
+
+        // back to xlarge hub
+        showProfileDetail(api, sampleProfileOpt);
+        expect(api.ui.dialog.setSize).toHaveBeenLastCalledWith('xlarge');
+
+        // back to medium root menu
+        showProfilesMenu(api);
+        expect(api.ui.dialog.setSize).toHaveBeenLastCalledWith('medium');
+      }
+    });
+
+    it('uses native categories in exact catalog order without synthetic separator options', () => {
       const api = createMockApi(Object.fromEntries(VISIBLE_CATALOG_ROWS.filter((row) => row.kind === 'agent').map((row) => [row.key, {}])));
       const sections = buildProfileDetailAgentSections(api.state.config, { models: {}, fallback: {} });
-       const primary = buildPrimaryModelSubmenuOptions({ models: {} }, sections, api);
+      const primary = buildPrimaryModelSubmenuOptions({ models: {} }, sections, api);
       const fallback = buildFallbackSubmenuOptions({ models: {}, fallback: {} }, sections, api);
 
       const expectedAgents = CATALOG_GROUPS.flatMap((group) => group.agents);
-        expect(primary.filter((option) => option.value.startsWith('model:')).map((option) => option.value.slice(6))).toEqual(expectedAgents);
-        expect(fallback.filter((option) => option.value.startsWith('fallback:')).map((option) => option.value.slice(9))).toEqual(expectedAgents.filter((agent) => agent === 'gentle-ai-windows-validator' || !['compaction', 'summary', 'title'].includes(agent)));
-       expect(CATALOG_GROUPS.map((group) => group.labelEs)).toEqual(['Orquestador', 'Núcleo SDD', 'Judgment Day', 'Revisores', 'Auxiliares']);
-       expect(primary.filter((option) => option.value.startsWith('model:')).map((option) => option.category)).toEqual(CATALOG_GROUPS.flatMap((group) => group.agents.map(() => group.labelEs)));
-       expect(primary.some((option) => option.value === '__catalog_separator__' || option.description === 'No seleccionable')).toBe(false);
-     });
+      expect(primary.filter((option) => option.value.startsWith('model:')).map((option) => option.value.slice(6))).toEqual(expectedAgents);
+      expect(fallback.filter((option) => option.value.startsWith('fallback:')).map((option) => option.value.slice(9))).toEqual(expectedAgents.filter((agent) => agent === 'gentle-ai-windows-validator' || !['compaction', 'summary', 'title'].includes(agent)));
+      expect(CATALOG_GROUPS.map((group) => group.labelEs)).toEqual(['Orquestador', 'Núcleo SDD', 'Judgment Day', 'Revisores', 'Auxiliares']);
+      expect(primary.filter((option) => option.value.startsWith('model:')).map((option) => option.category)).toEqual(CATALOG_GROUPS.flatMap((group) => group.agents.map(() => group.labelEs)));
+      expect(primary.some((option) => option.value === '__catalog_separator__' || option.description === 'No seleccionable')).toBe(false);
+    });
 
-     it('routes only real catalog agent values and never needs separator selection guards', () => {
+    it('routes only real catalog agent values and never needs separator selection guards', () => {
       const api = createMockApi({ 'sdd-apply': {} });
       const profileOpt = { title: 'team', value: 'team.json' };
       const profileData = { models: {}, fallback: {} };
@@ -715,53 +704,36 @@ describe('dialog pure builders', () => {
         showProfileDetail: showHub,
         showProviderPickerForAgent: showProvider,
       });
-       expect(primary.options.every((option) => option.category || option.value === '__back__')).toBe(true);
-       primary.onSelect({ value: 'unknown-category-header' });
+      expect(primary.options.every((option) => option.category || option.value === '__back__')).toBe(true);
+      primary.onSelect({ value: 'unknown-category-header' });
 
-       expect(showProvider).not.toHaveBeenCalled();
+      expect(showProvider).not.toHaveBeenCalled();
       expect(showHub).not.toHaveBeenCalled();
     });
 
     it('always opens effort selection after primary model choice, including same-model selection', () => {
-      const api = createFlowApi();
-       const stageModel = vi.fn().mockReturnValue({ pending: { agentName: 'sdd-spec', field: 'primary', modelId: 'openai/gpt-5' } });
+      const stageModel = vi.fn().mockReturnValue({ pending: { agentName: 'sdd-spec', field: 'primary', modelId: 'openai/gpt-5' } });
       const showReasoning = vi.fn();
-
-      createModelSelectionHandler(api, profileOpt, 'sdd-spec', 'primary', 'primary', {
-         stageProfileModelSelection: stageModel,
-         commitPendingModelSelection: vi.fn(),
-        showReasoningEffortPicker: showReasoning,
-        returnToProfileDetailTarget: vi.fn(),
+      createModelSelectionHandler(createMockApi({ 'sdd-spec': {} }), { title: 'team', value: 'team.json' }, 'sdd-spec', 'primary', 'primary', {
+        stageProfileModelSelection: stageModel, commitPendingModelSelection: vi.fn(), showReasoningEffortPicker: showReasoning, returnToProfileDetailTarget: vi.fn(),
       })('openai/gpt-5');
-
-       expect(showReasoning).toHaveBeenCalledWith(api, profileOpt, 'sdd-spec', 'primary', expect.objectContaining({ sequential: true }));
+      expect(showReasoning).toHaveBeenCalledWith(expect.anything(), { title: 'team', value: 'team.json' }, 'sdd-spec', 'primary', expect.objectContaining({ sequential: true }));
     });
 
     it('shows only Predeterminado when the selected model has no reasoning variants', () => {
-      const api = createFlowApi();
-       const props = createReasoningEffortPickerDialogProps(
-        api,
-        profileOpt,
-        'sdd-spec',
-        '/mock/profiles/team.json',
-        { models: { 'sdd-spec': 'anthropic/claude-3-5-sonnet' } },
-        { kind: 'provider-default', options: ['provider-default'], optionLabel: 'Predeterminado' },
-        'primary',
-        { sequential: true },
-         { updateProfileReasoningWithoutVersion: vi.fn(), returnToProfileDetailTarget: vi.fn() },
+      const props = createReasoningEffortPickerDialogProps(
+        createMockApi({ 'sdd-spec': {} }), { title: 'team', value: 'team.json' }, 'sdd-spec', '/mock/profiles/team.json', { models: { 'sdd-spec': 'anthropic/claude-3-5-sonnet' } },
+        { kind: 'provider-default', options: ['provider-default'], optionLabel: 'Predeterminado' }, 'primary', { sequential: true }, { updateProfileReasoningWithoutVersion: vi.fn(), returnToProfileDetailTarget: vi.fn() },
       );
-
-       expect(props.options.map((option) => option.title)).toEqual(['Predeterminado', '← Volver']);
+      expect(props.options.map((option) => option.title)).toEqual(['Predeterminado', '← Volver']);
       expect(props.options.some((option) => option.title === 'Predeterminado')).toBe(true);
     });
 
     it('keeps cancellation state-safe and translates affected visible flow copy', () => {
       const api = createMockApi({ 'sdd-apply': {} });
-      const profileOpt = { title: 'equipo', value: 'equipo.json' };
-      const props = createProfileDetailDialogProps(api, profileOpt, '/mock/equipo.json', { models: {}, fallback: {} }, {
+      const props = createProfileDetailDialogProps(api, { title: 'equipo', value: 'equipo.json' }, '/mock/equipo.json', { models: {}, fallback: {} }, {
         sddAgents: [], fallbackAgents: [], sddAgentNames: [], policy: { canonicalName: 'sdd-orchestrator' },
       } as any, { showProfileList: vi.fn() });
-
       expect(props.title).toBe('Perfil: equipo');
       expect(props.options.map((option) => option.title)).toContain('Acciones masivas...');
       props.onCancel();
@@ -771,371 +743,188 @@ describe('dialog pure builders', () => {
 
   describe('sequential model-to-effort flow (Phase 3)', () => {
     const profileOpt = { title: 'team', value: 'team.json' };
-    const reasoningProvider = {
-      id: 'openai',
-      name: 'OpenAI',
-      models: {
-        'gpt-5': {
-          name: 'GPT-5',
-          capabilities: { reasoning: true },
-          variants: {
-            low: { reasoningEffort: 'low' },
-            medium: { reasoningEffort: 'medium' },
-            high: { reasoningEffort: 'high' },
-          },
-        },
-      },
-    };
-    const nonReasoningProvider = {
-      id: 'anthropic',
-      name: 'Anthropic',
-      models: {
-        'claude-3-5-sonnet': {
-          name: 'Claude 3.5 Sonnet',
-          capabilities: { reasoning: false },
-        },
-      },
-    };
-
+    const reasoningProvider = { id: 'openai', name: 'OpenAI', models: { 'gpt-5': { name: 'GPT-5', capabilities: { reasoning: true }, variants: { low: { reasoningEffort: 'low' }, medium: { reasoningEffort: 'medium' }, high: { reasoningEffort: 'high' } } } } };
+    const nonReasoningProvider = { id: 'anthropic', name: 'Anthropic', models: { 'claude-3-5-sonnet': { name: 'Claude 3.5 Sonnet', capabilities: { reasoning: false } } } };
     const createFlowApi = (providers = [reasoningProvider, nonReasoningProvider]) => ({
-      state: {
-        config: {
-          agent: {
-            'sdd-spec': {},
-            'security-auditor': {},
-            'sdd-spec-fallback': {},
-          },
-        },
-        provider: providers,
-      },
+      state: { config: { agent: { 'sdd-spec': {}, 'security-auditor': {}, 'sdd-spec-fallback': {} } }, provider: providers },
       ui: { toast: vi.fn(), dialog: { replace: vi.fn(), setSize: vi.fn() } },
     });
 
     it('chains a supported primary model selection into the effort picker with provider context', () => {
-      const api = createFlowApi();
-      const stageModel = vi.fn().mockReturnValue({ pending: { agentName: 'sdd-spec', field: 'primary', modelId: 'openai/gpt-5' } });
-      const showReasoning = vi.fn();
-      const returnToTarget = vi.fn();
-
-      const handler = createModelSelectionHandler(api, profileOpt, 'sdd-spec', 'primary', 'primary', {
-        stageProfileModelSelection: stageModel,
-        commitPendingModelSelection: vi.fn(),
-        showReasoningEffortPicker: showReasoning,
-        returnToProfileDetailTarget: returnToTarget,
-      });
-      handler('openai/gpt-5');
-
+      const api = createFlowApi(), stageModel = vi.fn().mockReturnValue({ pending: { agentName: 'sdd-spec', field: 'primary', modelId: 'openai/gpt-5' } }), showReasoning = vi.fn();
+      createModelSelectionHandler(api, profileOpt, 'sdd-spec', 'primary', 'primary', { stageProfileModelSelection: stageModel, commitPendingModelSelection: vi.fn(), showReasoningEffortPicker: showReasoning, returnToProfileDetailTarget: vi.fn() })('openai/gpt-5');
       expect(stageModel).toHaveBeenCalled();
       expect(showReasoning).toHaveBeenCalledWith(api, profileOpt, 'sdd-spec', 'primary', expect.objectContaining({ sequential: true }));
-      expect(returnToTarget).not.toHaveBeenCalled();
       expect(api.ui.toast).not.toHaveBeenCalled();
     });
 
     it('returns directly with a confirmation toast when the selected primary model lacks reasoning support', () => {
-      const api = createFlowApi();
-      const stageModel = vi.fn().mockReturnValue({ pending: { agentName: 'sdd-spec', field: 'primary', modelId: 'anthropic/claude-3-5-sonnet' } });
-      const showReasoning = vi.fn();
-      const returnToTarget = vi.fn();
-
-      createModelSelectionHandler(api, profileOpt, 'sdd-spec', 'primary', 'hub', {
-        stageProfileModelSelection: stageModel,
-        commitPendingModelSelection: vi.fn(),
-        showReasoningEffortPicker: showReasoning,
-        returnToProfileDetailTarget: returnToTarget,
-      })('anthropic/claude-3-5-sonnet');
-
+      const api = createFlowApi(), stageModel = vi.fn().mockReturnValue({ pending: { agentName: 'sdd-spec', field: 'primary', modelId: 'anthropic/claude-3-5-sonnet' } }), showReasoning = vi.fn();
+      createModelSelectionHandler(api, profileOpt, 'sdd-spec', 'primary', 'hub', { stageProfileModelSelection: stageModel, commitPendingModelSelection: vi.fn(), showReasoningEffortPicker: showReasoning, returnToProfileDetailTarget: vi.fn() })('anthropic/claude-3-5-sonnet');
       expect(showReasoning).toHaveBeenCalled();
       expect(api.ui.toast).not.toHaveBeenCalled();
-      expect(returnToTarget).not.toHaveBeenCalled();
     });
 
     it('stages fallback selection until reasoning effort is selected', () => {
-      const api = createFlowApi();
-      const stageModel = vi.fn().mockReturnValue({ pending: { agentName: 'sdd-spec', field: 'fallback', modelId: 'openai/gpt-5' } });
-      const commitModel = vi.fn().mockReturnValue({ changed: true });
-      const showReasoning = vi.fn();
-      const returnToTarget = vi.fn();
-
-      createModelSelectionHandler(api, profileOpt, 'sdd-spec', 'fallback', 'fallback', {
-        stageProfileModelSelection: stageModel,
-        commitPendingModelSelection: commitModel,
-        showReasoningEffortPicker: showReasoning,
-        returnToProfileDetailTarget: returnToTarget,
-      })('openai/gpt-5');
-
+      const api = createFlowApi(), stageModel = vi.fn().mockReturnValue({ pending: { agentName: 'sdd-spec', field: 'fallback', modelId: 'openai/gpt-5' } }), showReasoning = vi.fn();
+      createModelSelectionHandler(api, profileOpt, 'sdd-spec', 'fallback', 'fallback', { stageProfileModelSelection: stageModel, commitPendingModelSelection: vi.fn().mockReturnValue({ changed: true }), showReasoningEffortPicker: showReasoning, returnToProfileDetailTarget: vi.fn() })('openai/gpt-5');
       expect(stageModel).toHaveBeenCalled();
-      expect(commitModel).not.toHaveBeenCalled();
-      expect(showReasoning).toHaveBeenCalledWith(api, profileOpt, 'sdd-spec', 'fallback', expect.objectContaining({
-        sequential: true,
-        pending: { agentName: 'sdd-spec', field: 'fallback', modelId: 'openai/gpt-5' },
-      }));
-      expect(returnToTarget).not.toHaveBeenCalled();
+      expect(showReasoning).toHaveBeenCalledWith(api, profileOpt, 'sdd-spec', 'fallback', expect.objectContaining({ sequential: true, pending: { agentName: 'sdd-spec', field: 'fallback', modelId: 'openai/gpt-5' } }));
     });
 
-     it('persists a selected effort without creating a second snapshot and returns to the caller', () => {
-      const api = createFlowApi();
-      const updateEffort = vi.fn().mockReturnValue({ models: { 'sdd-spec': 'openai/gpt-5' }, configs: { 'sdd-spec': { reasoningEffort: 'high' } } });
-      const returnToTarget = vi.fn();
-      const props = createReasoningEffortPickerDialogProps(
-        api,
-        profileOpt,
-        'sdd-spec',
-        '/mock/profiles/team.json',
-        { models: { 'sdd-spec': 'openai/gpt-5' } },
-        { kind: 'selectable', options: ['low', 'medium', 'high'], current: 'medium' },
-        'primary',
-        { sequential: true },
-        { updateProfileReasoningWithoutVersion: updateEffort, returnToProfileDetailTarget: returnToTarget },
-      );
-
+    it('persists a selected effort without creating a second snapshot and returns to the caller', () => {
+      const api = createFlowApi(), updateEffort = vi.fn().mockReturnValue({ models: { 'sdd-spec': 'openai/gpt-5' }, configs: { 'sdd-spec': { reasoningEffort: 'high' } } }), returnToTarget = vi.fn();
+      const props = createReasoningEffortPickerDialogProps(api, profileOpt, 'sdd-spec', '/mock/profiles/team.json', { models: { 'sdd-spec': 'openai/gpt-5' } }, { kind: 'selectable', options: ['low', 'medium', 'high'], current: 'medium' }, 'primary', { sequential: true }, { updateProfileReasoningWithoutVersion: updateEffort, returnToProfileDetailTarget: returnToTarget });
       props.onSelect({ value: 'high' });
-
       expect(updateEffort).toHaveBeenCalledWith('/mock/profiles/team.json', 'sdd-spec', 'high', expect.anything());
       expect(api.ui.toast).toHaveBeenCalledWith(expect.objectContaining({ title: 'Actualizado', variant: 'success' }));
-       expect(returnToTarget).toHaveBeenCalledWith(api, profileOpt, 'primary');
-     });
+      expect(returnToTarget).toHaveBeenCalledWith(api, profileOpt, 'primary');
+    });
 
-     it('commits an orchestrator selection through the canonical pending mutation path and confirms model plus effort', () => {
-       const api = createFlowApi();
-       const commitModel = vi.fn();
-       const returnToTarget = vi.fn();
-       const props = createReasoningEffortPickerDialogProps(
-         api,
-         profileOpt,
-         'gentle-orchestrator',
-         '/mock/profiles/team.json',
-         { models: { 'gentle-orchestrator': 'openai/gpt-5' } },
-         { kind: 'selectable', options: ['high'] },
-         'hub',
-         {
-           sequential: true,
-           pending: { agentName: 'gentle-orchestrator', field: 'primary', modelId: 'openai/gpt-5' },
-           commitPendingModelSelection: commitModel,
-         },
-         { returnToProfileDetailTarget: returnToTarget },
-       );
-
-       props.onSelect({ value: 'high' });
-
-       expect(commitModel).toHaveBeenCalledWith(
-         '/mock/profiles/team.json',
-         { agentName: 'gentle-orchestrator', field: 'primary', modelId: 'openai/gpt-5' },
-         'high',
-         expect.anything(),
-         buildModelMutationContext(api, 'primary'),
-       );
-       expect(api.ui.toast).toHaveBeenCalledWith({
-         title: 'Actualizado',
-         message: 'gentle-orchestrator: modelo openai/gpt-5 y esfuerzo high actualizados',
-         variant: 'success',
-       });
-       expect(returnToTarget).toHaveBeenCalledWith(api, profileOpt, 'hub');
-     });
+    it('commits an orchestrator selection through the canonical pending mutation path and confirms model plus effort', () => {
+      const api = createFlowApi(), commitModel = vi.fn(), returnToTarget = vi.fn();
+      const props = createReasoningEffortPickerDialogProps(api, profileOpt, 'gentle-orchestrator', '/mock/profiles/team.json', { models: { 'gentle-orchestrator': 'openai/gpt-5' } }, { kind: 'selectable', options: ['high'] }, 'hub', { sequential: true, pending: { agentName: 'gentle-orchestrator', field: 'primary', modelId: 'openai/gpt-5' }, commitPendingModelSelection: commitModel }, { returnToProfileDetailTarget: returnToTarget });
+      props.onSelect({ value: 'high' });
+      expect(commitModel).toHaveBeenCalledWith('/mock/profiles/team.json', { agentName: 'gentle-orchestrator', field: 'primary', modelId: 'openai/gpt-5' }, 'high', expect.anything(), buildModelMutationContext(api, 'primary'));
+      expect(api.ui.toast).toHaveBeenCalledWith({ title: 'Actualizado', message: 'gentle-orchestrator: modelo openai/gpt-5 y esfuerzo high actualizados', variant: 'success' });
+      expect(returnToTarget).toHaveBeenCalledWith(api, profileOpt, 'hub');
+    });
 
     it('clears effort on picker back and cancel, then returns to the stable caller target', () => {
-      const api = createFlowApi();
-      const clearEffort = vi.fn().mockReturnValue({ models: { 'sdd-spec': 'openai/gpt-5' } });
-      const returnToTarget = vi.fn();
-      const deps = { updateProfileReasoningWithoutVersion: clearEffort, returnToProfileDetailTarget: returnToTarget };
-      const createProps = () => createReasoningEffortPickerDialogProps(
-        api,
-        profileOpt,
-        'sdd-spec',
-        '/mock/profiles/team.json',
-        { models: { 'sdd-spec': 'openai/gpt-5' } },
-        { kind: 'selectable', options: ['low', 'high'] },
-        'hub',
-        { sequential: true },
-        deps,
-      );
-
+      const api = createFlowApi(), returnToTarget = vi.fn();
+      const deps = { updateProfileReasoningWithoutVersion: vi.fn(), returnToProfileDetailTarget: returnToTarget };
+      const createProps = () => createReasoningEffortPickerDialogProps(api, profileOpt, 'sdd-spec', '/mock/profiles/team.json', { models: { 'sdd-spec': 'openai/gpt-5' } }, { kind: 'selectable', options: ['low', 'high'] }, 'hub', { sequential: true }, deps);
       createProps().onSelect({ value: '__back__' });
       createProps().onCancel();
-
-      expect(clearEffort).not.toHaveBeenCalled();
+      expect(deps.updateProfileReasoningWithoutVersion).not.toHaveBeenCalled();
       expect(returnToTarget).toHaveBeenNthCalledWith(1, api, profileOpt, 'hub');
       expect(returnToTarget).toHaveBeenNthCalledWith(2, api, profileOpt, 'hub');
     });
 
     it('keeps routing and reports an error when sequential back cannot clear effort', () => {
-      const api = createFlowApi();
-      const returnToTarget = vi.fn();
-      const props = createReasoningEffortPickerDialogProps(
-        api,
-        profileOpt,
-        'sdd-spec',
-        '/mock/profiles/team.json',
-        { models: { 'sdd-spec': 'openai/gpt-5' } },
-        { kind: 'selectable', options: ['low', 'high'] },
-        'primary',
-        { sequential: true },
-        {
-          updateProfileReasoningWithoutVersion: vi.fn(() => { throw new Error('effort clear failed'); }),
-          returnToProfileDetailTarget: returnToTarget,
-        },
-      );
-
+      const api = createFlowApi(), returnToTarget = vi.fn();
+      const props = createReasoningEffortPickerDialogProps(api, profileOpt, 'sdd-spec', '/mock/profiles/team.json', { models: { 'sdd-spec': 'openai/gpt-5' } }, { kind: 'selectable', options: ['low', 'high'] }, 'primary', { sequential: true }, { updateProfileReasoningWithoutVersion: vi.fn(() => { throw new Error('effort clear failed'); }), returnToProfileDetailTarget: returnToTarget });
       expect(() => props.onSelect({ value: '__back__' })).not.toThrow();
       expect(api.ui.toast).not.toHaveBeenCalled();
       expect(returnToTarget).toHaveBeenCalledWith(api, profileOpt, 'primary');
     });
 
     it('keeps routing and reports an error when sequential cancel cannot clear effort', () => {
-      const api = createFlowApi();
-      const returnToTarget = vi.fn();
-      const props = createReasoningEffortPickerDialogProps(
-        api,
-        profileOpt,
-        'sdd-spec',
-        '/mock/profiles/team.json',
-        { models: { 'sdd-spec': 'openai/gpt-5' } },
-        { kind: 'selectable', options: ['low', 'high'] },
-        'fallback',
-        { sequential: true },
-        {
-          updateProfileReasoningWithoutVersion: vi.fn(() => { throw new Error('effort cancel failed'); }),
-          returnToProfileDetailTarget: returnToTarget,
-        },
-      );
-
+      const api = createFlowApi(), returnToTarget = vi.fn();
+      const props = createReasoningEffortPickerDialogProps(api, profileOpt, 'sdd-spec', '/mock/profiles/team.json', { models: { 'sdd-spec': 'openai/gpt-5' } }, { kind: 'selectable', options: ['low', 'high'] }, 'fallback', { sequential: true }, { updateProfileReasoningWithoutVersion: vi.fn(() => { throw new Error('effort cancel failed'); }), returnToProfileDetailTarget: returnToTarget });
       expect(() => props.onCancel()).not.toThrow();
       expect(api.ui.toast).not.toHaveBeenCalled();
       expect(returnToTarget).toHaveBeenCalledWith(api, profileOpt, 'fallback');
     });
 
     it('shows error toasts and still returns when model or effort persistence fails', () => {
-      const api = createFlowApi();
-      const returnToTarget = vi.fn();
-      createModelSelectionHandler(api, profileOpt, 'sdd-spec', 'primary', 'hub', {
-        stageProfileModelSelection: vi.fn(() => { throw new Error('model write failed'); }),
-        returnToProfileDetailTarget: returnToTarget,
-      })('openai/gpt-5');
-
+      const api = createFlowApi(), returnToTarget = vi.fn();
+      createModelSelectionHandler(api, profileOpt, 'sdd-spec', 'primary', 'hub', { stageProfileModelSelection: vi.fn(() => { throw new Error('model write failed'); }), returnToProfileDetailTarget: returnToTarget })('openai/gpt-5');
       const effortReturn = vi.fn();
-      const props = createReasoningEffortPickerDialogProps(
-        api,
-        profileOpt,
-        'sdd-spec',
-        '/mock/profiles/team.json',
-        { models: { 'sdd-spec': 'openai/gpt-5' } },
-        { kind: 'selectable', options: ['high'] },
-        'primary',
-        { sequential: true },
-        {
-          updateProfileReasoningWithoutVersion: vi.fn(() => { throw new Error('effort write failed'); }),
-          returnToProfileDetailTarget: effortReturn,
-        },
-      );
+      const props = createReasoningEffortPickerDialogProps(api, profileOpt, 'sdd-spec', '/mock/profiles/team.json', { models: { 'sdd-spec': 'openai/gpt-5' } }, { kind: 'selectable', options: ['high'] }, 'primary', { sequential: true }, { updateProfileReasoningWithoutVersion: vi.fn(() => { throw new Error('effort write failed'); }), returnToProfileDetailTarget: effortReturn });
       props.onSelect({ value: 'high' });
-
       expect(api.ui.toast).toHaveBeenCalledWith(expect.objectContaining({ title: 'Error', variant: 'error' }));
       expect(returnToTarget).toHaveBeenCalledWith(api, profileOpt, 'hub');
       expect(effortReturn).toHaveBeenCalledWith(api, profileOpt, 'primary');
     });
 
     it('routes model picker back and cancel through the same provider target', () => {
-      const api = createFlowApi();
-      const providerTarget = vi.fn();
-      const props = createModelPickerDialogProps(api, profileOpt, 'sdd-spec', reasoningProvider, 'primary', 'primary', {
-        showProviderPickerForAgent: providerTarget,
-        onModelSelected: vi.fn(),
-      });
-
+      const api = createFlowApi(), providerTarget = vi.fn();
+      const props = createModelPickerDialogProps(api, profileOpt, 'sdd-spec', reasoningProvider, 'primary', 'primary', { showProviderPickerForAgent: providerTarget, onModelSelected: vi.fn() });
       props.onSelect({ value: '__back__' });
       props.onCancel();
-
       expect(providerTarget).toHaveBeenNthCalledWith(1, api, profileOpt, 'sdd-spec', 'model', 'primary');
       expect(providerTarget).toHaveBeenNthCalledWith(2, api, profileOpt, 'sdd-spec', 'model', 'primary');
     });
 
-     it('collects a bulk model selection before any persistence mutation', () => {
-       const api = createFlowApi();
-       const updateBulk = vi.fn();
-       const showEffort = vi.fn();
+    it('collects a bulk model selection before any persistence mutation', () => {
+      const api = createFlowApi();
+      const updateBulk = vi.fn();
+      const showEffort = vi.fn();
 
-       const handleSelection = createBulkModelSelectionHandler(api, profileOpt, 'openai/gpt-5', {
-         updateProfileWithBulkOverwrite: updateBulk,
-         showBulkReasoningEffortPicker: showEffort,
-       });
-       handleSelection();
-
-       expect(showEffort).toHaveBeenCalledWith(api, profileOpt, 'openai/gpt-5');
-       expect(updateBulk).not.toHaveBeenCalled();
-     });
-
-      it('commits one fallback bulk transaction only after effort selection and confirms model plus effort', () => {
-        const api = createFlowApi();
-        const updateBulk = vi.fn().mockReturnValue({ assignment: { modelsAssigned: 19, effortsAssigned: 19, changed: true } });
-        const showDetail = vi.fn();
-        const props = createBulkReasoningEffortPickerDialogProps(api, profileOpt, 'openai/gpt-5', {
-          collectConfigurableProfileTargets: vi.fn(() => [{ profileKey: 'sdd-spec', field: 'model' as const }]),
-          updateProfileWithBulkOverwrite: updateBulk,
-          showProfileDetail: showDetail,
-          bulkTarget: BULK_ASSIGNMENT_TARGET.FALLBACK,
-        });
-
-       props.onSelect({ value: 'high' });
-
-       expect(updateBulk).toHaveBeenCalledTimes(1);
-       expect(updateBulk).toHaveBeenCalledWith(
-         expect.any(String),
-         [{ profileKey: 'sdd-spec', field: 'model' }],
-         'openai/gpt-5',
-          'high',
-          buildBulkModelMutationContext(api, ['sdd-spec']),
-          expect.anything(),
-          BULK_ASSIGNMENT_TARGET.FALLBACK,
-        );
-        expect(api.ui.toast).toHaveBeenCalledWith({
-          title: 'Actualizado',
-          message: '19 agentes configurados con openai/gpt-5 y esfuerzo high. Versión guardada.',
-          variant: 'success',
-        });
-       expect(showDetail).toHaveBeenCalledWith(api, profileOpt);
-     });
-
-     it('cancels the bulk model or effort selection without creating writes or snapshots', () => {
-       const api = createFlowApi();
-       const updateBulk = vi.fn();
-       const showDetail = vi.fn();
-       const props = createBulkReasoningEffortPickerDialogProps(api, profileOpt, 'openai/gpt-5', {
-         updateProfileWithBulkOverwrite: updateBulk,
-         showProfileDetail: showDetail,
-       });
-
-       props.onCancel();
-
-       expect(updateBulk).not.toHaveBeenCalled();
-       expect(showDetail).toHaveBeenCalledWith(api, profileOpt);
-       expect(api.ui.toast).not.toHaveBeenCalled();
-     });
-
-      it('cancels the bulk model picker before staging a global transaction', () => {
-        const api = createFlowApi();
-        const onModelSelected = vi.fn();
-       const returnToProvider = vi.fn();
-       const props = createBulkModelPickerDialogProps(api, profileOpt, reasoningProvider, {
-         title: 'Asignar un modelo y esfuerzo a todos los agentes',
-         value: 'bulk:assign-model-and-effort',
-       }, { onModelSelected, showProviderPickerForBulkProfilePhases: returnToProvider });
-
-       props.onCancel();
-
-        expect(onModelSelected).not.toHaveBeenCalled();
-        expect(returnToProvider).toHaveBeenCalledWith(api, profileOpt, expect.anything());
+      const handleSelection = createBulkModelSelectionHandler(api, profileOpt, 'openai/gpt-5', {
+        updateProfileWithBulkOverwrite: updateBulk,
+        showBulkReasoningEffortPicker: showEffort,
       });
+      handleSelection();
 
-      it('passes the selected bulk model to the effort picker when using the default callback', () => {
-        const api = createFlowApi();
-        const showEffort = vi.fn();
-        const props = createBulkModelPickerDialogProps(api, profileOpt, reasoningProvider, {
-          title: 'Asignar un modelo y esfuerzo a todos los agentes',
-          value: 'bulk:assign-model-and-effort',
-        }, { showBulkReasoningEffortPicker: showEffort });
-
-        props.onSelect({ value: 'openai/gpt-5' });
-
-        expect(showEffort).toHaveBeenCalledWith(api, profileOpt, 'openai/gpt-5');
-      });
+      expect(showEffort).toHaveBeenCalledWith(api, profileOpt, 'openai/gpt-5');
+      expect(updateBulk).not.toHaveBeenCalled();
     });
+
+    it('commits one fallback bulk transaction only after effort selection and confirms model plus effort', () => {
+      const api = createFlowApi();
+      const updateBulk = vi.fn().mockReturnValue({ assignment: { modelsAssigned: 19, effortsAssigned: 19, changed: true } });
+      const showDetail = vi.fn();
+      const props = createBulkReasoningEffortPickerDialogProps(api, profileOpt, 'openai/gpt-5', {
+        collectConfigurableProfileTargets: vi.fn(() => [{ profileKey: 'sdd-spec', field: 'model' as const }]),
+        updateProfileWithBulkOverwrite: updateBulk,
+        showProfileDetail: showDetail,
+        bulkTarget: BULK_ASSIGNMENT_TARGET.FALLBACK,
+      });
+
+      props.onSelect({ value: 'high' });
+
+      expect(updateBulk).toHaveBeenCalledTimes(1);
+      expect(updateBulk).toHaveBeenCalledWith(
+        expect.any(String),
+        [{ profileKey: 'sdd-spec', field: 'model' }],
+        'openai/gpt-5',
+        'high',
+        buildBulkModelMutationContext(api, ['sdd-spec']),
+        expect.anything(),
+        BULK_ASSIGNMENT_TARGET.FALLBACK,
+      );
+      expect(api.ui.toast).toHaveBeenCalledWith({
+        title: 'Actualizado',
+        message: '19 agentes configurados con openai/gpt-5 y esfuerzo high. Versión guardada.',
+        variant: 'success',
+      });
+      expect(showDetail).toHaveBeenCalledWith(api, profileOpt);
+    });
+
+    it('cancels the bulk model or effort selection without creating writes or snapshots', () => {
+      const api = createFlowApi();
+      const updateBulk = vi.fn();
+      const showDetail = vi.fn();
+      const props = createBulkReasoningEffortPickerDialogProps(api, profileOpt, 'openai/gpt-5', {
+        updateProfileWithBulkOverwrite: updateBulk,
+        showProfileDetail: showDetail,
+      });
+
+      props.onCancel();
+
+      expect(updateBulk).not.toHaveBeenCalled();
+      expect(showDetail).toHaveBeenCalledWith(api, profileOpt);
+      expect(api.ui.toast).not.toHaveBeenCalled();
+    });
+
+    it('cancels the bulk model picker before staging a global transaction', () => {
+      const api = createFlowApi();
+      const onModelSelected = vi.fn();
+      const returnToProvider = vi.fn();
+      const props = createBulkModelPickerDialogProps(api, profileOpt, reasoningProvider, {
+        title: 'Asignar un modelo y esfuerzo a todos los agentes',
+        value: 'bulk:assign-model-and-effort',
+      }, { onModelSelected, showProviderPickerForBulkProfilePhases: returnToProvider });
+
+      props.onCancel();
+
+      expect(onModelSelected).not.toHaveBeenCalled();
+      expect(returnToProvider).toHaveBeenCalledWith(api, profileOpt, expect.anything());
+    });
+
+    it('passes the selected bulk model to the effort picker when using the default callback', () => {
+      const api = createFlowApi();
+      const showEffort = vi.fn();
+      const props = createBulkModelPickerDialogProps(api, profileOpt, reasoningProvider, {
+        title: 'Asignar un modelo y esfuerzo a todos los agentes',
+        value: 'bulk:assign-model-and-effort',
+      }, { showBulkReasoningEffortPicker: showEffort });
+
+      props.onSelect({ value: 'openai/gpt-5' });
+
+      expect(showEffort).toHaveBeenCalledWith(api, profileOpt, 'openai/gpt-5');
+    });
+  });
 });

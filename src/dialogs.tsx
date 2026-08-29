@@ -8,7 +8,11 @@
 
 import * as fs from "node:fs";
 import * as path from "node:path";
+import { execFileSync } from "node:child_process";
 import {
+  BULK_ASSIGNMENT_MODE,
+  BULK_ASSIGNMENT_TARGET,
+  BulkAssignmentOperation,
   PROFILE_VERSION_SOURCE,
   ProfileVersion,
   ProfileVersionMetadata,
@@ -17,6 +21,7 @@ import {
   type CatalogEntry,
   type AgentFamily,
   type ModelMutationContext,
+  type BulkAssignmentTarget,
 } from "./types";
 import {
   resolveModelInfo,
@@ -30,7 +35,7 @@ import {
 } from "./utils";
 import { buildCatalogSections, CATALOG_GROUPS, collectConfigurableProfileTargets, isFallbackCatalogAgent } from "./catalog";
 import { safeSetDialogSize } from "./host-compat";
-import { resolveEngramProjectName, resolvePaths, ensureProfilesDir, resolveProjectName } from "./config";
+import { resolveEngramProjectName, resolvePaths, ensureProfilesDir, resolveProjectName, resolveWorkspaceRoot } from "./config";
 import {
   listProfileFiles,
   readProfileData,
@@ -62,6 +67,12 @@ import {
 } from "./state";
 import { createLogger } from "./logger";
 import { canonicalizeProfileModels, getOrchestratorPolicy, type OrchestratorPolicy } from "./orchestrator";
+import { buildPluginHubOptions } from "./plugins/registry";
+import { loadOfflineHelp, type HelpTopic } from "./plugins/offline-help";
+import { openVendoredSuite } from "./plugins/suite-adapter";
+import { resolveTaskManagerRoot, type TaskManagerRootCandidates } from "./plugins/task-manager-root";
+import { provisionTaskManagerBase } from "./plugins/task-manager-lifecycle";
+import { launchTaskManagerBrowser } from "./plugins/task-manager-coordinator";
 
 export const BADGE_VISIBLE_KV_KEY = "sdd-show-model-badge";
 export const BADGE_DISPLAY_MODE_KV_KEY = "sdd-badge-display-mode";
@@ -116,22 +127,7 @@ function localizedModelInfo(api: any, modelId?: string): string {
   return modelId ? resolveModelInfo(api, modelId).replace("ctx: N/A", "contexto: N/D") : "Sin asignar";
 }
 
-function localizedEffortLabel(value: string): string {
-  if (value === "provider-default") return UI_TEXT.defaultEffort;
-  return value;
-}
-
-function localizedFamilyLabel(family: AgentFamily): string {
-  return {
-    Orchestrator: "Orquestador",
-    SDD: "Núcleo SDD",
-    JD: "Día del Juicio",
-    Review: "Revisores",
-    Tools: "Herramientas",
-    Fallbacks: UI_TEXT.fallbackModels,
-    Custom: "Personalizados",
-  }[family];
-}
+function localizedEffortLabel(value: string): string { return value === "provider-default" ? UI_TEXT.defaultEffort : value; }
 
 function catalogCategory(agentName: string): string {
   return CATALOG_GROUPS.find((group) => group.agents.includes(agentName as never))?.labelEs || UI_TEXT.primaryModels;
@@ -173,6 +169,7 @@ function buildCatalogEntries(field: "model" | "fallback"): CatalogEntry[] {
     })),
   );
 }
+
 
 export function resolveRuntimeOrchestratorPolicy(config: any): OrchestratorPolicy {
   return getOrchestratorPolicy(
@@ -353,21 +350,21 @@ function buildPrimaryModelOptions(profileData: any, api?: any) {
   return buildCatalogRows(CATALOG_GROUPS, (key) => {
     const entry = entries.find((candidate) => candidate.profileKey === key);
     if (!entry) return null;
-      const modelId = entry.profileKey === "sdd-ORCHETATOR"
-        ? models[policy.canonicalName]
-        : models[entry.profileKey];
-      const desc = api ? localizedModelInfo(api, modelId) : (modelId || "Sin asignar");
-      const isUnconfigured = !Object.hasOwn(agentConfig, entry.displayName);
-      const option: any = {
-        title: entry.displayName,
-        value: `model:${entry.profileKey}`,
-        description: desc,
-        category: catalogCategory(entry.profileKey),
-      };
-      if (isUnconfigured && entry.profileKey !== "sdd-spec") {
-        option.badge = UI_TEXT.unconfigured;
-      }
-      return option;
+    const modelId = entry.profileKey === "sdd-ORCHETATOR"
+      ? models[policy.canonicalName]
+      : models[entry.profileKey];
+    const desc = api ? localizedModelInfo(api, modelId) : (modelId || "Sin asignar");
+    const isUnconfigured = !Object.hasOwn(agentConfig, entry.displayName);
+    const option: any = {
+      title: entry.displayName,
+      value: `model:${entry.profileKey}`,
+      description: desc,
+      category: catalogCategory(entry.profileKey),
+    };
+    if (isUnconfigured && entry.profileKey !== "sdd-spec") {
+      option.badge = UI_TEXT.unconfigured;
+    }
+    return option;
   }).filter((option): option is NonNullable<typeof option> => option !== null);
 }
 
@@ -394,21 +391,21 @@ export function buildFallbackSubmenuOptions(profileData: any, sections: any, api
     if (!isFallbackCatalogAgent(key)) return null;
     const entry = entries.find((candidate) => candidate.profileKey === key);
     if (!entry) return null;
-      const fallbackModel = profileData?.fallback?.[entry.profileKey];
-      const desc = fallbackModel
-        ? (api ? localizedModelInfo(api, fallbackModel) : fallbackModel)
-        : UI_TEXT.inherited;
-      const isUnconfigured = !Object.hasOwn(agentConfig, `${entry.profileKey}-fallback`);
-      const option: any = {
-        title: entry.displayName,
-        value: `fallback:${entry.profileKey}`,
-        description: desc,
-        category: catalogCategory(entry.profileKey),
-      };
-      if (isUnconfigured && Boolean(fallbackModel)) {
-        option.badge = UI_TEXT.unconfigured;
-      }
-      return option;
+    const fallbackModel = profileData?.fallback?.[entry.profileKey];
+    const desc = fallbackModel
+      ? (api ? localizedModelInfo(api, fallbackModel) : fallbackModel)
+      : UI_TEXT.inherited;
+    const isUnconfigured = !Object.hasOwn(agentConfig, `${entry.profileKey}-fallback`);
+    const option: any = {
+      title: entry.displayName,
+      value: `fallback:${entry.profileKey}`,
+      description: desc,
+      category: catalogCategory(entry.profileKey),
+    };
+    if (isUnconfigured && Boolean(fallbackModel)) {
+      option.badge = UI_TEXT.unconfigured;
+    }
+    return option;
   });
   return [...options.filter((option): option is NonNullable<typeof option> => option !== null), buildBackOption()];
 }
@@ -452,7 +449,7 @@ export function wrapDisplayText(value: string, max = 80): string[] {
 
 /**
  * Displays a detailed view of a specific memory observation
- *
+ * 
  * @param api - The TUI API instance
  * @param memory - The memory object to display
  */
@@ -499,6 +496,7 @@ export function showMemoryDetail(api: any, memory: any) {
  * @param memory - The memory object to delete
  */
 export function showDeleteMemory(api: any, memory: any) {
+  safeSetDialogSize(api, "medium");
   safeSetDialogSize(api, "medium");
   const title = memory.title || memory.topic_key || `Memoria #${memory.id}`;
 
@@ -599,6 +597,7 @@ export function registerDialogCallbacks(callbacks: {
  */
 export function showProfilesMenu(api: any) {
   safeSetDialogSize(api, "medium");
+  safeSetDialogSize(api, "medium");
   api.ui.dialog.replace(() => (
     <api.ui.DialogSelect
       title={NAV_TEXT.profileManagement}
@@ -619,17 +618,22 @@ export function showProfilesMenu(api: any) {
           description: "Muestra las observaciones recientes de Engram para este proyecto.",
         },
         {
-          title: `Insignia: ${showModelBadge() ? "Activada" : "Desactivada"}`,
+          title: "Plugins",
+          value: "plugins",
+          description: "Abre el menú de plugins integrados (Suite de Agentes, Task Manager).",
+        },
+        {
+          title: `Badge: ${showModelBadge() ? "On" : "Off"}`,
           value: "toggle_badge_visible",
-          description: "Muestra u oculta la insignia.",
+          description: "Show or hide the badge.",
         },
         {
-          title: `Modo de insignia: ${badgeDisplayMode() === "profile" ? "Perfil" : "Modelo"}`,
+          title: `Badge mode: ${badgeDisplayMode() === "profile" ? "Profile" : "Model"}`,
           value: "toggle_badge_mode",
-          description: "Muestra información del modelo o el nombre del perfil activo.",
+          description: "Show model info or active profile name on the badge.",
         },
         {
-          title: NAV_TEXT.close,
+          title: "✕ Close",
           value: "__close__",
           category: NAV_CATEGORY,
         },
@@ -638,6 +642,7 @@ export function showProfilesMenu(api: any) {
         if (opt.value === "create") showCreateProfile(api);
         else if (opt.value === "list") showProfileListFn(api);
         else if (opt.value === "view_memories") showProjectMemoriesMenuFn(api);
+        else if (opt.value === "plugins") showPluginsMenu(api);
         else if (opt.value === "toggle_badge_visible") {
           const next = !showModelBadge();
           setShowModelBadge(next);
@@ -666,13 +671,14 @@ export function showProfilesMenu(api: any) {
  */
 export function showCreateProfile(api: any) {
   safeSetDialogSize(api, "medium");
+  safeSetDialogSize(api, "medium");
   const { configPath, profilesDir } = resolvePaths();
   ensureProfilesDir();
 
   api.ui.dialog.replace(() => (
     <api.ui.DialogPrompt
-      title="Nombre del nuevo perfil SDD"
-      placeholder="Escribe el nombre del perfil"
+      title={NAV_TEXT.createProfile}
+      placeholder="Enter profile name"
       onConfirm={(name: string) => {
         const trimmed = name?.trim();
         if (!trimmed) {
@@ -711,8 +717,8 @@ export function showCreateProfile(api: any) {
         } catch (e: any) {
           log.error(`showCreateProfile: failed to create profile '${trimmed}'`, e);
           api.ui.toast({
-            title: UI_TEXT.error,
-            message: `No se pudo crear el perfil: ${e.message}`,
+            title: "Error",
+            message: `Failed to create profile: ${e.message}`,
             variant: "error",
           });
           showProfilesMenuFn(api);
@@ -728,7 +734,42 @@ export function showCreateProfile(api: any) {
  * 
  * @param api - The TUI API instance
  */
+export function resolvePersistedActiveProfileFile(files: readonly string[], profileName?: string): string | undefined {
+  if (typeof profileName !== "string" || !profileName.trim()) return undefined;
+  const rawName = profileName.trim();
+  if (rawName.includes("/") || rawName.includes("\\") || rawName.includes("..")) return undefined;
+  const normalized = rawName.endsWith(".json") ? rawName : `${rawName}.json`;
+  return files.includes(normalized) ? normalized : undefined;
+}
+
+export function buildProfileListOptions(files: readonly string[], activeFile?: string) {
+  return files.map((file) => ({
+    title: `${file === activeFile ? "✓ " : ""}${file.replace(/\.json$/, "")}`,
+    value: file,
+    description: file === activeFile ? "✓ Activo" : "Perfil SDD",
+  }));
+}
+
+export function createProfileListDialogProps(
+  files: readonly string[],
+  activeFile: string | undefined,
+  showProfilesMenu: () => void,
+  showProfileDetail: (file: string) => void,
+) {
+  return {
+    title: "Select SDD Profile",
+    current: activeFile,
+    options: [...buildProfileListOptions(files, activeFile), { title: "← Back", value: "__back__", category: NAV_CATEGORY }],
+    onSelect: (opt: any) => {
+      if (opt.value === "__back__") showProfilesMenu();
+      else showProfileDetail(String(opt.value));
+    },
+    onCancel: showProfilesMenu,
+  };
+}
+
 export function showProfileList(api: any) {
+  safeSetDialogSize(api, "xlarge");
   safeSetDialogSize(api, "xlarge");
   ensureProfilesDir();
 
@@ -736,8 +777,8 @@ export function showProfileList(api: any) {
 
   if (files.length === 0) {
     api.ui.toast({
-      title: NAV_TEXT.noProfiles,
-      message: "No hay perfiles guardados. ¡Crea uno primero!",
+      title: "No Profiles",
+      message: "No saved profiles found. Create one first!",
       variant: "warning",
     });
     showProfilesMenuFn(api);
@@ -764,6 +805,7 @@ export function showProfileList(api: any) {
  * @param profileOpt - Selected profile option containing title and value (filename)
  */
 export function showProfileDetail(api: any, profileOpt: any) {
+  safeSetDialogSize(api, "xlarge");
   safeSetDialogSize(api, "xlarge");
   const { profilesDir } = resolvePaths();
   try {
@@ -842,17 +884,20 @@ export function createProfileDetailDialogProps(
 
 export function showProfileDetailSubmenuPrimary(api: any, profileOpt: any, profileData: any, sections?: any) {
   safeSetDialogSize(api, "xlarge");
+  safeSetDialogSize(api, "xlarge");
   const resolvedSections = sections || buildProfileDetailAgentSections(api.state.config, profileData);
   api.ui.dialog.replace(() => (<api.ui.DialogSelect {...createPrimarySubmenuDialogProps(api, profileOpt, profileData, resolvedSections)} />));
 }
 
 export function showProfileDetailSubmenuReasoning(api: any, profileOpt: any, profileData: any, sections?: any) {
   safeSetDialogSize(api, "xlarge");
+  safeSetDialogSize(api, "xlarge");
   const resolvedSections = sections || buildProfileDetailAgentSections(api.state.config, profileData);
   api.ui.dialog.replace(() => (<api.ui.DialogSelect {...createReasoningSubmenuDialogProps(api, profileOpt, profileData, resolvedSections)} />));
 }
 
 export function showProfileDetailSubmenuFallback(api: any, profileOpt: any, profileData: any, sections?: any) {
+  safeSetDialogSize(api, "xlarge");
   safeSetDialogSize(api, "xlarge");
   const resolvedSections = sections || buildProfileDetailAgentSections(api.state.config, profileData);
   api.ui.dialog.replace(() => (<api.ui.DialogSelect {...createFallbackSubmenuDialogProps(api, profileOpt, profileData, resolvedSections)} />));
@@ -909,130 +954,23 @@ export function createFallbackSubmenuDialogProps(api: any, profileOpt: any, prof
   };
 }
 
-export function showReasoningEffortPicker(
-  api: any,
-  profileOpt: any,
-  agentName: string,
-  returnTarget: ProfileDetailReturnTarget = "hub",
-  flow?: ReasoningFlow,
-) {
-  safeSetDialogSize(api, "medium");
-  const { profilesDir } = resolvePaths();
-  const profilePath = path.join(profilesDir, profileOpt.value);
-
-  try {
-      const profile = readProfileData(profilePath);
-    const modelId = flow?.pending?.modelId || profile?.models?.[agentName];
-    const current = profile?.configs?.[agentName]?.reasoningEffort;
-    const state = buildReasoningEditState(api?.state?.provider || [], agentName, modelId, current);
-
-    if (state.kind === "ineligible" || state.kind === "missing-model") {
-      api.ui.toast({ title: "Razonamiento no disponible", message: buildReasoningBlockedMessage(state), variant: "warning" });
-      returnToProfileDetailTarget(api, profileOpt, returnTarget);
-      return;
-    }
-
-    const pickerProps = createReasoningEffortPickerDialogProps(
-      api,
-      profileOpt,
-      agentName,
-      profilePath,
-      profile,
-      state,
-      returnTarget,
-      flow,
-      flow?.sequential
-        ? { updateProfileReasoningWithoutVersion: undefined }
-        : {
-            updateProfileReasoningWithoutVersion: (targetPath, targetAgent, value, policy) => {
-              const nextProfile = updateProfileReasoningEffort(profile, targetAgent, value);
-              writeProfileData(targetPath, nextProfile, policy);
-              return nextProfile;
-            },
-          },
-    );
-    api.ui.dialog.replace(() => <api.ui.DialogSelect {...pickerProps} />);
-  } catch (e: any) {
-    log.error(`showReasoningEffortEditor: failed to update ${agentName}`, e);
-      api.ui.toast({ title: UI_TEXT.error, message: `No se pudo actualizar el esfuerzo de razonamiento: ${e.message}`, variant: "error" });
-    returnToProfileDetailTarget(api, profileOpt, returnTarget);
-  }
-}
-
-export function resolvePersistedActiveProfileFile(files: readonly string[], profileName?: string): string | undefined {
-  if (typeof profileName !== "string" || !profileName.trim()) return undefined;
-  const rawName = profileName.trim();
-  if (rawName.includes("/") || rawName.includes("\\") || rawName.includes("..")) return undefined;
-  const normalized = rawName.endsWith(".json") ? rawName : `${rawName}.json`;
-  return files.includes(normalized) ? normalized : undefined;
-}
-
-export function buildProfileListOptions(files: readonly string[], activeFile?: string) {
-  return files.map((file) => ({
-    title: `${file === activeFile ? "✓ " : ""}${file.replace(/\.json$/, "")}`,
-    value: file,
-    description: file === activeFile ? "✓ Activo" : "Perfil SDD",
-  }));
-}
-
-export function createProfileListDialogProps(
-  files: readonly string[],
-  activeFile: string | undefined,
-  showProfilesMenu: () => void,
-  showProfileDetail: (file: string) => void,
-) {
-  return {
-    title: "Seleccionar perfil SDD",
-    current: activeFile,
-    options: [...buildProfileListOptions(files, activeFile), buildBackOption()],
-    onSelect: (opt: any) => {
-      if (opt.value === "__back__") showProfilesMenu();
-      else showProfileDetail(String(opt.value));
-    },
-    onCancel: showProfilesMenu,
-  };
-}
-
-type ModelSelectionMode = "primary" | "fallback";
-type ModelPickerMode = "model" | "primary" | "fallback";
-
-type ReasoningFlow = {
-  sequential?: boolean;
-  pending?: any;
-  commitPendingModelSelection?: typeof commitPendingModelSelection;
-  modelMutationContext?: ModelMutationContext;
-};
-
-type DialogFlowDependencies = {
-  updateProfilePhaseModel?: typeof updateProfilePhaseModel;
-  readProfileData?: typeof readProfileData;
-  stageProfileModelSelection?: typeof stageProfileModelSelection;
-  commitPendingModelSelection?: typeof commitPendingModelSelection;
-  updateProfileReasoningWithoutVersion?: typeof updateProfileReasoningWithoutVersion;
+export type ModelSelectionMode = "primary" | "fallback";
+export type ModelPickerMode = "model" | "primary" | "fallback";
+export type ReasoningFlow = { sequential?: boolean; pending?: any; commitPendingModelSelection?: typeof commitPendingModelSelection; modelMutationContext?: ModelMutationContext };
+export type DialogFlowDependencies = {
+  updateProfilePhaseModel?: typeof updateProfilePhaseModel; readProfileData?: typeof readProfileData; stageProfileModelSelection?: typeof stageProfileModelSelection;
+  commitPendingModelSelection?: typeof commitPendingModelSelection; updateProfileReasoningWithoutVersion?: typeof updateProfileReasoningWithoutVersion;
+  showReasoningEffortPicker?: (api: any, profileOpt: any, agentName: string, returnTarget: ProfileDetailReturnTarget, flow?: ReasoningFlow) => void;
+  showProviderPickerForAgent?: typeof showProviderPickerForAgent; returnToProfileDetailTarget?: typeof returnToProfileDetailTarget; showProfileDetail?: typeof showProfileDetailFn; onModelSelected?: (modelId: string) => void;
   updateProfileWithBulkOverwrite?: typeof updateProfileWithBulkOverwrite;
   collectConfigurableProfileTargets?: typeof collectConfigurableProfileTargets;
+  bulkTarget?: BulkAssignmentTarget;
+  showProviderPickerForBulkProfilePhases?: (api: any, profileOpt: any, action: any) => void;
   showBulkReasoningEffortPicker?: (api: any, profileOpt: any, modelId: string, target?: "primary" | "fallback") => void;
-  showProviderPickerForBulkProfilePhases?: (api: any, profileOpt: any, action: BulkProfileActionOption) => void;
-  showReasoningEffortPicker?: (
-    api: any,
-    profileOpt: any,
-    agentName: string,
-    returnTarget: ProfileDetailReturnTarget,
-    flow?: ReasoningFlow,
-  ) => void;
-  showProviderPickerForAgent?: typeof showProviderPickerForAgent;
-  returnToProfileDetailTarget?: typeof returnToProfileDetailTarget;
-  showProfileDetail?: typeof showProfileDetailFn;
-  onModelSelected?: (modelId: string) => void;
-  bulkTarget?: "primary" | "fallback";
 };
 
 export function buildModelMutationContext(api: any, mode: ModelSelectionMode): ModelMutationContext {
-  return {
-    providers: api?.state?.provider || [],
-    runtimePrimaryNames: mode === "primary" ? Object.keys(api?.state?.config?.agent || {}).filter(isEditablePrimaryAgent) : undefined,
-    effortPolicy: mode === "primary" ? "interactive-clear" : "none",
-  };
+  return { providers: api?.state?.provider || [], runtimePrimaryNames: mode === "primary" ? Object.keys(api?.state?.config?.agent || {}).filter(isEditablePrimaryAgent) : undefined, effortPolicy: mode === "primary" ? "interactive-clear" : "none" };
 }
 
 export function buildBulkModelMutationContext(api: any, runtimePrimaryNames: string[]): ModelMutationContext {
@@ -1045,60 +983,25 @@ export function buildBulkModelMutationContext(api: any, runtimePrimaryNames: str
 
 function buildModelSelectionToast(agentName: string, fullModelId: string, mode: ModelSelectionMode, changed: boolean) {
   const target = mode === "fallback" ? " fallback" : "";
-  return {
-      title: changed ? "Actualizado" : "Sin cambios",
-    message: changed
-      ? `${agentName}${target} usa ${fullModelId}. Versión guardada.`
-      : `${agentName}${target} ya usa ${fullModelId}`,
-    variant: changed ? "success" : "warning",
-  };
+  return { title: changed ? "Actualizado" : "Sin cambios", message: changed ? `${agentName}${target} usa ${fullModelId}. Versión guardada.` : `${agentName}${target} ya usa ${fullModelId}`, variant: changed ? "success" : "warning" };
 }
 
-export function createModelSelectionHandler(
-  api: any,
-  profileOpt: any,
-  agentName: string,
-  mode: ModelSelectionMode,
-  returnTarget: ProfileDetailReturnTarget,
-  deps: DialogFlowDependencies = {},
-) {
-  const stageModel = deps.stageProfileModelSelection || stageProfileModelSelection;
-  const commitModel = deps.commitPendingModelSelection || commitPendingModelSelection;
-  const legacyUpdateModel = deps.updateProfilePhaseModel;
-  const readProfile = deps.readProfileData || readProfileData;
-  const showReasoning = deps.showReasoningEffortPicker || showReasoningEffortPicker;
-  const returnToTarget = deps.returnToProfileDetailTarget || returnToProfileDetailTarget;
-  const { profilesDir } = resolvePaths();
-  const profilePath = path.join(profilesDir, profileOpt.value);
+export function createModelSelectionHandler(api: any, profileOpt: any, agentName: string, mode: ModelSelectionMode, returnTarget: ProfileDetailReturnTarget, deps: DialogFlowDependencies = {}) {
+  const stageModel = deps.stageProfileModelSelection || stageProfileModelSelection, commitModel = deps.commitPendingModelSelection || commitPendingModelSelection;
+  const legacyUpdateModel = deps.updateProfilePhaseModel, readProfile = deps.readProfileData || readProfileData, showReasoning = deps.showReasoningEffortPicker || showReasoningEffortPicker;
+  const returnToTarget = deps.returnToProfileDetailTarget || returnToProfileDetailTarget, { profilesDir } = resolvePaths(), profilePath = path.join(profilesDir, profileOpt.value);
 
   return (fullModelId: string) => {
     try {
       if (legacyUpdateModel) {
-        const result = legacyUpdateModel(
-          profilePath,
-          agentName,
-          mode,
-          fullModelId,
-          resolveRuntimeOrchestratorPolicy(api.state.config),
-          buildModelMutationContext(api, mode),
-        );
-        if (mode === "primary") {
-          showReasoning(api, profileOpt, agentName, returnTarget, { sequential: true });
-          return;
-        }
+        const result = legacyUpdateModel(profilePath, agentName, mode, fullModelId, resolveRuntimeOrchestratorPolicy(api.state.config), buildModelMutationContext(api, mode));
+        if (mode === "primary") { showReasoning(api, profileOpt, agentName, returnTarget, { sequential: true }); return; }
         api.ui.toast(buildModelSelectionToast(agentName, fullModelId, mode, result.changed));
         returnToTarget(api, profileOpt, returnTarget);
         return;
       }
-      const profile = readProfileData(profilePath);
-      const staged = stageModel(profile, agentName, mode, fullModelId);
-
-      showReasoning(api, profileOpt, agentName, returnTarget, {
-        sequential: true,
-        pending: staged.pending,
-        commitPendingModelSelection: commitModel,
-        modelMutationContext: buildModelMutationContext(api, mode),
-      });
+      const staged = stageModel(readProfile(profilePath), agentName, mode, fullModelId);
+      showReasoning(api, profileOpt, agentName, returnTarget, { sequential: true, pending: staged.pending, commitPendingModelSelection: commitModel, modelMutationContext: buildModelMutationContext(api, mode) });
     } catch (error: any) {
       log.error(`handleModelSelection: failed to update ${agentName}`, error);
       api.ui.toast({ title: UI_TEXT.error, message: `No se pudo actualizar el agente: ${error.message}`, variant: "error" });
@@ -1107,105 +1010,21 @@ export function createModelSelectionHandler(
   };
 }
 
-export function createModelPickerDialogProps(
-  api: any,
-  profileOpt: any,
-  agentName: string,
-  provider: any,
-  mode: ModelPickerMode,
-  returnTarget: ProfileDetailReturnTarget,
-  deps: DialogFlowDependencies = {},
-) {
+export function createModelPickerDialogProps(api: any, profileOpt: any, agentName: string, provider: any, mode: ModelPickerMode, returnTarget: ProfileDetailReturnTarget, deps: DialogFlowDependencies = {}) {
   const showProvider = deps.showProviderPickerForAgent || showProviderPickerForAgent;
-  const selectionMode: ModelSelectionMode = mode === "fallback" ? "fallback" : "primary";
-  const providerMode = mode === "primary" ? "model" : mode;
-  const onModelSelected = (deps as any).onModelSelected || createModelSelectionHandler(api, profileOpt, agentName, selectionMode, returnTarget, deps);
+  const onModelSelected = (deps as any).onModelSelected || createModelSelectionHandler(api, profileOpt, agentName, mode === "fallback" ? "fallback" : "primary", returnTarget, deps);
   const models = provider?.models || {};
   return {
-      title: `${provider?.name || provider?.id} › ${agentName}${mode === "fallback" ? " (fallback)" : ""}`,
-    options: [
-      ...Object.keys(models).map((key) => ({
-        title: models[key].name || key,
-        value: `${provider.id}/${key}`,
-        description: models[key].limit?.context ? formatContext(models[key].limit.context) : "contexto: N/D",
-      })),
-      buildBackOption(),
-    ],
-    onSelect: (opt: any) => {
-      if (opt.value === "__back__") showProvider(api, profileOpt, agentName, providerMode, returnTarget);
-      else onModelSelected(opt.value);
-    },
-    onCancel: () => showProvider(api, profileOpt, agentName, providerMode, returnTarget),
+    title: `${provider?.name || provider?.id} › ${agentName}${mode === "fallback" ? " (fallback)" : ""}`,
+    options: [...Object.keys(models).map((key) => ({ title: models[key].name || key, value: `${provider.id}/${key}`, description: models[key].limit?.context ? formatContext(models[key].limit.context) : "contexto: N/D" })), buildBackOption()],
+    onSelect: (opt: any) => (opt.value === "__back__" ? showProvider(api, profileOpt, agentName, mode === "primary" ? "model" : mode, returnTarget) : onModelSelected(opt.value)),
+    onCancel: () => showProvider(api, profileOpt, agentName, mode === "primary" ? "model" : mode, returnTarget),
   };
 }
 
 function showReasoningEffortError(api: any, agentName: string, error: any) {
   log.error(`showReasoningEffortEditor: failed to update ${agentName}`, error);
   api.ui.toast({ title: UI_TEXT.error, message: `No se pudo actualizar el esfuerzo de razonamiento: ${error.message}`, variant: "error" });
-}
-
-export function createReasoningEffortPickerDialogProps(
-  api: any,
-  profileOpt: any,
-  agentName: string,
-  profilePath: string,
-  profile: any,
-  state: any,
-  returnTarget: ProfileDetailReturnTarget,
-  flow?: ReasoningFlow,
-  deps: DialogFlowDependencies = {},
-) {
-  const updateEffort = deps.updateProfileReasoningWithoutVersion || updateProfileReasoningWithoutVersion;
-  const commitModel = flow?.commitPendingModelSelection || deps.commitPendingModelSelection || commitPendingModelSelection;
-  const returnToTarget = deps.returnToProfileDetailTarget || returnToProfileDetailTarget;
-  const clearAndReturn = () => {
-    returnToTarget(api, profileOpt, returnTarget);
-  };
-
-  return {
-    title: `${UI_TEXT.reasoningEffort} › ${agentName}`,
-    options: [
-      ...(state?.options || []).map((value: string) => ({
-        title: localizedEffortLabel(value),
-        value,
-      })),
-      ...(!flow?.sequential ? [{ title: "Borrar valor guardado", value: "__clear__", category: NAV_CATEGORY }] : []),
-      buildBackOption(),
-    ],
-    onSelect: (opt: any) => {
-      if (opt.value === "__back__") {
-        clearAndReturn();
-        return;
-      }
-      try {
-        const effort = opt.value === "__clear__" ? "" : opt.value;
-        if (flow?.sequential && flow.pending) {
-          commitModel(
-            profilePath,
-            flow.pending,
-            effort,
-            resolveRuntimeOrchestratorPolicy(api.state.config),
-            flow.modelMutationContext || buildModelMutationContext(api, "primary"),
-          );
-        } else {
-          updateEffort(profilePath, agentName, effort, resolveRuntimeOrchestratorPolicy(api.state.config));
-        }
-        const selectedModel = flow?.pending?.modelId || profile?.models?.[agentName];
-        api.ui.toast({
-          title: "Actualizado",
-          message: flow?.sequential
-            ? `${agentName}: modelo ${selectedModel} y esfuerzo ${localizedEffortLabel(effort)} actualizados`
-            : `${agentName}: esfuerzo de razonamiento actualizado`,
-          variant: "success",
-        });
-        returnToTarget(api, profileOpt, returnTarget);
-      } catch (error: any) {
-        showReasoningEffortError(api, agentName, error);
-        returnToTarget(api, profileOpt, returnTarget);
-      }
-    },
-    onCancel: clearAndReturn,
-  };
 }
 
 export function createBulkModelSelectionHandler(
@@ -1255,12 +1074,12 @@ export function createBulkReasoningEffortPickerDialogProps(
       try {
         const result = updateBulk(
           profilePath,
-          collectTargets(api.state.config, resolvedTarget),
+          collectTargets(api.state.config, resolvedTarget as any),
           modelId,
           opt.value,
           buildBulkModelMutationContext(api, runtimePrimaryNames),
           resolveRuntimeOrchestratorPolicy(api.state.config),
-          ...(resolvedTarget === "fallback" ? [resolvedTarget] : []),
+          ...(resolvedTarget === "fallback" ? ["fallback" as const] : []),
         );
         const totalAssigned = result.assignment?.modelsAssigned || 0;
         api.ui.toast({
@@ -1278,6 +1097,59 @@ export function createBulkReasoningEffortPickerDialogProps(
     },
     onCancel: () => showDetail(api, profileOpt),
   };
+}
+
+export function createReasoningEffortPickerDialogProps(api: any, profileOpt: any, agentName: string, profilePath: string, profile: any, state: any, returnTarget: ProfileDetailReturnTarget, flow?: ReasoningFlow, deps: DialogFlowDependencies = {}) {
+  const updateEffort = deps.updateProfileReasoningWithoutVersion || updateProfileReasoningWithoutVersion, commitModel = flow?.commitPendingModelSelection || deps.commitPendingModelSelection || commitPendingModelSelection;
+  const returnToTarget = deps.returnToProfileDetailTarget || returnToProfileDetailTarget, clearAndReturn = () => returnToTarget(api, profileOpt, returnTarget);
+
+  return {
+    title: `${UI_TEXT.reasoningEffort} › ${agentName}`,
+    options: [...(state?.options || []).map((value: string) => ({ title: localizedEffortLabel(value), value })), ...(!flow?.sequential ? [{ title: "Borrar valor guardado", value: "__clear__", category: NAV_CATEGORY }] : []), buildBackOption()],
+    onSelect: (opt: any) => {
+      if (opt.value === "__back__") { clearAndReturn(); return; }
+      try {
+        const effort = opt.value === "__clear__" ? "" : opt.value;
+        if (flow?.sequential && flow.pending) {
+          commitModel(profilePath, flow.pending, effort, resolveRuntimeOrchestratorPolicy(api.state.config), flow.modelMutationContext || buildModelMutationContext(api, "primary"));
+        } else {
+          updateEffort(profilePath, agentName, effort, resolveRuntimeOrchestratorPolicy(api.state.config));
+        }
+        const selectedModel = flow?.pending?.modelId || profile?.models?.[agentName];
+        api.ui.toast({ title: "Actualizado", message: flow?.sequential ? `${agentName}: modelo ${selectedModel} y esfuerzo ${localizedEffortLabel(effort)} actualizados` : `${agentName}: esfuerzo de razonamiento actualizado`, variant: "success" });
+        returnToTarget(api, profileOpt, returnTarget);
+      } catch (error: any) {
+        showReasoningEffortError(api, agentName, error);
+        returnToTarget(api, profileOpt, returnTarget);
+      }
+    },
+    onCancel: clearAndReturn,
+  };
+}
+
+export function showReasoningEffortPicker(api: any, profileOpt: any, agentName: string, returnTarget: ProfileDetailReturnTarget = "hub", flow?: ReasoningFlow) {
+  safeSetDialogSize(api, "medium");
+  const { profilesDir } = resolvePaths(), profilePath = path.join(profilesDir, profileOpt.value);
+  try {
+    const profile = readProfileData(profilePath), modelId = flow?.pending?.modelId || profile?.models?.[agentName], current = profile?.configs?.[agentName]?.reasoningEffort;
+    const state = buildReasoningEditState(api?.state?.provider || [], agentName, modelId, current);
+    if (state.kind === "ineligible" || state.kind === "missing-model") {
+      api.ui.toast({ title: "Razonamiento no disponible", message: buildReasoningBlockedMessage(state), variant: "warning" });
+      returnToProfileDetailTarget(api, profileOpt, returnTarget);
+      return;
+    }
+    const pickerProps = createReasoningEffortPickerDialogProps(api, profileOpt, agentName, profilePath, profile, state, returnTarget, flow, flow?.sequential ? { updateProfileReasoningWithoutVersion: undefined } : {
+      updateProfileReasoningWithoutVersion: (targetPath, targetAgent, value, policy) => {
+        const nextProfile = updateProfileReasoningEffort(profile, targetAgent, value);
+        writeProfileData(targetPath, nextProfile, policy);
+        return nextProfile;
+      },
+    });
+    api.ui.dialog.replace(() => <api.ui.DialogSelect {...pickerProps} />);
+  } catch (e: any) {
+    log.error(`showReasoningEffortEditor: failed to update ${agentName}`, e);
+    api.ui.toast({ title: UI_TEXT.error, message: `No se pudo actualizar el esfuerzo de razonamiento: ${e.message}`, variant: "error" });
+  }
 }
 
 /**
@@ -1313,6 +1185,7 @@ export async function handleActivateProfile(api: any, profilePath: string, profi
  */
 export function showDeleteProfile(api: any, profileOpt: any) {
   safeSetDialogSize(api, "medium");
+  safeSetDialogSize(api, "medium");
   api.ui.dialog.replace(() => (
     <api.ui.DialogConfirm
       title="Eliminar perfil"
@@ -1320,11 +1193,11 @@ export function showDeleteProfile(api: any, profileOpt: any) {
       onConfirm={() => {
         try {
           deleteProfileFile(profileOpt.value);
-          api.ui.toast({ title: UI_TEXT.deleted, message: `Perfil '${profileOpt.title}' eliminado` });
+          api.ui.toast({ title: "Deleted", message: `Profile '${profileOpt.title}' deleted` });
           showProfileListFn(api);
         } catch (e: any) {
           log.error(`showDeleteProfile: failed to delete profile '${profileOpt?.value}'`, e);
-          api.ui.toast({ title: UI_TEXT.error, message: `No se pudo eliminar: ${e.message}`, variant: "error" });
+          api.ui.toast({ title: "Error", message: `Failed to delete: ${e.message}`, variant: "error" });
           showProfileDetailFn(api, profileOpt);
         }
       }}
@@ -1338,9 +1211,10 @@ export function showDeleteProfile(api: any, profileOpt: any) {
  */
 export function showRenameProfile(api: any, profileOpt: any) {
   safeSetDialogSize(api, "medium");
+  safeSetDialogSize(api, "medium");
   api.ui.dialog.replace(() => (
     <api.ui.DialogPrompt
-      title="Renombrar perfil"
+      title="Rename Profile"
       value={profileOpt.title}
       onConfirm={(newName: string) => {
         const trimmed = newName?.trim();
@@ -1367,7 +1241,7 @@ export function showRenameProfile(api: any, profileOpt: any) {
           showProfileListFn(api);
         } catch (e: any) {
           log.error(`showRenameProfile: failed to rename profile '${profileOpt?.value}' to '${newName}'`, e);
-          api.ui.toast({ title: UI_TEXT.error, message: `No se pudo renombrar: ${e.message}`, variant: "error" });
+          api.ui.toast({ title: "Error", message: `Failed to rename: ${e.message}`, variant: "error" });
           showProfileDetailFn(api, profileOpt);
         }
       }}
@@ -1380,6 +1254,7 @@ export function showRenameProfile(api: any, profileOpt: any) {
  * Displays bulk assignment actions for the selected profile.
  */
 export function showBulkProfileActions(api: any, profileOpt: any) {
+  safeSetDialogSize(api, "xlarge");
   safeSetDialogSize(api, "xlarge");
   const options = buildBulkProfileActionOptions();
 
@@ -1411,6 +1286,7 @@ export function showBulkProfileActions(api: any, profileOpt: any) {
  * Displays a menu to select a provider for bulk phase assignment.
  */
 export function showProviderPickerForBulkProfilePhases(api: any, profileOpt: any, action: BulkProfileActionOption) {
+  safeSetDialogSize(api, "xlarge");
   safeSetDialogSize(api, "xlarge");
   const providers = (api.state.provider || []).filter((p: any) => Object.keys(p.models || {}).length > 0);
 
@@ -1479,7 +1355,7 @@ export function createBulkModelPickerDialogProps(
 
 export function showModelPickerForBulkProfilePhases(api: any, profileOpt: any, provider: any, action: BulkProfileActionOption) {
   safeSetDialogSize(api, "xlarge");
-
+  safeSetDialogSize(api, "xlarge");
   api.ui.dialog.replace(() => (
     <api.ui.DialogSelect {...createBulkModelPickerDialogProps(api, profileOpt, provider, action, {
       onModelSelected: (modelId) => createBulkModelSelectionHandler(api, profileOpt, modelId, action.target || "primary")(),
@@ -1487,26 +1363,35 @@ export function showModelPickerForBulkProfilePhases(api: any, profileOpt: any, p
   ));
 }
 
-/**
- * Assigns the selected model to targeted SDD profile phases and versions before mutation.
- */
+export function showBulkReasoningEffortPicker(
+  api: any,
+  profileOpt: any,
+  modelId: string,
+  target: "primary" | "fallback" = "primary",
+) {
+  api.ui.dialog.replace(() => (
+    <api.ui.DialogSelect {...createBulkReasoningEffortPickerDialogProps(api, profileOpt, modelId, target)} />
+  ));
+}
+
 export function showProfileVersions(api: any, profileOpt: any) {
+  safeSetDialogSize(api, "xlarge");
   safeSetDialogSize(api, "xlarge");
   try {
     const versions = listProfileVersions(profileOpt.value);
 
     if (versions.length === 0) {
-    api.ui.toast({ title: NAV_TEXT.noVersions, message: `No hay versiones guardadas para '${profileOpt.title}'`, variant: "warning" });
+      api.ui.toast({ title: "No Versions", message: `No saved versions for '${profileOpt.title}'`, variant: "warning" });
       showProfileDetailFn(api, profileOpt);
       return;
     }
 
     api.ui.dialog.replace(() => (
       <api.ui.DialogSelect
-        title={`Versiones: ${profileOpt.title}`}
+        title={`Versions: ${profileOpt.title}`}
         options={[
           ...versions.map(buildProfileVersionListOption),
-          buildBackOption(),
+          { title: "← Back", value: "__back__", category: NAV_CATEGORY },
         ]}
         onSelect={(opt: any) => {
           if (opt.value === "__back__") showProfileDetailFn(api, profileOpt);
@@ -1524,17 +1409,18 @@ export function showProfileVersions(api: any, profileOpt: any) {
 
 export function showProfileVersionPreview(api: any, profileOpt: any, versionId: string) {
   safeSetDialogSize(api, "xlarge");
+  safeSetDialogSize(api, "xlarge");
   try {
     const version = readProfileVersion(versionId);
     const lines = formatProfileVersionPreviewLines(version);
 
     api.ui.dialog.replace(() => (
       <api.ui.DialogSelect
-        title={`Previsualización: ${profileOpt.title}`}
+        title={`Preview: ${profileOpt.title}`}
         options={[
           ...lines.map((line, index) => ({ title: line, value: `__line__${index}` })),
-          { title: "↩ Restaurar esta versión", value: "__restore__", category: NAV_CATEGORY },
-          buildBackOption(),
+          { title: "↩ Restore this version", value: "__restore__", category: NAV_CATEGORY },
+          { title: "← Back", value: "__back__", category: NAV_CATEGORY },
         ]}
         onSelect={(opt: any) => {
           if (opt.value === "__restore__") showConfirmRestoreProfileVersion(api, profileOpt, version.id);
@@ -1553,18 +1439,19 @@ export function showProfileVersionPreview(api: any, profileOpt: any, versionId: 
 
 export function showConfirmRestoreProfileVersion(api: any, profileOpt: any, versionId: string) {
   safeSetDialogSize(api, "medium");
+  safeSetDialogSize(api, "medium");
   api.ui.dialog.replace(() => (
     <api.ui.DialogConfirm
-      title="Restaurar versión del perfil"
-      message={`¿Restaurar '${profileOpt.title}' desde esta versión? Se sobrescribirá el contenido actual.`}
+      title="Restore profile version"
+      message={`Restore '${profileOpt.title}' from this version? Current profile content will be overwritten.`}
       onConfirm={() => {
         try {
           restoreProfileVersion(profileOpt.value, versionId);
-          api.ui.toast({ title: UI_TEXT.restored, message: `Perfil '${profileOpt.title}' restaurado`, variant: "success" });
+          api.ui.toast({ title: "Restored", message: `Profile '${profileOpt.title}' restored`, variant: "success" });
           showProfileDetailFn(api, profileOpt);
         } catch (e: any) {
           log.error(`showConfirmRestoreProfileVersion: failed to restore '${versionId}'`, e);
-          api.ui.toast({ title: "Error al restaurar", message: e.message || "No se pudo restaurar la versión", variant: "error" });
+          api.ui.toast({ title: "Restore Failed", message: e.message || "Failed to restore version", variant: "error" });
           showProfileVersionPreview(api, profileOpt, versionId);
         }
       }}
@@ -1587,21 +1474,21 @@ export function showProviderPickerForAgent(
   const providers = (api.state.provider || []).filter((p: any) => Object.keys(p.models || {}).length > 0);
 
   if (providers.length === 0) {
-    api.ui.toast({ title: NAV_TEXT.noProviders, message: "No se encontraron proveedores autenticados.", variant: "warning" });
+    api.ui.toast({ title: "No Providers", message: "No authenticated providers found.", variant: "warning" });
     returnToProfileDetailTarget(api, profileOpt, returnTarget);
     return;
   }
 
   api.ui.dialog.replace(() => (
     <api.ui.DialogSelect
-      title={`Proveedor para ${agentName}${mode === "fallback" ? " (fallback)" : ""}`}
+      title={`Provider for ${agentName}${mode === "fallback" ? " (fallback)" : ""}`}
       options={[
         ...providers.map((p: any) => ({
           title: p.name || p.id,
           value: p.id,
-          description: `${Object.keys(p.models || {}).length} modelos disponibles`,
+          description: `${Object.keys(p.models || {}).length} models available`,
         })),
-        buildBackOption(),
+        { title: "← Back", value: "__back__", category: NAV_CATEGORY },
       ]}
       onSelect={(opt: any) => {
         if (opt.value === "__back__") returnToProfileDetailTarget(api, profileOpt, returnTarget);
@@ -1618,48 +1505,16 @@ export function showProviderPickerForAgent(
 /**
  * Displays a menu to select a model from a provider for a specific agent
  */
-export function showModelPickerForAgent(
-  api: any,
-  profileOpt: any,
-  agentName: string,
-  provider: any,
-  mode: "model" | "fallback",
-  returnTarget: ProfileDetailReturnTarget = "hub"
-) {
+export function showModelPickerForAgent(api: any, profileOpt: any, agentName: string, provider: any, mode: "model" | "fallback", returnTarget: ProfileDetailReturnTarget = "hub") {
   safeSetDialogSize(api, "xlarge");
-  const pickerMode = mode === "fallback" ? "fallback" : "model";
-  api.ui.dialog.replace(() => (
-    <api.ui.DialogSelect
-      {...createModelPickerDialogProps(api, profileOpt, agentName, provider, pickerMode, returnTarget)}
-    />
-  ));
+  api.ui.dialog.replace(() => <api.ui.DialogSelect {...createModelPickerDialogProps(api, profileOpt, agentName, provider, mode === "fallback" ? "fallback" : "model", returnTarget)} />);
 }
 
 /**
  * Updates a specific agent's model within a profile file
  */
-function updateAgentModel(
-  api: any,
-  profileOpt: any,
-  agentName: string,
-  fullModelId: string,
-  mode: "model" | "fallback",
-  returnTarget: ProfileDetailReturnTarget = "hub"
-) {
-  const selectionMode: ModelSelectionMode = mode === "fallback" ? "fallback" : "primary";
-  createModelSelectionHandler(api, profileOpt, agentName, selectionMode, returnTarget)(fullModelId);
-}
-
-export function showBulkReasoningEffortPicker(
-  api: any,
-  profileOpt: any,
-  modelId: string,
-  target: "primary" | "fallback" = "primary",
-) {
-  safeSetDialogSize(api, "medium");
-  api.ui.dialog.replace(() => (
-    <api.ui.DialogSelect {...createBulkReasoningEffortPickerDialogProps(api, profileOpt, modelId, target)} />
-  ));
+function updateAgentModel(api: any, profileOpt: any, agentName: string, fullModelId: string, mode: "model" | "fallback", returnTarget: ProfileDetailReturnTarget = "hub") {
+  createModelSelectionHandler(api, profileOpt, agentName, mode === "fallback" ? "fallback" : "primary", returnTarget)(fullModelId);
 }
 
 /**
@@ -1677,7 +1532,7 @@ export async function showProjectMemoriesMenu(api: any) {
     if (memories.length === 0) {
       api.ui.toast({
         title: NAV_TEXT.noMemories,
-        message: `No se encontraron observaciones del proyecto para ${projectName}`,
+        message: `No hay observaciones guardadas para ${projectName}`,
         variant: "warning",
       });
       showProfilesMenuFn(api);
@@ -1695,7 +1550,7 @@ export async function showProjectMemoriesMenu(api: any) {
               m.updated_at || m.created_at
             )} · ${localizedMemoryScope(m.scope)}`,
           })),
-          buildBackOption(),
+          { title: "← Back", value: "__back__", category: NAV_CATEGORY },
         ]}
         onSelect={(opt: any) => {
           if (opt.value === "__back__") showProfilesMenuFn(api);
@@ -1713,4 +1568,160 @@ export async function showProjectMemoriesMenu(api: any) {
     api.ui.toast({ title: UI_TEXT.error, message: `No se pudieron cargar las memorias: ${e.message}`, variant: "error" });
     showProfilesMenuFn(api);
   }
+}
+
+/**
+ * Detects git root for a directory synchronously
+ */
+export function detectGitRootForDirectory(directory: string): string | undefined {
+  try {
+    const root = execFileSync(
+      "git",
+      ["-C", directory, "rev-parse", "--show-toplevel"],
+      {
+        encoding: "utf-8",
+        timeout: 2000,
+        stdio: ["ignore", "pipe", "ignore"],
+      }
+    ).trim();
+    return root ? path.normalize(root) : undefined;
+  } catch {
+    return undefined;
+  }
+}
+
+/**
+ * Builds task manager root candidates
+ */
+export function buildTaskManagerRootCandidates(directory: string): TaskManagerRootCandidates {
+  const gitRoot = detectGitRootForDirectory(directory);
+  return {
+    cwd: directory,
+    ...(gitRoot ? { gitRoot } : {}),
+  };
+}
+
+/**
+ * Builds plugin help menu options
+ */
+export function buildPluginHelpOptions() {
+  return [
+    { title: "Suite de Agentes", value: "suite", description: "Documentación offline de la Suite de Agentes." },
+    { title: "Task Manager", value: "task-manager", description: "Documentación offline del Task Manager portátil." },
+    { title: "Hub (opencode-sdd-engram-manage)", value: "hub", description: "Documentación del hub y gestión de perfiles/plugins." },
+    { title: "← Volver", value: "__back__", description: "Volver al menú de plugins." },
+  ];
+}
+
+/**
+ * Shows plugins offline help submenu
+ */
+export function showPluginsHelpMenu(api: any) {
+  safeSetDialogSize(api, "medium");
+  api.ui.dialog.replace(() => (
+    <api.ui.DialogSelect
+      title="Ayuda de Plugins"
+      options={buildPluginHelpOptions()}
+      onSelect={(opt: any) => {
+        if (opt.value === "__back__") {
+          showPluginsMenu(api);
+        } else {
+          showPluginHelpDetail(api, opt.value as HelpTopic);
+        }
+      }}
+      onCancel={() => showPluginsMenu(api)}
+    />
+  ));
+}
+
+/**
+ * Shows detailed offline help for a plugin topic
+ */
+export function showPluginHelpDetail(api: any, topic: HelpTopic) {
+  safeSetDialogSize(api, "xlarge");
+  const content = loadOfflineHelp(topic);
+  const title = topic === "suite" ? "Ayuda: Suite de Agentes" : topic === "task-manager" ? "Ayuda: Task Manager" : "Ayuda: Hub de Plugins";
+  api.ui.dialog.replace(() => (
+    <api.ui.DialogAlert
+      title={title}
+      message={content}
+      onConfirm={() => showPluginsHelpMenu(api)}
+    />
+  ));
+}
+
+/**
+ * Resolves path to the bundled Task Manager template
+ */
+export function resolveTaskManagerTemplatePath(baseDir = import.meta.dirname): string {
+  const candidates = [
+    path.resolve(baseDir, "../plugins/task-manager/Task-Manager-Portable.html"),
+    path.resolve(baseDir, "../../plugins/task-manager/Task-Manager-Portable.html"),
+    path.resolve(baseDir, "plugins/task-manager/Task-Manager-Portable.html"),
+    path.resolve(baseDir, "../dist/plugins/task-manager/Task-Manager-Portable.html"),
+  ];
+  const found = candidates.find((candidate) => fs.existsSync(candidate));
+  return found || candidates[0];
+}
+
+/**
+ * Launches or provisions the Task Manager dashboard
+ */
+export async function launchTaskManagerAction(api: any): Promise<void> {
+  const workspaceDir = resolveWorkspaceRoot(api);
+  const candidates = buildTaskManagerRootCandidates(workspaceDir);
+  const identity = resolveTaskManagerRoot(candidates);
+  const templatePath = resolveTaskManagerTemplatePath();
+  const provisionResult = provisionTaskManagerBase(identity.root, templatePath, "foreground");
+  const launchResult = await launchTaskManagerBrowser({
+    filePath: provisionResult.path,
+    canonicalRoot: identity.canonicalRoot,
+  });
+
+  if (!launchResult.opened && launchResult.fallback) {
+    safeSetDialogSize(api, "medium");
+    api.ui.dialog.replace(() => (
+      <api.ui.DialogAlert
+        title={launchResult.fallback!.title}
+        message={`${launchResult.fallback!.manualInstructions}\n\n${launchResult.fallback!.absolutePath}`}
+        onConfirm={() => showPluginsMenu(api)}
+      />
+    ));
+    return;
+  }
+
+  if (launchResult.opened) {
+    api.ui.toast?.({
+      title: "Task Manager",
+      message: "Task Manager abierto en el navegador.",
+    });
+    api.ui.dialog.clear();
+  }
+}
+
+/**
+ * Shows the plugins hub dialog
+ */
+export function showPluginsMenu(api: any) {
+  safeSetDialogSize(api, "medium");
+  api.ui.dialog.replace(() => (
+    <api.ui.DialogSelect
+      title="Plugins"
+      options={buildPluginHubOptions()}
+      onSelect={async (opt: any) => {
+        if (opt.value === "help") {
+          showPluginsHelpMenu(api);
+        } else if (opt.value === "suite") {
+          openVendoredSuite(api);
+        } else if (opt.value === "task-manager") {
+          await launchTaskManagerAction(api);
+        } else if (opt.value === "__back__") {
+          showProfilesMenu(api);
+        } else {
+          api.ui.dialog.clear();
+        }
+      }}
+      onCancel={() => api.ui.dialog.clear()}
+    />
+  ));
 }

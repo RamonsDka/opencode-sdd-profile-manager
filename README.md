@@ -264,6 +264,123 @@ See [`docs/architecture.md`](docs/architecture.md) for responsibilities and data
 
 See [`docs/dependencies.md`](docs/dependencies.md) for the dependency roles and version policy.
 
+```text
+Bulk actions
+──────────────────────────────────────────────────
+Set
+  Set all primary phases
+  Set all fallback phases
+  Set all phases and fallbacks
+
+Override
+  Override all primary phases        requires confirmation
+  Override all fallback phases       requires confirmation
+  Override all phases and fallbacks  requires confirmation
+```
+
+```text
+Profile versions: team-default
+──────────────────────────────────────────────────
+When                  Bulk                         Phase
+2026-04-26 14:08      Set all fallback phases      all fallback phases
+2026-04-26 13:52      Override all primary phases  all primary phases
+2026-04-26 13:10      Manual edit                  sdd-apply
+```
+
+```text
+Preview version 2026-04-26 14:08
+──────────────────────────────────────────────────
+models.sdd-apply      openai/gpt-5.5
+fallback.sdd-apply    google/gemini-flash-2.0
+
+[Restore this version]  [Back]
+Restore? This replaces the current profile file.
+```
+
+### Profile Versions
+
+Use **Profile versions...** from the profile detail screen to review saved profile snapshots.
+
+- Versions are created automatically before bulk profile actions.
+- Versions are also created automatically before individual primary or fallback phase model changes.
+- Profile versions use one unified history for bulk actions and individual phase changes, retaining the latest 60 snapshots per profile.
+- Each version can be previewed before restoring it.
+- Restore writes the selected snapshot back to the profile file.
+
+Version history is stored outside the profile JSON under `~/.config/opencode/profile-versions/`, or `$XDG_CONFIG_HOME/opencode/profile-versions/` when configured. The profile JSON itself only contains model data (`models` and `fallback`); version metadata is kept out of the main profile file.
+
+---
+
+## Screenshots
+
+Visual walkthrough of profile management, model assignments, bulk actions, and reasoning effort:
+
+### Profile Management & Active Status
+
+<p align="center">
+  <img src="docs/images/perfil-1.png" alt="Profile management and active status" width="720" />
+</p>
+
+### Model & Fallback Assignment
+
+<p align="center">
+  <img src="docs/images/perfil-2.png" alt="Agent model and fallback assignment" width="720" />
+</p>
+
+### Bulk Profile Actions
+
+<p align="center">
+  <img src="docs/images/acciones-masivas-del-perfil.png" alt="Bulk profile actions" width="720" />
+</p>
+
+### Reasoning Effort Configuration
+
+<p align="center">
+  <img src="docs/images/Nivel-de-esfuerzo.png" alt="Reasoning effort level configuration" width="720" />
+</p>
+
+---
+
+## Orchestrator Fallback Policy Script
+
+This repo includes a script to ensure the `sdd-orchestrator` prompt contains the fallback policy block required for managed `*-fallback` agents to work correctly when a primary sub-agent fails.
+
+- **Script:** `scripts/ensure-orchestrator-fallback-policy.ts`
+- **Supports:** Inline prompt text in `opencode.json` and external `{file:...}` references.
+
+```bash
+# Check mode (no changes)
+npm run orchestrator:fallback:check
+
+# Apply changes
+npm run orchestrator:fallback:apply
+
+# Custom config path
+node ./scripts/ensure-orchestrator-fallback-policy.ts --config /path/to/opencode.json
+```
+
+---
+
+## Example Fixtures & Smoke Validation
+
+Under `examples/`:
+
+- `opencode-inline.json` — inline orchestrator prompt config
+- `opencode-external.json` + `sdd-orchestrator-example.md` — external prompt file config
+- `profiles/*.json` — profile payloads in new and legacy formats
+
+Run smoke validation:
+
+```bash
+npm run examples
+```
+
+Validates:
+1. Fallback policy injection for inline and external prompt configs.
+2. Profile fixture readability for new (`models` + `fallback`) and legacy formats.
+
+---
+
 ## Development
 
 ```bash

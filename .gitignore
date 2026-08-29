@@ -7,9 +7,12 @@ examples/.tmp-run
 .pi
 .pi-lens
 .codegraph/
-.engram/
 dist-share/
 .env
 .env.*
 *.local
 *.log
+.engram/chunks/
+.engram/manifest.json
+/Task-Manager-Portable.html
+
