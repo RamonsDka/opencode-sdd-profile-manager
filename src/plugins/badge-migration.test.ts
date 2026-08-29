@@ -34,7 +34,7 @@ describe("permanent model badge", () => {
     const values = renderedProps.options.map((opt: any) => opt.value);
     expect(values).not.toContain("toggle_badge_visible");
     expect(values).not.toContain("toggle_badge_mode");
-    expect(values).toEqual(["create", "list", "view_memories", "plugins", "__close__"]);
+    expect(values).toEqual(["create", "list", "plugins", "__close__"]);
   });
 
   it("renders ActiveModelBadge text properly with active profile", () => {

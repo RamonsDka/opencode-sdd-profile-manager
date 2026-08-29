@@ -6,7 +6,6 @@ describe("plugin registry safety and hub", () => {
     expect(buildPluginHubOptions().map((option) => option.title)).toEqual([
       "Suite de Agentes",
       "Task Manager",
-      "Ayuda",
       "← Volver",
     ]);
   });

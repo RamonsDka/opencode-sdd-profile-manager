@@ -71,8 +71,10 @@ import { buildPluginHubOptions } from "./plugins/registry";
 import { loadOfflineHelp, type HelpTopic } from "./plugins/offline-help";
 import { openVendoredSuite } from "./plugins/suite-adapter";
 import { resolveTaskManagerRoot, type TaskManagerRootCandidates } from "./plugins/task-manager-root";
-import { provisionTaskManagerBase } from "./plugins/task-manager-lifecycle";
+import { provisionTaskManagerBase, setTaskManagerRunningState } from "./plugins/task-manager-lifecycle";
 import { launchTaskManagerBrowser } from "./plugins/task-manager-coordinator";
+import { dispatchTaskManagerSync } from "./plugins/task-manager-dispatcher";
+import { syncTaskManagerTokenTelemetry } from "./plugins/task-manager-telemetry";
 
 export const BADGE_VISIBLE_KV_KEY = "sdd-show-model-badge";
 export const BADGE_DISPLAY_MODE_KV_KEY = "sdd-badge-display-mode";
@@ -108,7 +110,6 @@ const NAV_TEXT = {
   profileManagement: "Gestión de perfiles SDD",
   createProfile: "󰏪 Crear nuevo perfil SDD",
   manageProfiles: "󰓅 Gestionar perfiles SDD",
-  viewMemories: "󰄄 Ver memorias del proyecto",
   activate: "Activar",
 } as const;
 
@@ -613,11 +614,6 @@ export function showProfilesMenu(api: any) {
           description: "Lista y activa tus perfiles SDD guardados.",
         },
         {
-          title: NAV_TEXT.viewMemories,
-          value: "view_memories",
-          description: "Muestra las observaciones recientes de Engram para este proyecto.",
-        },
-        {
           title: "Plugins",
           value: "plugins",
           description: "Abre el menú de plugins integrados (Suite de Agentes, Task Manager).",
@@ -631,7 +627,6 @@ export function showProfilesMenu(api: any) {
       onSelect={(opt: any) => {
         if (opt.value === "create") showCreateProfile(api);
         else if (opt.value === "list") showProfileListFn(api);
-        else if (opt.value === "view_memories") showProjectMemoriesMenuFn(api);
         else if (opt.value === "plugins") showPluginsMenu(api);
         else api.ui.dialog.clear();
       }}
@@ -1646,15 +1641,55 @@ export function resolveTaskManagerTemplatePath(baseDir = import.meta.dirname): s
 /**
  * Launches or provisions the Task Manager dashboard
  */
-export async function launchTaskManagerAction(api: any): Promise<void> {
+export async function launchTaskManagerAction(
+  api: any,
+  deps?: { dispatchSync?: typeof dispatchTaskManagerSync }
+): Promise<void> {
   const workspaceDir = resolveWorkspaceRoot(api);
   const candidates = buildTaskManagerRootCandidates(workspaceDir);
   const identity = resolveTaskManagerRoot(candidates);
   const templatePath = resolveTaskManagerTemplatePath();
   const provisionResult = provisionTaskManagerBase(identity.root, templatePath, "foreground");
+  setTaskManagerRunningState(provisionResult.path, "opening");
+
+  // Collect and sync telemetry before launching the browser so token insights are present immediately (bounded, non-fatal)
+  try {
+    await syncTaskManagerTokenTelemetry({
+      client: api?.client,
+      project: identity,
+      dashboardPath: provisionResult.path,
+    });
+  } catch (telemetryErr) {
+    log.warn(`launchTaskManagerAction: initial telemetry sync skipped for ${identity.key}`, telemetryErr);
+  }
+
   const launchResult = await launchTaskManagerBrowser({
     filePath: provisionResult.path,
     canonicalRoot: identity.canonicalRoot,
+  });
+
+  // Asynchronously trigger background agent synchronization without blocking browser launch or UI
+  const dispatch = deps?.dispatchSync ?? dispatchTaskManagerSync;
+  void dispatch({
+    project: identity,
+    dashboardPath: provisionResult.path,
+    reason: "opening",
+    client: api?.client,
+  }).then((result) => {
+    if (result.success && !result.skipped) {
+      if (typeof api?.ui?.toast === "function") {
+        api.ui.toast("Task Manager: Sincronización completada. (Recarga el navegador si está abierto)");
+      } else if (typeof api?.ui?.notify === "function") {
+        api.ui.notify("Task Manager: Sincronización completada. (Recarga el navegador si está abierto)");
+      }
+    } else if (!result.success && result.error && !result.skipped) {
+      log.warn(`launchTaskManagerAction: background sync failed for ${identity.key}: ${result.error}`);
+      if (typeof api?.ui?.toast === "function") {
+        api.ui.toast(`Task Manager: Error en sincronización — ${result.error}`);
+      }
+    }
+  }).catch((error) => {
+    log.warn(`launchTaskManagerAction: background sync failed for ${identity.key}`, error);
   });
 
   if (!launchResult.opened && launchResult.fallback) {
@@ -1672,7 +1707,7 @@ export async function launchTaskManagerAction(api: any): Promise<void> {
   if (launchResult.opened) {
     api.ui.toast?.({
       title: "Task Manager",
-      message: "Task Manager abierto en el navegador.",
+      message: "Task Manager abierto. Sincronización en segundo plano iniciada...",
     });
     api.ui.dialog.clear();
   }
@@ -1688,9 +1723,7 @@ export function showPluginsMenu(api: any) {
       title="Plugins"
       options={buildPluginHubOptions()}
       onSelect={async (opt: any) => {
-        if (opt.value === "help") {
-          showPluginsHelpMenu(api);
-        } else if (opt.value === "suite") {
+        if (opt.value === "suite") {
           openVendoredSuite(api);
         } else if (opt.value === "task-manager") {
           await launchTaskManagerAction(api);
