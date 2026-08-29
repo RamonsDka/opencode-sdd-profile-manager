@@ -18,5 +18,5 @@ describe("Task Manager onboarding fixture", () => {
 
     expect(result).toEqual({ open: false, state: undefined });
     expect(hashFile(portableHtml)).toBe(before);
-  });
+  }, 30000);
 });

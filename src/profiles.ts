@@ -214,26 +214,6 @@ export function extractPersistedAgentModels(config: any): ProfileModels {
 /**
  * Extracts managed fallback model mapping from a profile payload
  */
-/**
- * Extracts models for all valid agent keys from a configuration object (persisted layer)
- */
-export function extractPersistedAgentModels(config: any): ProfileModels {
-  const agents = config?.agent || {};
-  return Object.fromEntries(
-    Object.entries(agents)
-      .filter(
-        ([name, value]: any) =>
-          isValidAgentKey(name) &&
-          typeof value?.model === "string" &&
-          value.model.trim()
-      )
-      .map(([name, value]: any) => [name, value.model.trim()])
-  );
-}
-
-/**
- * Extracts managed fallback model mapping from a profile payload
- */
 export function extractSddFallbackModels(raw: any): ProfileFallbackModels {
   if (!raw || typeof raw !== "object" || Array.isArray(raw)) return {};
 
