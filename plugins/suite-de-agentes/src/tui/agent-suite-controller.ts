@@ -6,7 +6,13 @@ import { patchBaseAgent, patchCustomAgent, setAgentModelAssignment, type AgentPa
 import { loadSuiteConfig, saveSuiteConfig } from "../core/persistence.ts";
 import { globalAgentPath, materializeGlobalAgent, renameMaterializedAgentResult } from "../core/agents.ts";
 import type { CreateDraft } from "./agent-suite-create.ts";
-import { isInternalBuiltInAgent, restoreBuiltInBaseline } from "../core/built-in-agents.ts";
+import {
+  createTaskManagerAgent,
+  getBuiltInDefinition,
+  isInternalBuiltInAgent,
+  restoreBuiltInBaseline,
+  TASK_MANAGER_AGENT_ID,
+} from "../core/built-in-agents.ts";
 import { ConsentLedger } from "../core/grants.ts";
 
 export interface AgentSuiteController {
@@ -200,9 +206,24 @@ export function createAgentSuiteController(
     activeGrants: () => ledger ? ledger.list(options.sessionID) : [],
     revokeGrant: async (id) => { ledger?.revoke(id); },
     materialize: async (id) => mutation(() => {
+      if (id === TASK_MANAGER_AGENT_ID) {
+        const row = find(id);
+        const baseline = getBuiltInDefinition(id)?.baseline;
+        const model = config.modelAssignments[id] ?? row?.model ?? baseline?.model ?? "opencode/default";
+        const variant = config.variantAssignments[id] ?? row?.variant ?? baseline?.effort;
+        const agent = createTaskManagerAgent(model, variant);
+        materializeGlobalAgent(agent, () => true, options.home);
+        return;
+      }
       const agent = config.customAgents[id];
-      if (!agent) throw new Error(`Unknown custom agent: ${id}`);
-      materializeGlobalAgent({ ...agent, model: config.modelAssignments[id] ?? agent.model, variant: config.variantAssignments[id] ?? agent.variant }, () => true);
+      if (agent) {
+        materializeGlobalAgent({ ...agent, model: config.modelAssignments[id] ?? agent.model, variant: config.variantAssignments[id] ?? agent.variant }, () => true, options.home);
+        return;
+      }
+      if (seed.includes(id)) {
+        throw new Error(`Base agent '${id}' cannot be materialized as a standalone agent.`);
+      }
+      throw new Error(`Unknown custom agent: ${id}`);
     }),
     setModel: async (id, model) => mutation(() => { config = setAgentModelAssignment(config, id, model, config.variantAssignments[id]); }),
     setEffort: async (id, variant) => mutation(() => { config = setAgentModelAssignment(config, id, config.modelAssignments[id] ?? find(id)?.model ?? "openai/gpt-5", variant || undefined); }),

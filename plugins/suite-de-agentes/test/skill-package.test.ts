@@ -1,9 +1,30 @@
 import { describe, expect, it } from "vitest";
+import { readFileSync } from "node:fs";
+import { join } from "node:path";
 import { buildIntegrationPlan, validateSkillPackage } from "../src/core/skill-package.ts";
 
 const valid = { id: "safe-skill", source: "remote" as const, files: [{ path: "SKILL.md", content: "---\nname: safe-skill\ndescription: Safe checks\n---\n# Safe\n" }, { path: "references/check.md", content: "Checks only." }] };
 
 describe("skill package validation", () => {
+  it("validates the bundled task-tracker-manager skill package", () => {
+    const skillContent = readFileSync(join(__dirname, "..", "skills", "task-tracker-manager", "SKILL.md"), "utf8");
+    const schemaContent = readFileSync(join(__dirname, "..", "skills", "task-tracker-manager", "assets", "schema.json"), "utf8");
+
+    const pkg = {
+      id: "task-tracker-manager",
+      source: "generated" as const,
+      files: [
+        { path: "SKILL.md", content: skillContent },
+        { path: "assets/schema.json", content: schemaContent },
+      ],
+    };
+
+    const validated = validateSkillPackage(pkg);
+    expect(validated.id).toBe("task-tracker-manager");
+    const plan = buildIntegrationPlan(pkg, "agent-task-manager");
+    expect(plan.assignment).toEqual({ agentId: "agent-task-manager", skillId: "task-tracker-manager" });
+  });
+
   it("requires a complete frontmatter package and freezes an approved integration plan before any write", () => {
     expect(validateSkillPackage(valid)).toEqual(valid);
     const plan = buildIntegrationPlan(valid, "active-agent");

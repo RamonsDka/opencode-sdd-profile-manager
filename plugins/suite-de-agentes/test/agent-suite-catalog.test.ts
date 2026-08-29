@@ -167,6 +167,24 @@ describe("Agent Suite catalog", () => {
     expect(sessionGrantLabel({ id: "grant-1", sessionID: "session-1", requester: "build", target: "explore", purpose: "codebase search", operation: "task", duration: "current-session" })).toBe("Build → Explore · codebase search · sesión actual");
   });
 
+  it("includes agent-task-manager in seed catalog even with empty runtime and default configuration", () => {
+    const catalog = buildSuiteDeAgentesCatalog({}, {});
+    const taskManagerRow = catalog.find((row) => row.id === "agent-task-manager");
+
+    expect(taskManagerRow).toBeDefined();
+    expect(taskManagerRow).toMatchObject({
+      id: "agent-task-manager",
+      membership: "seed",
+      enabled: false,
+      disabled: false,
+      skills: ["task-tracker-manager"],
+      mode: "all",
+      consent: "explicit-current-turn",
+    });
+    expect(taskManagerRow?.description).toContain("Task-Manager-Portable.html");
+    expect(taskManagerRow?.operations).toContain("Task-Manager-Portable.html");
+  });
+
   it("clamps a stale page and focus after the catalog shrinks", () => {
     const stale = { stack: [{ kind: "catalog", page: 2, focus: 5, query: "", searchFocused: false }], busy: false, closing: false } as import("../src/tui/agent-suite-nav.ts").NavState;
     const normalized = normalizeCatalogState(stale, rows.slice(0, 2));

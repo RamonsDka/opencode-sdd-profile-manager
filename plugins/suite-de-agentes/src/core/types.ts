@@ -1,11 +1,13 @@
 export type PermissionValue = "allow" | "deny" | "ask";
 export type AgentPermissions = Record<string, PermissionValue>;
+export type AgentMode = "all" | "primary" | "subagent";
 
 export interface CustomAgent {
   id: string;
   description: string;
   model: string;
   variant?: string;
+  mode?: AgentMode;
   prompt: string;
   permissions: AgentPermissions;
   skills: string[];
@@ -25,6 +27,7 @@ export interface BuiltInBaseline {
   description: string;
   model: string;
   effort: string;
+  mode?: AgentMode;
   operations: string;
   skills: readonly string[];
 }
@@ -76,6 +79,7 @@ export interface AgentCatalogRow {
   consent: "explicit-current-turn";
   description?: string;
   variant?: string;
+  mode?: AgentMode;
   disabled?: boolean;
   operations?: string;
 }

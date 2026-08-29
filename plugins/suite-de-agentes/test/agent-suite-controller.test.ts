@@ -4,6 +4,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { createAgentSuiteController } from "../src/tui/agent-suite-controller.ts";
 import { globalAgentPath, materializeGlobalAgent } from "../src/core/agents.ts";
+import { TASK_MANAGER_AGENT_ID, TASK_MANAGER_TARGET_PATH } from "../src/core/built-in-agents.ts";
 import { loadSuiteConfig, saveSuiteConfig } from "../src/core/persistence.ts";
 import type { CreateDraft } from "../src/tui/agent-suite-create.ts";
 import type { AgentCatalogRow } from "../src/core/types.ts";
@@ -34,7 +35,7 @@ describe("Agent Suite controller adapter", () => {
     writeFileSync(path, JSON.stringify({ version: 1, customAgents: { "smoke-custom": { id: "smoke-custom", description: "Smoke custom", model: "openai/gpt-5", prompt: "Smoke", permissions: { read: "allow" }, skills: [] } }, modelAssignments: {}, variantAssignments: {} }));
     const controller = createAgentSuiteController([], "1.1.0", { path, runtime: { general: { model: "openai/gpt-5" }, "smoke-custom": { model: "openai/gpt-5" } } });
     const visibleIds = controller.snapshot().rows.map(({ id }) => id);
-    expect(visibleIds).toEqual(["build", "compaction", "explore", "general", "plan", "smoke-custom", "summary", "title"]);
+    expect(visibleIds).toEqual(["agent-task-manager", "build", "compaction", "explore", "general", "plan", "smoke-custom", "summary", "title"]);
     expect(visibleIds.join(" ")).not.toContain("agent-github");
     expect(visibleIds.join(" ")).not.toContain("agent-notebooklm");
   });
@@ -296,5 +297,61 @@ describe("Agent Suite controller adapter", () => {
     expect(loadSuiteConfig(path).modelAssignments).toEqual({});
     expect(loadSuiteConfig(path).variantAssignments).toEqual({});
     expect(existsSync(globalAgentPath("old-agent", home))).toBe(false);
+  });
+
+  it("materializes the curated seed agent-task-manager with mode, derived path, skills, and permissions", async () => {
+    const home = mkdtempSync(join(tmpdir(), "agent-suite-controller-home-"));
+    const path = join(mkdtempSync(join(tmpdir(), "agent-suite-controller-")), "suites.json");
+    const controller = createAgentSuiteController([], "1.1.0", { path, home, runtime: {} });
+
+    await controller.materialize(TASK_MANAGER_AGENT_ID);
+
+    const target = globalAgentPath(TASK_MANAGER_AGENT_ID, home);
+    expect(existsSync(target)).toBe(true);
+    const content = readFileSync(target, "utf8");
+
+    expect(content).toContain("name: agent-task-manager");
+    expect(content).toContain("mode: all");
+    expect(content).toContain(TASK_MANAGER_TARGET_PATH);
+    expect(content).toContain("task-tracker-manager");
+    expect(content).toContain("bash: ask");
+    expect(content).toContain("task: deny");
+    expect(content).toContain("write: ask");
+    expect(content).toContain("model: opencode/default");
+
+    await controller.setModelAndEffort(TASK_MANAGER_AGENT_ID, "anthropic/claude-3-5-sonnet", "high");
+    await controller.materialize(TASK_MANAGER_AGENT_ID);
+
+    const updatedContent = readFileSync(target, "utf8");
+    expect(updatedContent).toContain("model: anthropic/claude-3-5-sonnet");
+    expect(updatedContent).toContain("variant: high");
+  });
+
+  it("materializes custom agents applying effective model and variant assignments", async () => {
+    const home = mkdtempSync(join(tmpdir(), "agent-suite-controller-home-"));
+    const path = join(mkdtempSync(join(tmpdir(), "agent-suite-controller-")), "suites.json");
+    const agent = { id: "custom-specialist", description: "Specialist", model: "openai/gpt-5", prompt: "Custom instructions", permissions: { read: "allow" as const, edit: "ask" as const }, skills: ["testing"] };
+    saveSuiteConfig(path, { version: 1, customAgents: { [agent.id]: agent }, modelAssignments: { [agent.id]: "anthropic/sonnet" }, variantAssignments: { [agent.id]: "high" } });
+    const controller = createAgentSuiteController([], "1.1.0", { path, home, runtime: {} });
+
+    await controller.materialize("custom-specialist");
+
+    const target = globalAgentPath("custom-specialist", home);
+    expect(existsSync(target)).toBe(true);
+    const content = readFileSync(target, "utf8");
+    expect(content).toContain("name: custom-specialist");
+    expect(content).toContain("model: anthropic/sonnet");
+    expect(content).toContain("variant: high");
+    expect(content).toContain("Custom instructions");
+  });
+
+  it("rejects materializing non-materializable seed agents and unknown agents", async () => {
+    const home = mkdtempSync(join(tmpdir(), "agent-suite-controller-home-"));
+    const path = join(mkdtempSync(join(tmpdir(), "agent-suite-controller-")), "suites.json");
+    const controller = createAgentSuiteController([], "1.1.0", { path, home, runtime: {} });
+
+    await expect(controller.materialize("general")).rejects.toThrow(/cannot be materialized|standalone|seed|base/i);
+    await expect(controller.materialize("build")).rejects.toThrow(/cannot be materialized|standalone|seed|base/i);
+    await expect(controller.materialize("unknown-agent")).rejects.toThrow(/unknown.*agent/i);
   });
 });
