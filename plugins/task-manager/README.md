@@ -1,102 +1,101 @@
 # Task Manager Portable
 
-> Un dashboard de proyectos en **un solo archivo HTML**, completamente offline, sin instalación, sin servidor y sin dependencias de runtime.
+> A complete project dashboard contained in **a single HTML file**—completely offline, zero installation, no server, and zero runtime dependencies.
 
 <p align="center">
-  <a href="./Task-Manager-Portable.html"><strong>Abrir el archivo portátil</strong></a>
+  <a href="./Task-Manager-Portable.html"><strong>Open Portable File</strong></a>
   ·
-  <a href="./docs/USAGE.md">Guía de uso</a>
+  <a href="./docs/USAGE.md">Usage Guide</a>
   ·
-  <a href="./docs/CUSTOMIZATION.md">Personalización</a>
+  <a href="./docs/CUSTOMIZATION.md">Customization</a>
   ·
-  <a href="./docs/AI-ORCHESTRATOR-GUIDE.md">Integración con IA</a>
+  <a href="./docs/AI-ORCHESTRATOR-GUIDE.md">AI Integration</a>
 </p>
 
-![Vista principal de Task Manager Portable](docs/image/overview-dashboard.jpg)
+![Main view of Task Manager Portable](docs/image/overview-dashboard.jpg)
 
-## Qué es
+---
 
-Task Manager Portable convierte el estado de un proyecto en un cockpit visual que vive junto al código. Basta con copiar `Task-Manager-Portable.html` dentro de cualquier carpeta, abrirlo con doble clic y actualizar su bloque JSON interno.
+## Overview
 
-| Característica | Resultado |
+Task Manager Portable turns your project status into an interactive, visual cockpit that lives right alongside your code. Simply place `Task-Manager-Portable.html` in any project root, open it with a double click in any modern browser, and update its embedded JSON state block.
+
+| Feature | Specification |
 |---|---|
-| Distribución | Un único archivo HTML autocontenido |
-| Instalación | Ninguna |
-| Servidor | No requerido |
-| Conectividad | Funciona offline mediante `file://` |
-| Datos | Un bloque JSON `#tm-state` |
-| Dependencias runtime | Cero |
-| Compatibilidad | Chrome, Edge, Firefox y Safari modernos |
+| **Distribution** | Single self-contained HTML file |
+| **Installation** | None |
+| **Server Requirement** | None (runs offline via `file://`) |
+| **Data Format** | Embedded JSON island `#tm-state` |
+| **Runtime Dependencies** | Zero |
+| **Browser Compatibility** | Modern Chrome, Edge, Firefox, and Safari |
 
-## Inicio rápido
+---
 
-1. Descarga [`Task-Manager-Portable.html`](./Task-Manager-Portable.html).
-2. Copia el archivo dentro de tu proyecto.
-3. Ábrelo con doble clic.
-4. Personaliza el bloque `<script type="application/json" id="tm-state">` o pide a tu asistente de IA que lo mantenga actualizado.
+## Quick Start
+
+1. Copy [`Task-Manager-Portable.html`](./Task-Manager-Portable.html) into your project root.
+2. Double-click the file to open it in your browser.
+3. Customize the `<script type="application/json" id="tm-state">` block directly or instruct an AI assistant to keep it updated.
 
 ```text
-mi-proyecto/
+my-project/
 ├── src/
 ├── README.md
-└── Task-Manager-Portable.html  ← abrir con doble clic
+└── Task-Manager-Portable.html  ← open with double-click
 ```
 
-> El navegador no permite que un archivo `file://` inspeccione automáticamente la carpeta donde está ubicado. La información se proporciona mediante el JSON embebido para preservar seguridad y portabilidad.
+> **Security Note**: Web browsers intentionally prevent `file://` HTML files from reading local directories or filesystem contents. Data is supplied exclusively through the embedded JSON block to guarantee maximum security, sandboxing, and portability.
 
-## Recorrido visual
+---
 
-### 1. Resumen ejecutivo
+## Visual Tour
 
-El HUD reúne progreso global, riesgos, distribución, fase actual, Git, cobertura e insights. Cada recuadro es accesible por teclado y abre una ventana centrada con su desglose.
+### 1. Executive Summary & HUD
+The Header HUD consolidates overall project progress, risk indicators, task distribution, current SDD phase, Git lineage, test coverage, and key insights.
 
-![Resumen ejecutivo](docs/image/overview-dashboard.jpg)
+![Executive Summary](docs/image/overview-dashboard.jpg)
 
-### 2. Fases y tareas
+### 2. Phases & Tasks Breakdown
+Explore tasks grouped by project phase, filter by search text, status, owner, tag, or phase, and expand detail cards.
 
-Consulta el proyecto por fases, filtra por texto, estado, responsable, etiqueta o fase y expande únicamente la información necesaria.
+![Phases and Tasks](docs/image/phases-and-tasks.jpg)
 
-![Fases y tareas](docs/image/phases-and-tasks.jpg)
+### 3. Kanban Board
+Visualize tasks categorized into *Pending*, *In-Progress*, *Blocked*, and *Completed* columns.
 
-### 3. Tablero Kanban
+![Kanban Board](docs/image/kanban-board.jpg)
 
-Visualiza las tareas en columnas de pendiente, en progreso, bloqueado y completado sin modificar el estado desde la interfaz.
+### 4. CodeGraph Map
+Inspect declared codebase modules, symbol dependencies, and impact boundaries.
 
-![Tablero Kanban](docs/image/kanban-board.jpg)
+![CodeGraph Map](docs/image/codegraph-map.jpg)
 
-### 4. Codegraph
+### 5. Repository Blueprint Tree
+Document folders, files, nesting depth, and general structural layout in a clean tree view.
 
-Representa módulos y relaciones explícitas. Los nodos pueden abrirse para consultar archivos, tareas y conexiones disponibles.
+![Repository Tree](docs/image/repository-tree.jpg)
 
-![Mapa Codegraph](docs/image/codegraph-map.jpg)
+### 6. Git Timeline
+Audit declared Git commits, branch synchronization, and receipt verification history without touching `.git` directly.
 
-### 5. Estructura del repositorio
+![Git Timeline](docs/image/git-timeline.jpg)
 
-Documenta carpetas, archivos, profundidad y blueprint general del proyecto mediante datos declarativos.
+### 7. AI Console & Telemetry
+Access AI instructions, starter prompts, project health diagnostics, and JSON state export tools.
 
-![Árbol del repositorio](docs/image/repository-tree.jpg)
+![AI Console](docs/image/ai-console.jpg)
 
-### 6. Actividad Git
+---
 
-Presenta rama, sincronización y commits declarados en una línea temporal legible. El HTML nunca accede directamente a `.git`.
+## How It Works
 
-![Timeline de Git](docs/image/git-timeline.jpg)
-
-### 7. Consola IA
-
-Incluye instrucciones de uso, prompt inicial para asistentes, estado de salud, inspección avanzada y exportación del JSON.
-
-![Consola IA](docs/image/ai-console.jpg)
-
-## Cómo funciona
-
-Todo el contenido visual se deriva de una única fuente de verdad:
+All visual elements derive from a single declarative source of truth:
 
 ```html
 <script type="application/json" id="tm-state">
 {
   "schemaVersion": "1.0",
-  "meta": { "projectName": "Mi proyecto", "version": "1.0.0" },
+  "meta": { "projectName": "My Project", "version": "1.0.0" },
   "phases": [],
   "todos": [],
   "git": {},
@@ -106,99 +105,95 @@ Todo el contenido visual se deriva de una única fuente de verdad:
 </script>
 ```
 
-La aplicación valida el estado y deriva automáticamente:
+The client-side engine validates the state and automatically derives:
+- Global and per-phase completion percentages;
+- Status distribution counts;
+- Active workload, blockers, and risk scores;
+- Kanban board columns and task filter views;
+- Git, Tree, and CodeGraph visualizations;
+- Non-blocking diagnostics and recovery banners.
 
-- progreso global y por fase;
-- distribución por estado;
-- carga activa, riesgos y bloqueos;
-- Kanban y desglose de tareas;
-- paneles Git, Tree y Codegraph;
-- diagnósticos y advertencias.
+See [`docs/CUSTOMIZATION.md`](docs/CUSTOMIZATION.md) for full schema details.
 
-Consulta [Personalización](docs/CUSTOMIZATION.md) para el esquema completo y ejemplos.
+---
 
-## Integración con asistentes de IA
+## AI Assistant Integration
 
-Puedes usar este prompt con OpenCode, Claude, Codex, Cursor u otro asistente:
+You can provide the following operational directive to OpenCode, Claude, Codex, Cursor, or any LLM orchestrator:
 
 ```text
-Mantén actualizado ./Task-Manager-Portable.html según los avances del proyecto.
+Keep ./Task-Manager-Portable.html updated based on project progress.
 
-Reglas:
-- Edita únicamente el contenido del bloque JSON con id="tm-state".
-- Conserva schemaVersion "1.0".
-- Usa status: pending, in-progress, completed o blocked.
-- Escapa </script> como \u003c/script\u003e dentro de cualquier texto.
-- No añadas fetch, imports, scripts externos ni dependencias runtime.
-- No modifiques el HTML, CSS o JavaScript fuera del bloque JSON.
+Rules:
+- Edit ONLY the JSON content inside the <script type="application/json" id="tm-state"> block.
+- Maintain schemaVersion "1.0".
+- Use status: "pending", "in-progress", "completed", or "blocked".
+- Escape any closing script tag as \u003c/script\u003e within text strings.
+- Do not add fetch calls, imports, external scripts, or runtime dependencies.
+- Do not modify HTML, CSS, or JavaScript outside the JSON island.
 ```
 
-La guía completa está en [`docs/AI-ORCHESTRATOR-GUIDE.md`](docs/AI-ORCHESTRATOR-GUIDE.md).
+For comprehensive AI orchestrator instructions, see [`docs/AI-ORCHESTRATOR-GUIDE.md`](docs/AI-ORCHESTRATOR-GUIDE.md).
 
-## Estructura del repositorio
+---
+
+## Repository Structure
 
 ```text
-task-manager-portable/
-├── Task-Manager-Portable.html   # único archivo ejecutable (abrir con doble clic)
-├── modules/                     # HTML, CSS y JavaScript modulares fuente
-├── scripts/                     # ensamblador (assemble) y scanner de portabilidad
-├── tests/                       # pruebas unitarias y validación browser e2e
-├── docs/                        # documentación técnica y capturas
+plugins/task-manager/
+├── Task-Manager-Portable.html   # Standalone executable file (open with double-click)
+├── modules/                     # Source modular HTML, CSS, and JavaScript
+├── scripts/                     # Assembler and portability scanner
+├── tests/                       # Unit tests and Playwright browser validation
+├── docs/                        # Documentation and screenshots
 │   ├── image/
 │   ├── USAGE.md
 │   ├── CUSTOMIZATION.md
 │   ├── ARCHITECTURE.md
 │   ├── DEVELOPMENT.md
 │   └── AI-ORCHESTRATOR-GUIDE.md
-├── .github/                     # CI y plantillas de colaboración
 ├── CHANGELOG.md
 ├── CONTRIBUTING.md
 ├── SECURITY.md
 └── LICENSE
 ```
 
-## Desarrollo
+---
 
-El archivo distribuible no necesita Node.js. Node se usa únicamente para desarrollar y verificar el proyecto.
+## Development & Assembly
+
+The distributable HTML does not require Node.js. Node is used only to develop, test, and assemble the modular source files:
 
 ```bash
+# Install development dependencies
 npm install
+
+# Run unit tests
 npm test
+
+# Typecheck JavaScript with TypeScript checkJs
 npm run check
+
+# Assemble HTML from modules
 npm run assemble
+
+# Run Playwright browser test
 npm run test:browser
+
+# Audit offline portability and size
 node scripts/scan-portability.mjs
 ```
 
-Estado de la versión publicada:
+---
 
-- **131/131** pruebas Node aprobadas;
-- **1/1** recorrido Playwright aprobado;
-- verificación TypeScript aprobada;
-- scanner `file://` aprobado;
-- cero dependencias runtime.
+## Known Boundaries & Limitations
 
-Más información: [`docs/DEVELOPMENT.md`](docs/DEVELOPMENT.md) y [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md).
-
-## Limitaciones conocidas
-
-- No inspecciona automáticamente archivos, Git o Codegraph por restricciones de seguridad de `file://`.
-- Los datos mostrados son snapshots declarados en `#tm-state`.
-- El panel es informativo y de solo lectura; no ejecuta comandos ni cambia tareas.
-- Para actualizar el contenido, edita el JSON manualmente o mediante un asistente.
-
-## Contribuir
-
-Las contribuciones son bienvenidas. Antes de abrir un pull request, lee [`CONTRIBUTING.md`](CONTRIBUTING.md) y ejecuta todas las verificaciones.
-
-## Seguridad
-
-No publiques secretos, tokens ni datos sensibles dentro del JSON: el HTML puede compartirse como cualquier otro archivo. Consulta [`SECURITY.md`](SECURITY.md).
-
-## Licencia
-
-Distribuido bajo la licencia [MIT](LICENSE).
+- Does not auto-inspect the filesystem or `.git` due to browser `file://` security sandboxing.
+- All displayed metrics represent declared snapshots inside `#tm-state`.
+- Read-only interface: does not execute terminal commands or mutate files directly.
 
 ---
 
-Creado por [RamonsDka](https://github.com/RamonsDka) para equipos y creadores que necesitan visibilidad de proyecto sin introducir otra plataforma, servidor o cuenta.
+## License
+
+Distributed under the [MIT License](LICENSE).

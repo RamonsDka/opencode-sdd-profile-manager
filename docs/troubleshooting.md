@@ -1,52 +1,85 @@
-# Troubleshooting
+# Troubleshooting & Diagnostic Guide
 
-## `Alt+K` does nothing
+This document provides diagnostic steps and resolutions for common issues encountered when using the **OpenCode SDD Profile Manager** principal plugin pack and its integrated components.
 
-1. Confirm the local `dist/tui.js` path exists.
-2. Confirm that exact absolute path appears in `tui.json`.
-3. Fully restart OpenCode.
-4. Try `:sdd-model` or `/sdd-model`.
+---
 
-If the command works but the shortcut does not, the terminal or operating system may intercept the key combination. Configure alternatives in `sdd-model-select.json`.
+## 1. Keybindings & Plugin Discovery
 
-## Plugin file cannot be loaded
+### Symptom: `Alt+K` or `Alt+S` does nothing
+1. **Verify Plugin Registration**: Check your `tui.json` (`~/.config/opencode/tui.json` or `%USERPROFILE%\.config\opencode\tui.json`) to confirm `dist/tui.js` is declared as an absolute path or valid package specifier.
+2. **Verify Bundle Exists**: Confirm `npm run build` completed and `dist/tui.js` exists on disk.
+3. **Restart OpenCode**: OpenCode loads TUI plugins strictly at startup. Hot-reloading is not supported; restart all running OpenCode instances.
+4. **Test Alternative Commands**: In the chat prompt, run `/sdd-model` or `:sdd-model`.
+5. **Shortcut Collisions**: Certain terminal emulators or window managers intercept `Alt+K`. Configure alternative shortcuts in `~/.config/opencode/sdd-model-select.json`:
+   ```json
+   {
+     "shortcuts": ["alt+k", "super+k", "ctrl+shift+p"]
+   }
+   ```
 
-Check:
+---
 
-- JSON backslashes are escaped on Windows;
-- the configured path points to a file, not a directory;
-- `npm run build` completed;
-- paths containing spaces are preserved as one JSON string;
-- OpenCode was restarted after the build.
+## 2. Profile Activation & Status Indicators
 
-Do not construct plugin paths by splitting shell strings. Use absolute file paths or properly joined path segments.
+### Symptom: Active profile indicator (`✓ Active`) is missing
+- **Reactivate Profile**: Open the profile in the manager and choose **Activate profile**.
+- **External Renaming**: If a profile JSON was renamed or deleted externally, open the profile list and activate a valid profile to synchronize OpenCode KV state.
+- **On-Disk Permissions**: Ensure the profile directory `~/.config/opencode/profiles/` has read/write permissions for the current user.
 
-## The active profile is not marked
+### Symptom: Reasoning effort setting is disabled
+- **Provider Metadata**: Reasoning effort configuration requires the assigned model provider to advertise reasoning support (e.g. Anthropic Claude 3.7 Sonnet, OpenAI o3-mini, Google Gemini 2.0 Flash Thinking). If using a non-reasoning model, the setting cannot be modified.
+- **Assign Primary Model First**: Assign a compatible primary model before configuring its reasoning effort tier.
 
-Activate the profile again, close the list, and reopen it. The plugin prioritizes the persisted active profile name when it matches an existing profile file, then falls back to configuration comparison.
+### Symptom: Auxiliary agents cannot configure fallbacks
+- **Expected Behavior**: Auxiliary internal agents (`compaction`, `summary`, `title`) support model and reasoning assignments, but are intentionally excluded from fallback sub-agent generation.
 
-If the file was renamed or deleted outside the plugin, activate a valid profile to refresh the persisted state.
+---
 
-## A model appears as `Unassigned`
+## 3. Engram Memory Integration
 
-The catalog intentionally displays all supported agents, even when the profile has no assignment. Select the row to choose a provider and model.
+### Symptom: "Project memories" shows an error or empty list
+1. **Server Status**: Verify the Engram server is running locally on loopback (`http://127.0.0.1:7437`).
+2. **Port Configuration**: If running Engram on a non-default port, ensure the `ENGRAM_PORT` environment variable is set.
+3. **Git Project Detection**: Ensure the current working directory is inside a Git repository. Engram indexes observations based on Git remote and root identity.
+4. **Graceful Fallback**: Failure to connect to Engram does not impair profile management or model switching.
 
-## Reasoning effort cannot be edited
+---
 
-Assign a primary model first. Reasoning effort is available only when provider metadata advertises supported effort levels.
+## 4. Task Manager Portable Dashboard
 
-## An agent is skipped during activation
+### Symptom: Blank screen or error banner in Task Manager Portable
+1. **Check JSON Syntax**: Open `Task-Manager-Portable.html` in an editor and inspect the `<script type="application/json" id="tm-state">` block. Ensure the JSON is valid with no trailing commas.
+2. **Schema Version**: Ensure `"schemaVersion": "1.0"` is present at the root of the JSON state.
+3. **Closing Script Tags**: Ensure any `</script>` string inside descriptions or notes is escaped as `\u003c/script\u003e`.
 
-Profiles contain assignments, not complete agent definitions. The plugin applies an absent agent only when a complete definition is already installed or available from runtime configuration. Missing definitions are reported instead of fabricated.
+### Symptom: Browser security warnings when opening `Task-Manager-Portable.html`
+- **File Origin Restrictions**: Modern browsers enforce opaque origins on `file://` URLs. Task Manager Portable is deliberately self-contained and does not perform network requests or disk reads. All data must reside inside the embedded `#tm-state` island.
 
-## Fallback is unavailable for an auxiliary agent
+---
 
-This is expected for `compaction`, `summary`, and `title`. They support model and compatible reasoning configuration but are intentionally excluded from fallback generation.
+## 5. Terminal Display & Dialog Sizing
 
-## Engram memories do not load
+### Symptom: OpenTUI dialogs appear clipped or truncated
+- **Terminal Dimensions**: Increase your terminal window size. The plugin implements screen-aware sizing and requests `xlarge` dimensions for dense catalog views.
+- **Font & UTF-8 Support**: Ensure your terminal emulator supports UTF-8 characters and box-drawing glyphs (`✓`, `─`, `│`, `┌`, `└`).
 
-Verify that Engram is available and that the current directory resolves to the intended project. Profile management is independent and should continue working.
+---
 
-## OpenCode still uses an old build
+## 6. Diagnostic Checklist
 
-OpenCode does not hot-reload TUI plugins. Rebuild, close all OpenCode processes, then start a new process.
+Run the built-in diagnostic commands to verify repository and runtime integrity:
+
+```bash
+# Verify TypeScript definitions
+npm run typecheck
+
+# Run all test suites
+npm test
+
+# Verify plugin pack packaging and asset distribution
+npm run verify:plugins
+
+# Check orchestrator fallback prompt policies
+npm run orchestrator:fallback:check
+```

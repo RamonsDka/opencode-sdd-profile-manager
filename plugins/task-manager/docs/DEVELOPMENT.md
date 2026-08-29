@@ -1,61 +1,68 @@
-# Desarrollo y verificación
+# Task Manager Portable — Development & Verification
 
-Esta guía está dirigida a quienes quieran modificar el producto. Los usuarios del HTML portátil no necesitan ninguna de estas herramientas.
+This guide is intended for developers contributing to or modifying Task Manager Portable. End users viewing `Task-Manager-Portable.html` do not need any development tools.
 
-## Requisitos
+---
 
-- Node.js 20 o superior; CI utiliza Node.js 24
-- npm
-- Chromium para el recorrido Playwright
+## Prerequisites
 
-## Preparación
+- **Node.js**: Version 20 or higher (CI uses Node.js 24)
+- **npm**
+- **Chromium** (for Playwright browser end-to-end testing)
+
+---
+
+## Setup
 
 ```bash
+cd plugins/task-manager
 npm install
 ```
 
-## Comandos
+---
 
-| Comando | Propósito |
+## Verification Commands
+
+| Command | Purpose |
 |---|---|
-| `npm test` | Ejecuta la suite Node con happy-dom mediante una ruta multiplataforma |
-| `npm run check` | Comprueba JavaScript mediante TypeScript checkJs |
-| `npm run assemble` | Genera el HTML desde los módulos |
-| `npm run test:browser` | Ejecuta el recorrido real de Playwright |
-| `node scripts/scan-portability.mjs` | Audita contrato offline, island y tamaño |
+| `npm test` | Runs the Node test suite using Happy DOM across platforms |
+| `npm run check` | Typechecks JavaScript source modules using TypeScript `checkJs` |
+| `npm run assemble` | Assembles source modules into `Task-Manager-Portable.html` |
+| `npm run test:browser` | Executes real Playwright browser end-to-end verification |
+| `node scripts/scan-portability.mjs` | Audits offline contracts, JSON island integrity, and file size |
 
-## Flujo recomendado
+---
 
-1. Ejecuta las pruebas del módulo que modificarás.
-2. Añade primero un caso que falle para el nuevo comportamiento.
-3. Implementa el cambio mínimo.
-4. Ejecuta las pruebas focales.
-5. Ejecuta la suite completa y el typecheck.
-6. Ensambla el HTML.
-7. Ejecuta Playwright y el scanner de portabilidad.
-8. Confirma que las copias de distribución sean idénticas.
+## Development Workflow
 
-```bash
-npm test
-npm run check
-npm run assemble
-npm run test:browser
-node scripts/scan-portability.mjs
-```
+1. Execute tests for the specific module you intend to modify.
+2. Add a failing unit test asserting the desired behavior.
+3. Implement the minimal change in `modules/`.
+4. Run focused tests:
+   ```bash
+   npm test
+   ```
+5. Run the typechecker:
+   ```bash
+   npm run check
+   ```
+6. Re-assemble the distributable HTML:
+   ```bash
+   npm run assemble
+   ```
+7. Run the browser suite and portability scanner:
+   ```bash
+   npm run test:browser
+   node scripts/scan-portability.mjs
+   ```
 
-## Invariantes que no deben romperse
+---
 
-- Debe existir exactamente un `script#tm-state`.
-- El entregable no puede depender de red o servidor.
-- El estado de tareas no se guarda en `localStorage`.
-- Todo texto procedente del estado se escapa antes de renderizar.
-- El archivo debe seguir abriendo directamente mediante `file://`.
-- El HTML generado debe producirse desde los módulos; no se edita manualmente.
+## Invariant Rules
 
-## Publicar una versión
-
-1. Actualiza `CHANGELOG.md`.
-2. Ejecuta todas las verificaciones.
-3. Copia el artefacto aprobado a `Task-Manager-Portable.html`.
-4. Crea un tag SemVer.
-5. Adjunta el HTML a una GitHub Release.
+- Exactly one `script#tm-state` element must exist in the HTML.
+- Zero external runtime dependencies, network calls, or CDN scripts.
+- No task state persisted in browser `localStorage`.
+- All text rendered from state must be properly escaped against XSS.
+- The file must open and function cleanly via direct `file://` double-click.
+- Distributable `Task-Manager-Portable.html` is generated exclusively via `scripts/assemble.mjs`—never edit it manually.
