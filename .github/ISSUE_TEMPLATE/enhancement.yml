@@ -1,0 +1,49 @@
+name: Feature & Enhancement Request
+description: Suggest a new feature, architectural enhancement, or phased improvement
+title: "[feat]: "
+labels: ["enhancement"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thank you for proposing an enhancement to OpenCode SDD Profile Manager.
+  - type: input
+    id: target-phase
+    attributes:
+      label: Target Component / Phase
+      description: Specify the affected component or architectural phase (e.g., Profile Manager TUI, Suite de Agentes, Task Manager, Core State, Fallback Policy).
+      placeholder: "e.g., Task Manager, Suite de Agentes, Profile Reasoning"
+    validations:
+      required: true
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problem Statement / Motivation
+      description: What limitation or architectural opportunity are you addressing?
+      placeholder: "Describe the current behavior, gap, or user motivation..."
+    validations:
+      required: true
+  - type: textarea
+    id: proposed-solution
+    attributes:
+      label: Proposed Solution & Architectural Approach
+      description: Describe the technical design, module boundaries, and implementation plan.
+      placeholder: "Outline the interface changes, state derivation, or behavioral contracts..."
+    validations:
+      required: true
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives Considered
+      description: Describe alternative solutions or tradeoffs considered.
+    validations:
+      required: false
+  - type: checkboxes
+    id: checklist
+    attributes:
+      label: Quality & Repository Standards
+      options:
+        - label: I have verified that this enhancement conforms to clean architecture boundaries
+          required: false
+        - label: I have verified no duplicate issue or discussion exists
+          required: true

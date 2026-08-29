@@ -1,0 +1,42 @@
+name: Documentation Improvement
+description: Propose improvements, updates, or corrections to project documentation
+title: "[docs]: "
+labels: ["documentation"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thank you for helping improve OpenCode SDD Profile Manager documentation.
+  - type: input
+    id: doc-location
+    attributes:
+      label: Documentation Location
+      description: Specific document or section path (e.g., README.md, docs/usage.md, docs/installation.md, plugins/suite-de-agentes/README.md).
+      placeholder: "e.g., docs/usage.md, plugins/suite-de-agentes/docs/architecture.md"
+    validations:
+      required: true
+  - type: textarea
+    id: issue-description
+    attributes:
+      label: Description of Documentation Gap
+      description: What is inaccurate, missing, or needs clarification?
+      placeholder: "Describe the issue with the current documentation..."
+    validations:
+      required: true
+  - type: textarea
+    id: suggested-changes
+    attributes:
+      label: Proposed Updates / Text
+      description: Provide the replacement text, structural changes, or examples.
+      placeholder: "Draft the proposed documentation content..."
+    validations:
+      required: true
+  - type: checkboxes
+    id: checklist
+    attributes:
+      label: Documentation Standards
+      options:
+        - label: I have verified that the proposed documentation matches current implementation behavior
+          required: true
+        - label: Technical artifacts and documentation default to English unless explicitly localized
+          required: true

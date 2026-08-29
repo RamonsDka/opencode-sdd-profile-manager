@@ -1,0 +1,50 @@
+name: Bug Report
+description: Report reproducible defects, runtime crashes, or unexpected behavior
+title: "[bug]: "
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thank you for reporting a bug. Please provide clear details to reproduce the issue.
+  - type: input
+    id: environment
+    attributes:
+      label: Environment & Versions
+      description: Node.js version, OpenCode version, and OS platform.
+      placeholder: "e.g., Node 24.19.0, OpenCode 1.18.18, Windows 11 / Linux / macOS"
+    validations:
+      required: true
+  - type: textarea
+    id: description
+    attributes:
+      label: Defect Description
+      description: Clear and concise description of the observed defect.
+      placeholder: "Describe what went wrong..."
+    validations:
+      required: true
+  - type: textarea
+    id: reproduction
+    attributes:
+      label: Reproduction Steps
+      description: Exact sequential steps to reproduce the issue.
+      placeholder: "1. Start OpenCode TUI with...\n2. Select...\n3. Observe..."
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected Behavior
+      description: What did you expect to happen instead?
+      placeholder: "Describe the expected outcome..."
+    validations:
+      required: true
+  - type: checkboxes
+    id: checklist
+    attributes:
+      label: Bug Submission Checklist
+      options:
+        - label: I have verified this behavior on the latest release or main branch
+          required: false
+        - label: I have verified that this report contains no private machine paths, credentials, or tokens
+          required: true

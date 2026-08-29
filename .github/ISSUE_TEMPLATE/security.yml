@@ -1,0 +1,53 @@
+name: Security Report & Boundary Review
+description: Non-sensitive security feedback, boundary hardening, or vulnerability triage
+title: "[sec]: "
+labels: ["security"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        ### Security Notice & Responsible Disclosure
+
+        **CRITICAL**: If this issue involves active credentials, private keys, or exploitable zero-day vulnerabilities, please follow our [SECURITY.md](https://github.com/RamonsDka/opencode-sdd-profile-manager/blob/main/SECURITY.md) protocol rather than disclosing exploits publicly.
+  - type: dropdown
+    id: severity
+    attributes:
+      label: Severity Assessment
+      options:
+        - "Low (Hygiene / Hardening / Packaging boundary)"
+        - "Moderate (Policy / Grant / Sandbox constraint violation)"
+        - "High (Data Leak / Path Traversal / Secret Exposure)"
+        - "Critical (Arbitrary Code Execution / Remote Compromise)"
+    validations:
+      required: true
+  - type: input
+    id: boundary
+    attributes:
+      label: Affected Subsystem or Security Boundary
+      description: Component where the issue resides (e.g., NetGuard, Packaging Hygiene, Policy Enforcement, Workspace Path Resolver, Session Grants).
+      placeholder: "e.g., Packaging Hygiene, NetGuard, Session Grants"
+    validations:
+      required: true
+  - type: textarea
+    id: summary
+    attributes:
+      label: Security Assessment Summary
+      description: Provide a non-sensitive explanation of the security risk or boundary defect.
+      placeholder: "Describe the boundary concern without including private paths or credentials..."
+    validations:
+      required: true
+  - type: textarea
+    id: remediation
+    attributes:
+      label: Recommended Remediation / Boundary Hardening
+      description: What architectural fix or validation rule prevents this issue?
+      placeholder: "Outline the proposed fix or test assertions..."
+    validations:
+      required: false
+  - type: checkboxes
+    id: compliance
+    attributes:
+      label: Responsible Disclosure Compliance
+      options:
+        - label: I confirm this public report contains NO private paths, live API keys, tokens, or confidential data
+          required: true

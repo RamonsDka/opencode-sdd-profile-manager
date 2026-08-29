@@ -1,0 +1,44 @@
+name: Release & Delivery Task
+description: Track phased publication milestones, release packaging hygiene, and verification gates
+title: "[release]: "
+labels: ["release", "chore"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Use this issue form to coordinate phased release checkpoints, delivery hygiene, and artifact verification.
+  - type: input
+    id: milestone
+    attributes:
+      label: Target Milestone / Phase
+      description: Specify the milestone (e.g., Phase 0 Publication Foundation, Phase 1 Core Stability, v2.0.1).
+      placeholder: "e.g., Phase 0 Publication Foundation"
+    validations:
+      required: true
+  - type: textarea
+    id: scope
+    attributes:
+      label: Scope & Deliverables
+      description: Specific deliverables and components included in this release task.
+      placeholder: "List deliverables, boundaries, and modified components..."
+    validations:
+      required: true
+  - type: textarea
+    id: verification-gates
+    attributes:
+      label: Verification Criteria & Commands
+      description: Commands and test suites required to prove this release boundary.
+      placeholder: "e.g., npm test, npm run verify:plugins, npm run package:release"
+    validations:
+      required: true
+  - type: checkboxes
+    id: quality-gates
+    attributes:
+      label: Release Quality Gates
+      options:
+        - label: All unit tests and boundary assertions pass
+          required: true
+        - label: Packaging hygiene verified with zero private machine paths and no dev/test leak
+          required: true
+        - label: Public assets (Task Manager Portable, Suite de Agentes dist, GitHub integration) verified
+          required: true
