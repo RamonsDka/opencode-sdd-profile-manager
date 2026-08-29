@@ -1,73 +1,93 @@
-# Guía de uso
+# Task Manager Portable — Usage Guide
 
-Esta guía explica la ruta más corta para colocar Task Manager Portable en un proyecto y mantenerlo actualizado.
+This guide explains how to embed, view, and maintain **Task Manager Portable** in your projects.
 
-## Uso básico
+---
 
-1. Descarga `Task-Manager-Portable.html` desde el repositorio o desde la última release.
-2. Copia el archivo en la raíz de tu proyecto.
-3. Haz doble clic para abrirlo con tu navegador.
-4. Conserva el archivo junto al proyecto para que el equipo pueda localizarlo fácilmente.
+## Basic Setup
+
+1. Copy `Task-Manager-Portable.html` into the root directory of your project.
+2. Double-click the file to open it in your default web browser.
+3. Keep the file tracked in Git so the entire team can inspect project status locally.
 
 ```text
-mi-proyecto/
+my-project/
 ├── app/
 ├── tests/
 ├── package.json
 └── Task-Manager-Portable.html
 ```
 
-No necesitas ejecutar `npm install`, iniciar un servidor ni conectarte a Internet.
+No server, `npm install`, or Internet connection is required to view or use the dashboard.
 
-## Actualizar los datos
+---
 
-Busca este bloque dentro del HTML:
+## Updating Project State
+
+Locate the embedded JSON island inside `Task-Manager-Portable.html`:
 
 ```html
-<script type="application/json" id="tm-state">...</script>
+<script type="application/json" id="tm-state">
+{
+  "schemaVersion": "1.0",
+  "meta": { "projectName": "My Project", "version": "1.0.0" },
+  "phases": [],
+  "todos": []
+}
+</script>
 ```
 
-Edita únicamente el JSON contenido entre las etiquetas. Después:
+Edit only the JSON content between the `<script>` and `</script>` tags. After editing:
+1. Save the file.
+2. Switch back to your browser.
+3. Reload with **`Ctrl+R`** (or **`Cmd+R`**).
 
-1. guarda el archivo;
-2. vuelve al navegador;
-3. recarga con `Ctrl + R` o `Cmd + R`.
+---
 
-## Estados disponibles
+## Available Task Statuses
 
-| Estado | Uso |
+| Status | Usage |
 |---|---|
-| `pending` | Trabajo todavía no iniciado |
-| `in-progress` | Trabajo activo |
-| `completed` | Trabajo finalizado |
-| `blocked` | Trabajo detenido por una dependencia o problema |
+| `pending` | Task planned but not yet started |
+| `in-progress` | Task actively being worked on |
+| `completed` | Task finished and verified |
+| `blocked` | Task halted due to an external blocker or dependency |
 
-## Navegación
+---
 
-| Sección | Contenido |
+## Interface Navigation
+
+| Tab / Section | Content & Functionality |
 |---|---|
-| Resumen / HUD | Progreso, riesgos, distribución e insights |
-| Fases & Tareas | Filtros, acordeones y detalle de tareas |
-| Tablero Kanban | Distribución visual por estado |
-| Codegraph | Módulos y relaciones declaradas |
-| Árbol Archivos | Snapshot de la estructura del proyecto |
-| Git Stream | Rama, sincronización y commits declarados |
-| Consola IA | Guía, prompt, diagnóstico y exportación |
+| **Executive HUD** | Global progress metrics, risk distribution, phase completion, and insights |
+| **Phases & Tasks** | Search filters, phase accordions, and detailed task cards |
+| **Kanban Board** | Visual status columns for sprint task flow |
+| **CodeGraph** | Declared module boundaries and symbol dependency relationships |
+| **Repository Tree** | Structural overview of directories and key files |
+| **Git Stream** | Timeline of declared commits, branches, and verification receipts |
+| **AI Console** | AI orchestration instructions, prompt templates, and JSON export |
 
-## Compartir con otras personas
+---
 
-Puedes enviar únicamente `Task-Manager-Portable.html` por correo, mensajería, USB o almacenamiento en la nube. El receptor solo debe abrirlo con un navegador moderno.
+## Sharing & Collaboration
 
-## Solución de problemas
+You can share `Task-Manager-Portable.html` via email, Slack, USB drive, or cloud storage. The recipient only needs a standard web browser to view the complete interactive cockpit.
 
-| Problema | Acción recomendada |
+---
+
+## Troubleshooting
+
+| Problem | Recommended Action |
 |---|---|
-| Aparece un banner de error | Revisa la sintaxis del JSON y `schemaVersion` |
-| El progreso no cambia | Actualiza los estados de las tareas; no escribas porcentajes manualmente |
-| Un panel aparece vacío | Añade datos a `git`, `tree` o `codegraph` |
-| Un texto contiene `</script>` | Sustitúyelo por `\u003c/script\u003e` dentro del JSON serializado |
-| El navegador bloquea acceso a carpetas | Es una protección normal de `file://`; declara los datos en el JSON |
+| Error banner displayed | Check JSON syntax for missing commas or quotes; verify `schemaVersion: "1.0"`. |
+| Progress does not update | Update individual task statuses (`completed`, `in-progress`); percentages are derived automatically. |
+| A panel appears empty | Add data to `git`, `tree`, or `codegraph` in the JSON state. |
+| Text contains `</script>` | Escape closing script tags as `\u003c/script\u003e` inside JSON strings. |
+| Browser blocks local file access | This is expected browser security behavior for `file://`; all data is supplied via the embedded JSON block. |
 
-## Próximo paso
+---
 
-Consulta [Personalización](CUSTOMIZATION.md) para adaptar el estado a tu proyecto o [Guía para IA](AI-ORCHESTRATOR-GUIDE.md) para automatizar las actualizaciones.
+## Next Steps
+
+- See [`CUSTOMIZATION.md`](CUSTOMIZATION.md) for full schema definitions.
+- See [`AI-ORCHESTRATOR-GUIDE.md`](AI-ORCHESTRATOR-GUIDE.md) to automate updates via AI assistants.

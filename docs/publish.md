@@ -1,44 +1,54 @@
-# Flujo de Publicación Automática
+# Automated Release & Publication Workflow
 
-Este repositorio utiliza **`semantic-release`** para automatizar el versionado, la creación de changelogs, tags en Git, publicaciones en **npm** y **GitHub Releases**.
+This repository uses **`semantic-release`** to automate semantic versioning, changelog generation, Git tagging, npm package publishing, and GitHub Releases.
 
-## Cómo funciona
+---
 
-El flujo se dispara automáticamente en cada **push a `main`**. El sistema analiza los mensajes de los commits desde la última release para decidir qué tipo de versión toca (Patch, Minor o Major).
+## How It Works
 
-### Importante: Mensajes de Commit (Conventional Commits)
+The release pipeline executes automatically on every push or merge to the **`main`** branch. The workflow analyzes commit messages since the last release tag to determine the appropriate SemVer bump (Patch, Minor, or Major).
 
-Para que se genere una release, **debes usar commits convencionales**. Si el commit no sigue este formato, GitHub Actions terminará con éxito pero **no publicará nada**.
+### Commit Message Standards (Conventional Commits)
 
-| Prefijo | Ejemplo | Tipo de Release |
-| :--- | :--- | :--- |
-| `fix:` | `fix: corrige error en fallback` | **Patch** (1.1.0 -> 1.1.1) |
-| `feat:` | `feat: agrega soporte para X` | **Minor** (1.1.0 -> 1.2.0) |
-| `feat!:` o `BREAKING CHANGE:` | `feat!: cambia la API de perfiles` | **Major** (1.1.0 -> 2.0.0) |
+To trigger an automated release, commits must adhere strictly to the [Conventional Commits](https://www.conventionalcommits.org/) specification:
 
-> Commits con prefijos como `ci:`, `docs:`, `test:`, `chore:`, etc., **no disparan releases** por sí solos, pero se incluirán en el changelog de la siguiente release.
+| Prefix | Description & Example | Resulting Release Type |
+|---|---|---|
+| `fix:` | `fix: resolve fallback synchronization edge case` | **Patch** (e.g. `2.0.0` -> `2.0.1`) |
+| `feat:` | `feat: support per-agent reasoning effort configuration` | **Minor** (e.g. `2.0.0` -> `2.1.0`) |
+| `feat!:` or `BREAKING CHANGE:` | `feat!: overhaul profile storage schema and API` | **Major** (e.g. `2.0.0` -> `3.0.0`) |
 
-## Requisitos del Entorno
+> Commits with prefixes such as `docs:`, `test:`, `ci:`, `chore:`, or `refactor:` do not trigger a release independently, but will be included in the generated changelog when a subsequent release is published.
 
-El workflow de GitHub Actions (`.github/workflows/publish.yml`) requiere:
-- **Node.js >= 22.14.0** (configurado en el workflow).
+---
+
+## Pipeline Environment & Secrets
+
+The GitHub Actions workflow (`.github/workflows/publish.yml`) requires:
+- **Node.js**: Major version 24 (or `>=22.14.0` in CI environments).
 - **Secrets**:
-  - `NPM_TOKEN`: Token de npm con permisos de publicación.
-  - `GITHUB_TOKEN`: Provisto automáticamente por GitHub Actions.
+  - `NPM_TOKEN`: npm authentication token with package publication permissions.
+  - `GITHUB_TOKEN`: Automatically provisioned by GitHub Actions for creating Git tags, releases, and attaching artifacts.
 
-## Pasos para Publicar
+---
 
-1. Realiza tus cambios en una rama o directamente en `main`.
-2. Realiza el commit usando el prefijo adecuado (ej: `fix:`).
-3. Haz push a `main`:
-   ```bash
-   git push origin main
-   ```
-4. El resto es automático. Puedes monitorear el proceso en la pestaña **Actions** de GitHub.
+## Publication Steps
 
-## Forzar una Release
+1. Create a focused branch for your changes.
+2. Commit your changes using the appropriate Conventional Commit prefix.
+3. Open a pull request against `main`.
+4. Once verified and merged into `main`, GitHub Actions automatically:
+   - Runs full typecheck and test verification (`npm test`).
+   - Executes `npm run build` and `scripts/package-release.mjs`.
+   - Generates release archives (`sdd-profile-manager-vX.Y.Z.zip`, `.tar.gz`, `SHA256SUMS.txt`).
+   - Publishes the updated package to npm.
+   - Creates a GitHub Release with the compiled artifacts and changelog.
 
-Si tienes cambios que no fueron commiteados con formato semántico y quieres publicarlos ahora, puedes crear un commit vacío:
+---
+
+## Triggering an On-Demand Release
+
+If unreleased commits exist on `main` that do not carry release prefixes, an empty release commit can be pushed to trigger publication:
 
 ```bash
 git commit --allow-empty -m "fix: trigger release for pending changes"

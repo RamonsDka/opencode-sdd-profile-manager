@@ -1,33 +1,36 @@
 # Migration to Engram HTTP API
 
-Fecha: 2026-04-29
+## Context & Motivation
 
-## Contexto
+Historically, early iterations of the plugin interacted directly with Engram's underlying SQLite database (`~/.engram/engram.db`) by spawning child processes running the `sqlite3` command-line binary. This legacy approach introduced several architectural challenges:
 
-Anteriormente, el plugin interactuaba directamente con la base de datos SQLite de Engram (`~/.engram/engram.db`) mediante la ejecución de comandos `sqlite3` a través de procesos hijos. Esto presentaba varios inconvenientes:
+1. **External CLI Dependency**: Required `sqlite3` to be installed and available in the system `PATH`, causing failures on non-standard Windows and minimal container environments.
+2. **Architectural Inconsistency**: Bypassed the official Engram HTTP service layer used by the rest of the OpenCode ecosystem.
+3. **Process Spawning Overhead**: Spawning subprocesses for every query created unnecessary I/O overhead and lacked connection pooling.
 
-1.  **Dependencia Externa**: Requería que el binario `sqlite3` estuviera instalado y accesible en el `PATH` del sistema.
-2.  **Inconsistencia**: No utilizaba la misma capa de abstracción que el resto del ecosistema OpenCode, que ya dispone de un servidor Engram funcionando por HTTP.
-3.  **Gestión de Procesos**: Levantar un proceso de línea de comandos para cada consulta es menos eficiente que realizar llamadas HTTP locales.
+---
 
-## Cambios Implementados
+## Architectural Changes
 
-### 1. Comunicación vía HTTP
-El plugin ahora utiliza la API nativa `fetch` para comunicarse con el servidor de Engram. Por defecto, intenta conectar a `http://127.0.0.1:7437`, respetando la variable de entorno `ENGRAM_PORT` si estuviera definida.
+### 1. Loopback HTTP Communication
+The plugin communicates with Engram exclusively via standard `fetch` HTTP requests. By default, it connects to loopback `http://127.0.0.1:7437`, while respecting the `ENGRAM_PORT` environment variable when custom port binding is configured.
 
-### 2. Endpoints Utilizados
+### 2. Consumed API Endpoints
 
-*   **Listado de Memorias**: `GET /observations/recent?project={name}&limit=50`
-    *   Se consultan en paralelo todos los candidatos a nombre de proyecto (git remote, git root, alias).
-    *   Los resultados se unifican, se deduplican por ID y se ordenan cronológicamente (más recientes primero).
-*   **Borrado de Memorias**: `DELETE /observations/{id}`
-    *   Realiza un borrado lógico (soft-delete) de la observación a través de la API del servidor.
+- **Observation Retrieval**: `GET /observations/recent?project={name}&limit=50`
+  - Queries potential project identifiers (Git remote name, root directory name, aliases) in parallel.
+  - Aggregates, deduplicates by observation ID, and sorts results chronologically (most recent first).
+- **Observation Soft-Delete**: `DELETE /observations/{id}`
+  - Performs a soft delete through the Engram server API.
 
-### 3. Asincronía y UI
-Toda la lógica de gestión de memorias en `src/memories.ts` ha pasado a ser asíncrona (`async/await`). Los diálogos en `src/dialogs.tsx` se han actualizado para manejar estas promesas y proporcionar feedback visual al usuario (toasts de error) en caso de que el servidor de Engram no esté respondiendo.
+### 3. Asynchronous Workflow & Error Handling
+All memory access logic in `src/memories.ts` is asynchronous (`async/await`). The OpenTUI dialogs in `src/dialogs.tsx` handle connection timeouts gracefully and display non-blocking error toasts if the local Engram service is unreachable.
 
-### 4. Actualización de Tests
-Se ha reescrito `src/memories.test.ts` eliminando los mocks de `execFileSync` y sustituyéndolos por mocks de la API global `fetch`. Los tests verifican ahora la correcta integración con el formato de respuesta del servidor HTTP.
+### 4. Unit & Mock Testing
+Test suite `src/memories.test.ts` uses global `fetch` mocking instead of child process mocks, ensuring robust coverage of network failure states, malformed response handling, and project ID deduplication.
 
-## Requisitos de Runtime
-Para que la funcionalidad de "Project Memories" esté activa, el servidor de Engram debe estar corriendo. OpenCode suele levantarlo automáticamente, pero el plugin ahora es capaz de detectar fallos de conexión y notificar al usuario de forma elegante.
+---
+
+## Runtime Requirements
+
+Engram memory browsing is an optional, non-blocking feature. If Engram is running locally, project observations appear automatically in **Project memories**. If Engram is not running, profile management, model assignments, and reasoning effort configuration continue operating without interruption.
