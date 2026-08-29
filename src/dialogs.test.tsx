@@ -10,6 +10,7 @@ import type { HelpTopic } from "./plugins/offline-help";
 import * as coordinator from "./plugins/task-manager-coordinator";
 import * as lifecycle from "./plugins/task-manager-lifecycle";
 import * as rootModule from "./plugins/task-manager-root";
+import * as dispatcherModule from "./plugins/task-manager-dispatcher";
 
 describe("Plugins Help flow (Unit 1)", () => {
   const createMockApi = () => {
@@ -41,24 +42,6 @@ describe("Plugins Help flow (Unit 1)", () => {
     expect(options.find((opt: any) => opt.value === "task-manager")?.title).toBe("Task Manager");
     expect(options.find((opt: any) => opt.value === "hub")?.title).toContain("Hub");
     expect(options.find((opt: any) => opt.value === "__back__")?.title).toBe("← Volver");
-  });
-
-  it("showPluginsMenu routes 'help' option to showPluginsHelpMenu instead of a static toast", () => {
-    const api = createMockApi();
-    showPluginsMenu(api);
-
-    const dialog = api.getCurrentDialog();
-    expect(dialog.type).toBe("DialogSelect");
-    expect(dialog.props.title).toBe("Plugins");
-
-    // Select help
-    dialog.props.onSelect({ value: "help" });
-
-    // Should have transitioned to DialogSelect with title 'Ayuda de Plugins'
-    const helpDialog = api.getCurrentDialog();
-    expect(helpDialog.type).toBe("DialogSelect");
-    expect(helpDialog.props.title).toBe("Ayuda de Plugins");
-    expect(api.ui.toast).not.toHaveBeenCalled();
   });
 
   it.each([
@@ -289,5 +272,78 @@ describe("Task Manager Action & Integration (Unit 3)", () => {
         message: expect.stringMatching(/abierto|lanzado|disponible/i),
       })
     );
+  });
+
+  it("asynchronously triggers background agent sync without blocking browser launch or toast notification", async () => {
+    const api = createMockApi();
+    const dispatchSpy = vi.spyOn(dispatcherModule, "dispatchTaskManagerSync").mockResolvedValue({
+      success: true,
+      mode: "init",
+    });
+
+    vi.spyOn(rootModule, "resolveTaskManagerRoot").mockReturnValue({
+      root: "C:/fake/project",
+      canonicalRoot: "C:/fake/project",
+      key: "c:/fake/project",
+      confirmed: true,
+    });
+
+    vi.spyOn(lifecycle, "provisionTaskManagerBase").mockReturnValue({
+      created: true,
+      path: "C:/fake/project/Task-Manager-Portable.html",
+      route: "foreground",
+    });
+
+    vi.spyOn(coordinator, "launchTaskManagerBrowser").mockResolvedValue({
+      opened: true,
+      method: "process",
+      path: "C:/fake/project/Task-Manager-Portable.html",
+    });
+
+    showPluginsMenu(api);
+    const dialog = api.getCurrentDialog();
+    await dialog.props.onSelect({ value: "task-manager" });
+
+    expect(dispatchSpy).toHaveBeenCalledWith(
+      expect.objectContaining({
+        project: expect.objectContaining({ canonicalRoot: "C:/fake/project" }),
+        dashboardPath: "C:/fake/project/Task-Manager-Portable.html",
+        reason: "opening",
+      })
+    );
+    expect(api.ui.toast).toHaveBeenCalledWith(
+      expect.objectContaining({
+        title: "Task Manager",
+      })
+    );
+  });
+
+  it("handles background dispatch failure non-fatally without crashing UI", async () => {
+    const api = createMockApi();
+    vi.spyOn(dispatcherModule, "dispatchTaskManagerSync").mockRejectedValue(new Error("Background dispatch failed"));
+
+    vi.spyOn(rootModule, "resolveTaskManagerRoot").mockReturnValue({
+      root: "C:/fake/project",
+      canonicalRoot: "C:/fake/project",
+      key: "c:/fake/project",
+      confirmed: true,
+    });
+
+    vi.spyOn(lifecycle, "provisionTaskManagerBase").mockReturnValue({
+      created: false,
+      path: "C:/fake/project/Task-Manager-Portable.html",
+      route: "foreground",
+    });
+
+    vi.spyOn(coordinator, "launchTaskManagerBrowser").mockResolvedValue({
+      opened: true,
+      method: "process",
+      path: "C:/fake/project/Task-Manager-Portable.html",
+    });
+
+    showPluginsMenu(api);
+    const dialog = api.getCurrentDialog();
+    await expect(dialog.props.onSelect({ value: "task-manager" })).resolves.not.toThrow();
+    expect(api.ui.toast).toHaveBeenCalled();
   });
 });

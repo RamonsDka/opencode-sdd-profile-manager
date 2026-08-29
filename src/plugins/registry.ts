@@ -1,6 +1,6 @@
 export type PluginHubOption = {
   title: string;
-  value: "suite" | "task-manager" | "help" | "__back__";
+  value: "suite" | "task-manager" | "__back__";
   description: string;
 };
 
@@ -11,7 +11,6 @@ export function buildPluginHubOptions(): PluginHubOption[] {
   return [
     { title: "Suite de Agentes", value: "suite", description: "Estado: disponible. Abrir catálogo y acciones." },
     { title: "Task Manager", value: "task-manager", description: "Estado: disponible. Abrir el gestor portátil." },
-    { title: "Ayuda", value: "help", description: "Consulta la ayuda incluida sin conexión." },
     { title: "← Volver", value: "__back__", description: "Volver a la gestión de perfiles." },
   ];
 }

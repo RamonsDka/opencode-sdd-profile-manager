@@ -1,3 +1,5 @@
+import * as child_process from "node:child_process";
+import * as fs from "node:fs";
 import * as path from "node:path";
 
 export interface TaskManagerProjectIdentity {
@@ -27,6 +29,34 @@ export function resolveTaskManagerRoot(candidates: TaskManagerRootCandidates): T
     canonicalRoot,
     key: canonicalRoot.toLowerCase(),
     confirmed: candidates.gitRoot !== undefined || candidates.manifestRoot !== undefined,
+  };
+}
+
+export function detectGitRootForDirectory(directory: string): string | undefined {
+  if (!directory || !fs.existsSync(directory)) {
+    return undefined;
+  }
+  try {
+    const root = child_process.execFileSync(
+      "git",
+      ["-C", directory, "rev-parse", "--show-toplevel"],
+      {
+        encoding: "utf-8",
+        timeout: 2000,
+        stdio: ["ignore", "pipe", "ignore"],
+      }
+    ).trim();
+    return root ? path.normalize(root) : undefined;
+  } catch {
+    return undefined;
+  }
+}
+
+export function buildTaskManagerRootCandidates(directory: string): TaskManagerRootCandidates {
+  const gitRoot = detectGitRootForDirectory(directory);
+  return {
+    cwd: directory,
+    ...(gitRoot ? { gitRoot } : {}),
   };
 }
 
