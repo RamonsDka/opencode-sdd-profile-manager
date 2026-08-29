@@ -6,7 +6,7 @@ import { execFileSync } from "node:child_process";
 const root = path.resolve(import.meta.dirname, "..");
 const packageJsonPath = path.join(root, "package.json");
 const pkg = JSON.parse(fs.readFileSync(packageJsonPath, "utf8"));
-const version = pkg.version || "2.0.0";
+const version = pkg.version || "2.0.1";
 
 export function validatePackageHygiene(stagingDir) {
   const forbiddenPatterns = [

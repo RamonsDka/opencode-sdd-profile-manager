@@ -4,6 +4,31 @@ This derivative repository preserves the upstream release history below. New rel
 
 Original project: https://github.com/j0k3r-dev-rgl/sdd-engram-plugin
 
+# [2.0.1](https://github.com/RamonsDka/opencode-sdd-profile-manager/compare/v2.0.0...v2.0.1) (2026-08-29)
+
+### Features & Packaging
+
+* **pack:** final Phase 3 release unit delivering the unified plugin suite ([#7](https://github.com/RamonsDka/opencode-sdd-profile-manager/issues/7), [#3](https://github.com/RamonsDka/opencode-sdd-profile-manager/issues/3))
+* **sdd-profile-manager:** keyboard-first SDD profile management, OpenTUI dialogs, and bulk model/effort assignment
+* **suite-de-agentes:** dynamic agent catalog, agent authoring, and turn-scoped security grants (`1.1.0`)
+* **task-manager-portable:** single-file offline project cockpit, Kanban boards, Git commit lineage, and CodeGraph architectural mapping (`1.1.0`)
+* **agent-task-manager:** automated project task synchronization via structured JSON island state (`1.1.0`)
+* **docs:** comprehensive documentation suite, installation guides, visual tours, and categorized screenshots
+* **packaging:** automated multi-archive packaging (`.tar.gz` and `.zip`) with SHA-256 checksums and strict package hygiene verification
+
+### Bug Fixes
+
+* **hygiene:** exclude test suites, build configs, and private development artifacts from release bundles
+* **provenance:** refresh and synchronize sub-plugin provenance manifests and asset verification tests
+
+# [2.0.0](https://github.com/RamonsDka/opencode-sdd-profile-manager/compare/v1.7.0...v2.0.0) (2026-08-28)
+
+### Features
+
+* **release:** rename package to `opencode-sdd-profile-manager` and establish modern plugin pack architecture
+* **fallback:** support bulk model and reasoning effort assignment for primary and contingency agents
+* **plugins:** modular plugin registry and lifecycle management for OpenCode TUI
+
 # [1.7.0](https://github.com/j0k3r-dev-rgl/sdd-engram-plugin/compare/v1.6.8...v1.7.0) (2026-06-29)
 
 
