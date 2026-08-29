@@ -90,12 +90,23 @@ export interface AgentSuiteServerOptions {
   ledger?: ConsentLedger;
   disabledAgents?: () => readonly string[];
   securityState?: () => { disabledAgents: readonly string[]; available: boolean };
+  onMilestone?: (milestone: string, sessionID: string) => Promise<void> | void;
 }
 
 interface ChatMessageInput { sessionID: string; agent?: string; messageID?: string; }
 interface ChatMessageOutput { message?: { id?: string; agent?: string }; parts: Part[]; }
 interface ToolBeforeInput { tool: string; sessionID: string; callID: string; }
 interface ToolBeforeOutput { args: Record<string, unknown>; }
+
+const SECURITY_STATE_RETRY_DELAYS_MS = [10, 25, 50] as const;
+
+function delay(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+export function shouldEnqueueMilestoneEvent(event: string): boolean {
+  return event === "sdd-tasks" || event === "sdd-verify" || event === "sdd-archive" || event === "verified-significant";
+}
 
 export function createAgentSuiteServer(options: AgentSuiteServerOptions = {}) {
   const ledger = options.ledger ?? new ConsentLedger();
@@ -133,7 +144,12 @@ export function createAgentSuiteServer(options: AgentSuiteServerOptions = {}) {
     },
     "tool.execute.before": async (input: ToolBeforeInput, output: ToolBeforeOutput) => {
       if (input.tool !== "task") return;
-      const state = readSecurityState();
+      let state = readSecurityState();
+      for (const retryDelay of SECURITY_STATE_RETRY_DELAYS_MS) {
+        if (state.available) break;
+        await delay(retryDelay);
+        state = readSecurityState();
+      }
       if (!state.available) throw new Error("Suite de Agentes: suite config unavailable");
       const disabledAgents = state.disabledAgents;
       const turn = currentTurns.get(input.sessionID);
@@ -157,6 +173,15 @@ export function createAgentSuiteServer(options: AgentSuiteServerOptions = {}) {
       if (input.event.type === "session.deleted") {
         const sessionID = input.event.properties.info.id;
         if (sessionID) { ledger.clearSession(sessionID); currentTurns.delete(sessionID); }
+      } else if (input.event.type === "command.executed") {
+        const cmdName = input.event.properties.name;
+        if (typeof cmdName === "string" && shouldEnqueueMilestoneEvent(cmdName)) {
+          try {
+            await options.onMilestone?.(cmdName, input.event.properties.sessionID);
+          } catch {
+            // Milestone notification must never block or crash the host event loop
+          }
+        }
       }
     },
     grantConsent: (input: Parameters<ConsentLedger["grant"]>[0]) => ledger.grant(input),

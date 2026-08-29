@@ -3,8 +3,29 @@ import { chmodSync, existsSync, mkdtempSync, readFileSync, statSync, writeFileSy
 import { join } from "node:path";
 import { tmpdir } from "node:os";
 import { globalAgentPath, materializeGlobalAgent, migrateGitHubMaterializedAgent, renameMaterializedAgent, renameMaterializedAgentResult } from "../src/core/agents.ts";
+import { createTaskManagerAgent } from "../src/core/built-in-agents.ts";
 
 describe("agent materialization", () => {
+  it("materializes agent-task-manager cleanly to global path with mode all", () => {
+    const home = mkdtempSync(join(tmpdir(), "agent-suite-home-"));
+    const agent = createTaskManagerAgent("openai/gpt-5");
+    const path = materializeGlobalAgent(agent, () => true, home);
+
+    expect(path).toBe(globalAgentPath("agent-task-manager", home));
+    expect(existsSync(path)).toBe(true);
+    const content = readFileSync(path, "utf8");
+    expect(content).toContain("name: agent-task-manager");
+    expect(content).toContain("mode: all");
+    expect(content).toContain("read: allow");
+    expect(content).toContain("edit: allow");
+    expect(content).toContain("skill: allow");
+    expect(content).toContain("bash: ask");
+    expect(content).toContain("task: deny");
+    expect(content).toContain("write: ask");
+    expect(content).toContain("Task-Manager-Portable.html");
+    expect(content).toContain("Use the associated skills: task-tracker-manager.");
+  });
+
   it("requires confirmation and writes only a validated global markdown path", () => {
     const home = mkdtempSync(join(tmpdir(), "agent-suite-home-"));
     const agent = { id: "safe-agent", description: "Safe", model: "openai/x", variant: "high", prompt: "Do work.", permissions: { read: "allow" as const }, skills: ["skill-one"] };

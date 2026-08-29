@@ -1,9 +1,10 @@
-import type { BaseAgentOverride, BuiltInOverride, CustomAgent, SuiteConfig } from "./types.ts";
+import type { AgentMode, BaseAgentOverride, BuiltInOverride, CustomAgent, SuiteConfig } from "./types.ts";
 import { isCanonicalBuiltInAgent, mergeCanonicalAgent, normalizeAgentId } from "./built-in-agents.ts";
 import { SUITE_DE_AGENTES_SEED } from "./suites.ts";
 
 const ID = /^[a-z][a-z0-9]*(?:-[a-z0-9]+)*$/;
 const VARIANT = /^[A-Za-z0-9][A-Za-z0-9._-]{0,63}$/;
+const VALID_AGENT_MODES = new Set<AgentMode>(["all", "primary", "subagent"]);
 
 export interface AgentPatch {
   newId?: string;
@@ -12,6 +13,7 @@ export interface AgentPatch {
   operations?: string;
   model?: string;
   effort?: string;
+  mode?: AgentMode;
 }
 
 const PROTECTED_KEYS = new Set(["__proto__", "constructor", "prototype"]);
@@ -57,6 +59,11 @@ export function validateSkillId(value: string): string {
   return value;
 }
 
+export function validateAgentMode(value: unknown): AgentMode {
+  if (typeof value === "string" && VALID_AGENT_MODES.has(value as AgentMode)) return value as AgentMode;
+  throw new Error("Invalid agent mode: use 'all', 'primary', or 'subagent'");
+}
+
 export function patchCustomAgent(config: SuiteConfig, id: string, patch: AgentPatch): SuiteConfig {
   validateAgentId(id);
   const current = config.customAgents[id];
@@ -78,6 +85,7 @@ export function patchCustomAgent(config: SuiteConfig, id: string, patch: AgentPa
     description: patch.description === undefined ? current.description : patch.description,
     prompt: patch.operations === undefined ? current.prompt : patch.operations,
     skills,
+    ...(patch.mode !== undefined ? { mode: validateAgentMode(patch.mode) } : current.mode !== undefined ? { mode: current.mode } : {}),
   };
   const customAgents = { ...config.customAgents };
   delete customAgents[id];
@@ -154,7 +162,9 @@ export function parseSuiteConfig(value: unknown): SuiteConfig {
     const skills = Array.isArray(agent.skills) && agent.skills.every((skill) => typeof skill === "string" && ID.test(skill)) ? agent.skills as string[] : [];
     const permissions = safeRecord(agent.permissions, `permissions for ${id}`) as Record<string, "allow" | "deny" | "ask">;
     for (const permission of Object.values(permissions)) if (!["allow", "deny", "ask"].includes(permission)) throw new Error(`Invalid permission for ${id}`);
-    const parsedAgent = { id: normalizedID, description: agent.description, model, prompt: agent.prompt, permissions, skills };
+    const parsedAgent: CustomAgent = { id: normalizedID, description: agent.description, model, prompt: agent.prompt, permissions, skills };
+    if (agent.mode !== undefined) parsedAgent.mode = validateAgentMode(agent.mode);
+    if (typeof agent.variant === "string") parsedAgent.variant = agent.variant;
     if (agent.materializeGlobal === true) customAgents[normalizedID] = { ...parsedAgent, materializeGlobal: true };
     else customAgents[normalizedID] = parsedAgent;
   }

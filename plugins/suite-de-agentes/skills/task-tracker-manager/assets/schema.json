@@ -1,0 +1,230 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "TaskManagerPortableState",
+  "type": "object",
+  "required": ["schemaVersion", "meta", "phases", "todos"],
+  "properties": {
+    "schemaVersion": {
+      "type": "string",
+      "enum": ["1.0"]
+    },
+    "meta": {
+      "type": "object",
+      "required": ["projectName", "lastUpdated"],
+      "properties": {
+        "projectName": { "type": "string" },
+        "version": { "type": "string" },
+        "branch": { "type": "string" },
+        "commit": { "type": "string" },
+        "syncStatus": { "type": "string" },
+        "harness": { "type": "string" },
+        "harnessRole": { "type": "string" },
+        "description": { "type": "string" },
+        "lastUpdated": { "type": "string" },
+        "labels": { "type": "object" },
+        "features": {
+          "type": "object",
+          "properties": {
+            "git": { "type": "boolean" },
+            "tree": { "type": "boolean" },
+            "codegraph": { "type": "boolean" },
+            "help": { "type": "boolean" }
+          }
+        },
+        "history": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["timestamp", "completed", "total"],
+            "properties": {
+              "timestamp": { "type": "string" },
+              "completed": { "type": "number" },
+              "total": { "type": "number" }
+            }
+          }
+        }
+      }
+    },
+    "phases": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["id", "number", "title", "status", "tasks"],
+        "properties": {
+          "id": { "type": "string" },
+          "number": { "type": "number" },
+          "title": { "type": "string" },
+          "status": {
+            "type": "string",
+            "enum": ["pending", "in-progress", "completed", "blocked"]
+          },
+          "target": { "type": "string" },
+          "lead": { "type": "string" },
+          "tasks": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "required": ["id", "title", "status"],
+              "properties": {
+                "id": { "type": "string" },
+                "title": { "type": "string" },
+                "status": {
+                  "type": "string",
+                  "enum": ["pending", "in-progress", "completed", "blocked"]
+                },
+                "tag": { "type": "string" },
+                "note": { "type": "string" },
+                "owner": { "type": "string" },
+                "commit": { "type": "string" },
+                "subtasks": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "required": ["id", "title", "status"],
+                    "properties": {
+                      "id": { "type": "string" },
+                      "title": { "type": "string" },
+                      "status": {
+                        "type": "string",
+                        "enum": ["pending", "in-progress", "completed", "blocked"]
+                      },
+                      "done": { "type": "boolean" }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "todos": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["id", "text", "priority", "done"],
+        "properties": {
+          "id": { "type": "string" },
+          "text": { "type": "string" },
+          "priority": {
+            "type": "string",
+            "enum": ["P0", "P1", "P2"]
+          },
+          "done": { "type": "boolean" }
+        }
+      }
+    },
+    "git": {
+      "type": "object",
+      "properties": {
+        "branch": { "type": "string" },
+        "commits": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["hash", "message"],
+            "properties": {
+              "hash": { "type": "string" },
+              "message": { "type": "string" }
+            }
+          }
+        },
+        "syncStatus": { "type": "string" }
+      }
+    },
+    "tree": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["name", "depth", "type"],
+        "properties": {
+          "name": { "type": "string" },
+          "depth": { "type": "number" },
+          "type": {
+            "type": "string",
+            "enum": ["file", "dir"]
+          }
+        }
+      }
+    },
+    "codegraph": {
+      "type": "object",
+      "properties": {
+        "nodes": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["id", "label", "files"],
+            "properties": {
+              "id": { "type": "string" },
+              "label": { "type": "string" },
+              "files": {
+                "type": "array",
+                "items": { "type": "string" }
+              },
+              "taskIds": {
+                "type": "array",
+                "items": { "type": "string" }
+              },
+              "details": { "type": "string" }
+            }
+          }
+        },
+        "edges": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["from", "to"],
+            "properties": {
+              "from": { "type": "string" },
+              "to": { "type": "string" },
+              "label": { "type": "string" },
+              "details": { "type": "string" }
+            }
+          }
+        }
+      }
+    },
+    "tokenUsage": {
+      "type": "object",
+      "properties": {
+        "schemaVersion": { "type": "string" },
+        "updatedAt": { "type": "string" },
+        "source": { "type": "string" },
+        "scope": { "type": "string" },
+        "root": { "type": "string" },
+        "totals": {
+          "type": "object",
+          "properties": {
+            "input": { "type": "number" },
+            "output": { "type": "number" },
+            "reasoning": { "type": "number" },
+            "cacheRead": { "type": "number" },
+            "cacheWrite": { "type": "number" },
+            "total": { "type": "number" },
+            "cost": { "type": "number" }
+          }
+        },
+        "byAgent": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["agent", "categories", "total"],
+            "properties": {
+              "agent": { "type": "string" },
+              "model": { "type": "string" },
+              "models": { "type": "array", "items": { "type": "string" } },
+              "categories": { "type": "object" },
+              "total": { "type": "number" },
+              "cost": { "type": "number" },
+              "sessions": { "type": "number" },
+              "messages": { "type": "number" },
+              "evidence": { "type": "string", "enum": ["measured", "derived", "estimated", "unavailable"] },
+              "confidence": { "type": "number" }
+            }
+          }
+        }
+      }
+    }
+  }
+}

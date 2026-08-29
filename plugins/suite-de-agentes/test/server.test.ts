@@ -294,6 +294,23 @@ describe("server adapter", () => {
     await expect(hooks["tool.execute.before"]?.({ tool: "task", sessionID: "corrupt", callID: "c1" }, { args: { subagent_type: "general" } })).rejects.toThrow(/suite config/i);
   });
 
+  it("retries transient suite-config unavailability before blocking task dispatch", async () => {
+    let reads = 0;
+    const hooks = createAgentSuiteServer({
+      knownAgents: () => ["general"],
+      securityState: () => ({ disabledAgents: [], available: ++reads >= 3 }),
+    });
+    await hooks["chat.message"]({ sessionID: "transient", agent: "gentle-orchestrator", messageID: "m1" }, {
+      message: { id: "m1", agent: "gentle-orchestrator" } as never,
+      parts: [] as never,
+    });
+
+    await expect(hooks["tool.execute.before"]({ tool: "task", sessionID: "transient", callID: "c1" }, {
+      args: { subagent_type: "general" },
+    })).resolves.toBeUndefined();
+    expect(reads).toBe(3);
+  });
+
   it("expires session grants and exposes list/revoke command surfaces", async () => {
     const hooks = createAgentSuiteServer({ knownAgents: () => ["general", "explore"] });
     await hooks["chat.message"]({ sessionID: "s", agent: "general", messageID: "m1" }, { message: { id: "m1", agent: "general" } as never, parts: [] as never });
@@ -308,5 +325,79 @@ describe("server adapter", () => {
     hooks.grantConsent({ sessionID: "s", requester: "general", target: "explore", purpose: "search", operation: "task" });
     await hooks["command.execute.before"]({ command: "agent-suite-revoke", sessionID: "s", arguments: "explore" }, { parts: [] } as never);
     expect(hooks.listGrants("s")).toEqual([]);
+  });
+
+  it("handles milestone command execution events and forwards supported milestones", async () => {
+    const milestoneCalls: string[] = [];
+    const hooks = createAgentSuiteServer({
+      knownAgents: () => ["general"],
+      onMilestone: (milestone) => {
+        milestoneCalls.push(milestone);
+      },
+    });
+
+    // Supported milestones
+    await hooks.event({
+      event: {
+        type: "command.executed",
+        properties: {
+          name: "sdd-verify",
+          sessionID: "sess-m1",
+          arguments: "",
+          messageID: "msg-1",
+        },
+      },
+    } as never);
+
+    await hooks.event({
+      event: {
+        type: "command.executed",
+        properties: {
+          name: "sdd-tasks",
+          sessionID: "sess-m2",
+          arguments: "",
+          messageID: "msg-2",
+        },
+      },
+    } as never);
+
+    await hooks.event({
+      event: {
+        type: "command.executed",
+        properties: {
+          name: "sdd-archive",
+          sessionID: "sess-m3",
+          arguments: "",
+          messageID: "msg-3",
+        },
+      },
+    } as never);
+
+    await hooks.event({
+      event: {
+        type: "command.executed",
+        properties: {
+          name: "verified-significant",
+          sessionID: "sess-m4",
+          arguments: "",
+          messageID: "msg-4",
+        },
+      },
+    } as never);
+
+    // Unsupported commands must be ignored
+    await hooks.event({
+      event: {
+        type: "command.executed",
+        properties: {
+          name: "unsupported-command",
+          sessionID: "sess-m5",
+          arguments: "",
+          messageID: "msg-5",
+        },
+      },
+    } as never);
+
+    expect(milestoneCalls).toEqual(["sdd-verify", "sdd-tasks", "sdd-archive", "verified-significant"]);
   });
 });

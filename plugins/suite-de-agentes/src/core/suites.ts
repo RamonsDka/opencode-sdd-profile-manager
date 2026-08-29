@@ -1,7 +1,7 @@
 import type { AgentCatalogRow, BuiltInOverride, BuiltInRuntimeAgent, CustomAgent } from "./types.ts";
-import { CANONICAL_BUILT_IN_AGENTS, getBuiltInDefinition, mergeCanonicalAgent, normalizeAgentId, restoreBuiltInBaseline } from "./built-in-agents.ts";
+import { CANONICAL_BUILT_IN_AGENTS, getBuiltInDefinition, mergeCanonicalAgent, normalizeAgentId, restoreBuiltInBaseline, TASK_MANAGER_AGENT_ID } from "./built-in-agents.ts";
 
-export const SUITE_DE_AGENTES_SEED = ["general", "build", "plan", "explore", "compaction", "title", "summary"] as const;
+export const SUITE_DE_AGENTES_SEED = ["general", "build", "plan", "explore", "compaction", "title", "summary", TASK_MANAGER_AGENT_ID] as const;
 
 export function restoreBuiltInAgentOverride(
   id: string,
@@ -66,6 +66,8 @@ export function buildSuiteDeAgentesCatalog(
     if (description !== undefined) row.description = description;
     if (variant !== undefined) row.variant = variant;
     if (operations !== undefined) row.operations = operations;
+    const mode = customAgent?.mode ?? definition?.baseline.mode;
+    if (mode !== undefined) row.mode = mode;
     return row;
   }).sort((a, b) => a.id.localeCompare(b.id));
 }
