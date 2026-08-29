@@ -172,13 +172,6 @@
       flex-wrap: wrap;
     }
 
-    .header-titles p {
-      font-size: 12px;
-      color: var(--text-tertiary);
-      margin-top: 1px;
-      overflow-wrap: anywhere;
-    }
-
     .header-meta {
       display: flex;
       align-items: center;
@@ -707,19 +700,21 @@
       grid-column: 1 / -1;
     }
 
+    .insight-band-stack,
     .insight-band-grid {
       display: grid;
       width: 100%;
-      grid-template-columns: minmax(150px, 1.15fr) minmax(126px, 0.85fr) minmax(150px, 1fr) minmax(150px, 1fr) minmax(190px, 1.2fr);
+      grid-template-columns: minmax(0, 1fr);
       align-items: start;
-      gap: 14px;
+      gap: 12px;
     }
 
     .insight-band-region {
       display: flex;
       flex-direction: column;
-      gap: 6px;
+      gap: 8px;
       min-width: 0;
+      width: 100%;
     }
 
     .insight-region-label {
@@ -729,6 +724,391 @@
       text-transform: uppercase;
     }
 
+    /* Token Telemetry Main Region (Full Width) */
+    .insight-tokens-main {
+      background: var(--bg-surface-primary);
+      border: 1px solid var(--border-subtle);
+      border-radius: var(--radius-sm);
+      padding: 12px 14px;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      min-width: 0;
+      width: 100%;
+    }
+
+    .insight-tokens-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 6px 12px;
+    }
+
+    .insight-tokens-summary-chips {
+      display: flex;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 6px;
+    }
+
+    .token-chip {
+      font-size: 11px;
+      padding: 2px 7px;
+      border-radius: 9999px;
+      background: var(--bg-surface-secondary);
+      border: 1px solid var(--border-subtle);
+      color: var(--text-secondary);
+      font-family: var(--font-mono);
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+    }
+
+    .token-chip-total {
+      color: var(--accent-blue);
+      border-color: rgba(59, 130, 246, 0.3);
+      font-weight: 700;
+    }
+
+    .token-chip-stale {
+      color: var(--accent-amber);
+      border-color: rgba(245, 158, 11, 0.4);
+    }
+
+    /* Token Chart Bars */
+    .token-chart-container {
+      display: flex;
+      flex-direction: column;
+      gap: 7px;
+      width: 100%;
+    }
+
+    .token-agent-row {
+      display: flex;
+      flex-direction: column;
+      gap: 3px;
+      width: 100%;
+      min-width: 0;
+    }
+
+    .token-agent-meta {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      font-size: 11px;
+      gap: 6px;
+      min-width: 0;
+    }
+
+    .token-agent-meta-left {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      min-width: 0;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .token-agent-name {
+      font-weight: 600;
+      color: var(--text-primary);
+      font-family: var(--font-mono);
+    }
+
+    .token-agent-model-badge {
+      font-size: 10px;
+      color: var(--text-tertiary);
+      background: var(--bg-surface-secondary);
+      padding: 1px 5px;
+      border-radius: 4px;
+      border: 1px solid var(--border-subtle);
+    }
+
+    .token-evidence-badge {
+      font-size: 9.5px;
+      padding: 1px 5px;
+      border-radius: 4px;
+      text-transform: uppercase;
+      letter-spacing: 0.03em;
+      font-weight: 600;
+    }
+
+    .token-evidence-measured {
+      background: rgba(16, 185, 129, 0.15);
+      color: var(--accent-green);
+      border: 1px solid rgba(16, 185, 129, 0.3);
+    }
+
+    .token-evidence-derived {
+      background: rgba(59, 130, 246, 0.15);
+      color: var(--accent-blue);
+      border: 1px solid rgba(59, 130, 246, 0.3);
+    }
+
+    .token-evidence-estimated {
+      background: rgba(245, 158, 11, 0.15);
+      color: var(--accent-amber);
+      border: 1px solid rgba(245, 158, 11, 0.3);
+    }
+
+    .token-agent-total {
+      color: var(--text-secondary);
+      font-family: var(--font-mono);
+      font-weight: 600;
+      white-space: nowrap;
+      font-size: 11px;
+    }
+
+    .token-bar-track {
+      width: 100%;
+      height: 12px;
+      background: rgba(13, 17, 23, 0.85);
+      border-radius: 4px;
+      overflow: hidden;
+      display: flex;
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.6);
+      position: relative;
+    }
+
+    .token-bar-fill {
+      height: 100%;
+      display: flex;
+      min-width: 2px;
+      border-radius: 3px;
+      overflow: hidden;
+      box-shadow: 0 0 8px rgba(88, 166, 255, 0.15);
+    }
+
+    .token-seg {
+      height: 100%;
+      transition: width 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+      min-width: 0;
+      position: relative;
+    }
+
+    .token-seg-input {
+      background: linear-gradient(180deg, #58a6ff 0%, #388bfd 100%);
+    }
+
+    .token-seg-output {
+      background: linear-gradient(180deg, #56d364 0%, #2ea043 100%);
+    }
+
+    .token-seg-cache-read {
+      background: linear-gradient(180deg, #bc8cff 0%, #8957e5 100%);
+      background-image: repeating-linear-gradient(45deg, transparent, transparent 3px, rgba(255, 255, 255, 0.18) 3px, rgba(255, 255, 255, 0.18) 6px);
+    }
+
+    .token-seg-reasoning {
+      background: linear-gradient(180deg, #e3b341 0%, #d29922 100%);
+    }
+
+    .token-seg-cache-write {
+      background: linear-gradient(180deg, #f472b6 0%, #db2777 100%);
+    }
+
+    .token-seg-activity {
+      background: linear-gradient(90deg, #38bdf8 0%, #818cf8 50%, #c084fc 100%);
+      box-shadow: 0 0 10px rgba(56, 189, 248, 0.3);
+    }
+
+    /* Chart Legend */
+    .token-chart-legend {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px 14px;
+      font-size: 10.5px;
+      color: var(--text-tertiary);
+      padding-top: 4px;
+      border-top: 1px solid var(--border-subtle);
+    }
+
+    .legend-item {
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+    }
+
+    .legend-swatch {
+      width: 8px;
+      height: 8px;
+      border-radius: 2px;
+      display: inline-block;
+    }
+
+    .legend-input { background: var(--accent-blue); }
+    .legend-output { background: var(--accent-green); }
+    .legend-cache-read {
+      background: var(--accent-purple);
+      background-image: repeating-linear-gradient(45deg, transparent, transparent 2px, rgba(255, 255, 255, 0.25) 2px, rgba(255, 255, 255, 0.25) 4px);
+    }
+    .legend-reasoning { background: var(--accent-amber); }
+    .legend-cache-write { background: #ec4899; }
+
+    .token-estimate-note {
+      font-size: 10px;
+      color: var(--text-muted);
+      font-style: italic;
+    }
+
+    /* Empty state */
+    .insight-empty-telemetry {
+      padding: 16px 12px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      text-align: center;
+      gap: 4px;
+      background: var(--bg-surface-secondary);
+      border-radius: var(--radius-sm);
+      border: 1px dashed var(--border-subtle);
+    }
+
+    .insight-empty-title {
+      font-size: 12px;
+      font-weight: 600;
+      color: var(--text-secondary);
+    }
+
+    .insight-empty-copy {
+      font-size: 11px;
+      color: var(--text-tertiary);
+    }
+
+    /* Owners & Tags Horizontal Strip */
+    .insight-meta-strip.insight-side-rail,
+    .insight-meta-strip,
+    .insight-side-rail {
+      display: flex;
+      align-items: flex-start;
+      flex-wrap: wrap;
+      gap: 10px 24px;
+      background: var(--bg-surface-primary);
+      border: 1px solid var(--border-subtle);
+      border-radius: var(--radius-sm);
+      padding: 10px 14px;
+      width: 100%;
+      min-width: 0;
+    }
+
+    @media (max-width: 640px) {
+      .insight-meta-strip.insight-side-rail,
+      .insight-meta-strip,
+      .insight-side-rail {
+        display: flex;
+        flex-direction: column;
+        gap: 10px;
+      }
+    }
+
+    .insight-subregion {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+      flex: 0 1 auto;
+      min-width: 0;
+    }
+
+    .insight-subregion .insight-dimension-list {
+      flex-wrap: nowrap;
+    }
+
+    @media (max-width: 1100px) {
+      .insight-subregion .insight-dimension-list {
+        flex-wrap: wrap;
+      }
+    }
+
+    /* Accessible Details Table */
+    .token-table-container {
+      width: 100%;
+      overflow-x: auto;
+      margin: 8px 0 16px 0;
+      border: 1px solid var(--border-subtle);
+      border-radius: var(--radius-sm);
+      background: var(--bg-surface-secondary);
+      -webkit-overflow-scrolling: touch;
+    }
+
+    .token-details-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 11.5px;
+      text-align: left;
+      min-width: 820px;
+    }
+
+    .token-details-table caption {
+      text-align: left;
+      font-weight: 600;
+      padding: 10px 12px;
+      color: var(--text-primary);
+      font-size: 12.5px;
+      background: var(--bg-surface-primary);
+      border-bottom: 1px solid var(--border-subtle);
+    }
+
+    .token-details-table th,
+    .token-details-table td {
+      padding: 7px 10px;
+      border-bottom: 1px solid var(--border-subtle);
+      white-space: nowrap;
+      font-variant-numeric: tabular-nums;
+    }
+
+    .token-details-table thead th {
+      position: sticky;
+      top: 0;
+      z-index: 2;
+      background: var(--bg-surface-primary);
+      color: var(--text-tertiary);
+      font-size: 10.5px;
+      text-transform: uppercase;
+      letter-spacing: 0.03em;
+      font-family: var(--font-mono);
+      box-shadow: 0 1px 0 var(--border-subtle);
+    }
+
+    .token-details-table th:first-child,
+    .token-details-table td:first-child {
+      position: sticky;
+      left: 0;
+      z-index: 1;
+      background: var(--bg-surface-secondary);
+      box-shadow: 1px 0 0 var(--border-subtle);
+    }
+
+    .token-details-table thead th:first-child,
+    .token-details-table tfoot th:first-child {
+      z-index: 3;
+      background: var(--bg-surface-primary);
+    }
+
+    .token-details-table tfoot th,
+    .token-details-table tfoot td {
+      background: var(--bg-surface-primary);
+      font-weight: 700;
+      border-bottom: none;
+      border-top: 1px solid var(--border-subtle);
+    }
+
+    .token-details-table .num-col {
+      text-align: right;
+      font-family: var(--font-mono);
+      font-variant-numeric: tabular-nums;
+    }
+
+    .token-table-note {
+      font-size: 10.5px;
+      color: var(--text-tertiary);
+      margin-top: 6px;
+      font-style: italic;
+    }
+
     .insight-status-chart,
     .insight-trend-chart {
       width: 100%;
@@ -736,18 +1116,27 @@
     }
 
     .insight-dimension-list {
-      display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(90px, 1fr));
-      gap: 3px 8px;
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px 10px;
       min-width: 0;
     }
 
     .insight-dimension-line {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      font-size: 11.5px;
+      color: var(--text-secondary);
+      background: var(--bg-surface-secondary);
+      border: 1px solid var(--border-subtle);
+      border-radius: var(--radius-full);
+      padding: 2px 8px;
+      font-variant-numeric: tabular-nums;
       min-width: 0;
-      overflow-wrap: anywhere;
     }
 
-    .insight-dimension-line strong { color: var(--text-secondary); }
+    .insight-dimension-line strong { color: var(--text-primary); }
 
     .insight-risk-values {
       display: grid;
@@ -815,7 +1204,7 @@
     .metric-summary-copy { color: var(--text-tertiary); font-size: 11.5px; overflow-wrap: anywhere; }
 
     @media (max-width: 900px) {
-      .insight-band-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+      .insight-band-grid { grid-template-columns: 1fr; }
     }
 
     .metric-top-row {
@@ -1144,7 +1533,7 @@
     .task-id { font-family: var(--font-mono); font-size: 11px; color: var(--text-tertiary); margin-right: 4px; }
     .task-badges { display: flex; align-items: center; gap: 8px; flex-shrink: 0; }
     .task-note { font-size: 12px; color: var(--text-secondary); padding-left: 27px; line-height: 1.4; }
-    .task-footer-row { display: flex; align-items: center; justify-content: space-between; padding-left: 27px; font-size: 11px; color: var(--text-tertiary); gap: 12px; flex-wrap: wrap; }
+    .task-footer-row { display: flex; align-items: center; justify-content: space-between; padding-left: 27px; font-size: 11px; color: var(--text-tertiary); gap: 12px; flex-wrap: wrap; box-sizing: border-box; max-width: 100%; }
     .task-owner-pill { display: inline-flex; align-items: center; gap: 5px; font-family: var(--font-mono); color: var(--text-secondary); }
 
     /* Todo & Help */
@@ -1185,6 +1574,313 @@
       font-size: 13px;
     }
     #tm-error-banner[hidden] { display: none !important; }
+
+    /* Polished High-Tech Synchronization Banner / Indicator */
+    #tm-sync-banner {
+      position: relative;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 16px;
+      padding: 14px 20px;
+      margin-bottom: 18px;
+      border-radius: var(--radius-md);
+      font-size: 13px;
+      line-height: 1.45;
+      overflow: hidden;
+      transition: opacity 0.25s cubic-bezier(0.16, 1, 0.3, 1), transform 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+    }
+    #tm-sync-banner[hidden] { display: none !important; }
+
+    /* Running state: authored signal/energy focal motion */
+    #tm-sync-banner.sync-running {
+      background: linear-gradient(135deg, rgba(13, 23, 42, 0.94) 0%, rgba(17, 28, 48, 0.94) 100%);
+      border: 1px solid rgba(88, 166, 255, 0.45);
+      color: var(--text-secondary);
+      box-shadow: 0 4px 20px -2px rgba(0, 0, 0, 0.6), 0 0 24px -4px rgba(56, 139, 253, 0.25);
+      animation: sync-border-pulse 3s cubic-bezier(0.4, 0, 0.6, 1) infinite alternate;
+    }
+
+    /* Ambient neon wave / light sweep overlay across the running container */
+    .sync-glow-sweep {
+      position: absolute;
+      inset: 0;
+      pointer-events: none;
+      background: linear-gradient(
+        105deg,
+        transparent 0%,
+        transparent 35%,
+        rgba(88, 166, 255, 0.08) 48%,
+        rgba(80, 230, 255, 0.16) 50%,
+        rgba(88, 166, 255, 0.08) 52%,
+        transparent 65%,
+        transparent 100%
+      );
+      background-size: 250% 100%;
+      animation: sync-wave-sweep 4s linear infinite;
+    }
+
+    /* Indeterminate energy track (non-progress bar) at top border */
+    .sync-energy-beam {
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      height: 2px;
+      pointer-events: none;
+      background: linear-gradient(90deg, transparent, rgba(56, 139, 253, 0.2), rgba(80, 230, 255, 0.85), rgba(88, 166, 255, 0.2), transparent);
+      background-size: 200% 100%;
+      animation: sync-beam-travel 2.8s linear infinite;
+    }
+
+    /* Prolonged state: reassuring segmented neon rail, subtle slate/indigo glass background, no red */
+    #tm-sync-banner.sync-prolonged {
+      background: linear-gradient(135deg, rgba(13, 23, 42, 0.96) 0%, rgba(18, 28, 54, 0.96) 100%);
+      border: 1px solid rgba(56, 189, 248, 0.45);
+      color: var(--text-secondary);
+      box-shadow: 0 4px 20px -2px rgba(0, 0, 0, 0.6), 0 0 24px -4px rgba(56, 189, 248, 0.25);
+    }
+
+    /* Segmented indeterminate neon rail */
+    .sync-segmented-rail {
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+      padding: 6px 10px;
+      background: rgba(11, 19, 36, 0.9);
+      border: 1px solid rgba(56, 189, 248, 0.35);
+      border-radius: var(--radius-full);
+      box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.5), 0 0 14px rgba(56, 189, 248, 0.2);
+      flex-shrink: 0;
+    }
+
+    .sync-rail-seg {
+      width: 7px;
+      height: 14px;
+      border-radius: 2px;
+      background: #38bdf8;
+      opacity: 0.25;
+      transform: scaleY(0.75);
+      animation: sync-rail-wave 2s cubic-bezier(0.4, 0, 0.2, 1) infinite;
+    }
+
+    .sync-rail-seg:nth-child(1) { animation-delay: 0s; }
+    .sync-rail-seg:nth-child(2) { animation-delay: 0.25s; }
+    .sync-rail-seg:nth-child(3) { animation-delay: 0.5s; }
+    .sync-rail-seg:nth-child(4) { animation-delay: 0.75s; }
+    .sync-rail-seg:nth-child(5) { animation-delay: 1s; }
+    .sync-rail-seg:nth-child(6) { animation-delay: 1.25s; }
+
+    @keyframes sync-rail-wave {
+      0%, 100% {
+        transform: scaleY(0.75);
+        opacity: 0.25;
+        background: #38bdf8;
+        box-shadow: none;
+      }
+      50% {
+        transform: scaleY(1.15);
+        opacity: 1;
+        background: #818cf8;
+        box-shadow: 0 0 10px rgba(56, 189, 248, 0.8), 0 0 16px rgba(129, 140, 248, 0.5);
+      }
+    }
+
+    /* Error state: distinct, non-animated subtle emphasis */
+    #tm-sync-banner.sync-error {
+      background: linear-gradient(135deg, rgba(38, 14, 17, 0.94) 0%, rgba(26, 11, 14, 0.94) 100%);
+      border: 1px solid rgba(248, 81, 73, 0.5);
+      color: #ffc1ba;
+      box-shadow: 0 4px 16px -2px rgba(0, 0, 0, 0.6), 0 0 16px -4px rgba(248, 81, 73, 0.2);
+    }
+
+    .sync-banner-content {
+      position: relative;
+      z-index: 1;
+      display: flex;
+      align-items: center;
+      gap: 16px;
+      min-width: 0;
+      flex: 1;
+    }
+
+    /* Visual signal cluster */
+    .sync-signal-cluster {
+      display: inline-flex;
+      align-items: center;
+      gap: 7px;
+      padding: 6px 8px;
+      background: rgba(11, 19, 36, 0.85);
+      border: 1px solid rgba(88, 166, 255, 0.3);
+      border-radius: var(--radius-full);
+      box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.5), 0 0 12px rgba(56, 139, 253, 0.2);
+      flex-shrink: 0;
+    }
+
+    /* Sequential luminous activity signal nodes */
+    .sync-signal-node {
+      width: 9px;
+      height: 9px;
+      border-radius: 50%;
+      background: #388bfd;
+      box-shadow: 0 0 6px rgba(56, 139, 253, 0.6);
+      opacity: 0.3;
+      transform: scale(0.75);
+      animation: sync-node-sequence 1.8s cubic-bezier(0.4, 0, 0.2, 1) infinite;
+    }
+    .sync-signal-node:nth-child(1) { animation-delay: 0s; }
+    .sync-signal-node:nth-child(2) { animation-delay: 0.35s; }
+    .sync-signal-node:nth-child(3) { animation-delay: 0.7s; }
+    .sync-signal-node:nth-child(4) { animation-delay: 1.05s; }
+
+    .sync-banner-text {
+      display: flex;
+      flex-direction: column;
+      gap: 3px;
+      min-width: 0;
+    }
+
+    .sync-banner-header-row {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      flex-wrap: wrap;
+    }
+
+    .sync-agent-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+      padding: 2px 8px;
+      font-family: var(--font-mono);
+      font-size: 11px;
+      font-weight: 700;
+      letter-spacing: 0.04em;
+      text-transform: uppercase;
+      color: #79c0ff;
+      background: rgba(56, 139, 253, 0.16);
+      border: 1px solid rgba(88, 166, 255, 0.4);
+      border-radius: var(--radius-sm);
+    }
+
+    .sync-banner-title {
+      font-weight: 600;
+      color: var(--text-primary);
+      font-size: 13.5px;
+      letter-spacing: -0.01em;
+    }
+
+    .sync-banner-subtitle {
+      font-size: 12.5px;
+      color: #b1bac4;
+      line-height: 1.4;
+    }
+
+    .sync-kbd {
+      display: inline-block;
+      padding: 1px 5px;
+      font-family: var(--font-mono);
+      font-size: 11px;
+      font-weight: 600;
+      color: #e6edf3;
+      background: rgba(110, 118, 129, 0.25);
+      border: 1px solid rgba(110, 118, 129, 0.4);
+      border-radius: 4px;
+      box-shadow: 0 1px 0 rgba(0,0,0,0.3);
+    }
+
+    /* Error specifics */
+    #tm-sync-banner.sync-error .sync-banner-title {
+      color: #ff7b72;
+    }
+    #tm-sync-banner.sync-error .sync-banner-subtitle {
+      color: #ffa198;
+    }
+    #tm-sync-banner.sync-error .sync-error-icon-box {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 28px;
+      height: 28px;
+      border-radius: 50%;
+      background: rgba(248, 81, 73, 0.18);
+      border: 1px solid rgba(248, 81, 73, 0.45);
+      font-size: 14px;
+      flex-shrink: 0;
+    }
+
+    /* Keyframes */
+    @keyframes sync-border-pulse {
+      0% {
+        border-color: rgba(88, 166, 255, 0.35);
+        box-shadow: 0 4px 20px -2px rgba(0, 0, 0, 0.6), 0 0 16px -4px rgba(56, 139, 253, 0.2);
+      }
+      100% {
+        border-color: rgba(80, 230, 255, 0.7);
+        box-shadow: 0 4px 24px -2px rgba(0, 0, 0, 0.7), 0 0 28px -2px rgba(80, 230, 255, 0.35);
+      }
+    }
+
+    @keyframes sync-wave-sweep {
+      0% {
+        background-position: 150% 0;
+      }
+      100% {
+        background-position: -150% 0;
+      }
+    }
+
+    @keyframes sync-beam-travel {
+      0% {
+        background-position: 200% 0;
+      }
+      100% {
+        background-position: -200% 0;
+      }
+    }
+
+    @keyframes sync-node-sequence {
+      0%, 100% {
+        transform: scale(0.7);
+        opacity: 0.25;
+        background: #388bfd;
+        box-shadow: 0 0 4px rgba(56, 139, 253, 0.3);
+      }
+      35% {
+        transform: scale(1.25);
+        opacity: 1;
+        background: #50e6ff;
+        box-shadow: 0 0 10px rgba(80, 230, 255, 0.9), 0 0 16px rgba(56, 139, 253, 0.6);
+      }
+      65% {
+        transform: scale(0.9);
+        opacity: 0.5;
+        background: #58a6ff;
+        box-shadow: 0 0 6px rgba(88, 166, 255, 0.4);
+      }
+    }
+
+    /* Accessibility: Reduced motion query */
+    @media (prefers-reduced-motion: reduce) {
+      #tm-sync-banner.sync-running,
+      #tm-sync-banner.sync-prolonged,
+      .sync-glow-sweep,
+      .sync-energy-beam,
+      .sync-signal-node,
+      .sync-rail-seg {
+        animation: none !important;
+      }
+      .sync-signal-node {
+        opacity: 0.9;
+        transform: scale(1);
+        background: var(--accent-blue);
+      }
+      .sync-rail-seg {
+        opacity: 0.85;
+        transform: scaleY(1);
+        background: #38bdf8;
+      }
+    }
     #codegraph-dialog { color:var(--text-primary); background:var(--bg-surface-primary); border:1px solid var(--border-focus); border-radius:var(--radius-lg); width:min(960px,calc(100% - 32px)); max-width:none; max-height:min(820px,calc(100dvh - 32px)); margin:auto; padding:24px; box-shadow:var(--shadow-lg),0 0 50px rgba(88,166,255,.12); overflow:auto; }
     #codegraph-dialog::backdrop { background:rgba(3,6,10,.82); }
     #codegraph-dialog h2 { font-size: 26px; line-height: 1.2; margin-bottom: 4px; }
@@ -1255,18 +1951,25 @@
     .help-portability-note p { color:var(--text-tertiary); font-size:11.5px; margin:3px 0 8px; overflow-wrap:anywhere; }
     .help-portability-tags { display:flex; flex-wrap:wrap; gap:6px; }
     .help-portability-tags span { background:var(--bg-surface-tertiary); border:1px solid var(--border-subtle); border-radius:var(--radius-full); padding:3px 8px; color:var(--text-secondary); font-size:10.5px; }
-    #overview-detail-dialog { color:var(--text-primary); background:var(--bg-surface-primary); border:1px solid var(--border-focus); border-radius:var(--radius-lg); width:min(820px,calc(100% - 32px)); max-width:none; max-height:min(760px,calc(100dvh - 32px)); margin:auto; padding:24px; box-shadow:var(--shadow-lg),0 0 50px rgba(88,166,255,.14); overflow:auto; }
+    #overview-detail-dialog { color:var(--text-primary); background:var(--bg-surface-primary); border:1px solid var(--border-focus); border-radius:var(--radius-lg); width:min(1080px,calc(100% - 32px)); max-width:none; max-height:min(820px,calc(100dvh - 32px)); margin:auto; padding:24px; box-shadow:var(--shadow-lg),0 0 50px rgba(88,166,255,.14); overflow:auto; }
     #overview-detail-dialog::backdrop { background:rgba(3,6,10,.82); }
     .overview-detail-heading { display:flex; align-items:flex-start; justify-content:space-between; gap:16px; margin-bottom:18px; }
     #overview-detail-title { font-size:24px; color:var(--text-primary); }
     #overview-detail-value { color:var(--accent-blue); font:700 22px var(--font-mono); }
     #overview-detail-summary { color:var(--text-secondary); max-width:68ch; margin-top:5px; }
-    #overview-detail-content { display:grid; grid-template-columns:repeat(auto-fit,minmax(240px,1fr)); gap:12px; }
-    .overview-detail-section, .overview-detail-missing { background:var(--bg-surface-secondary); border:1px solid var(--border-subtle); border-radius:var(--radius-md); padding:14px; }
-    .overview-detail-section h3, .overview-detail-missing h3 { color:var(--text-primary); font-size:13px; margin-bottom:8px; }
-    .overview-detail-section ul, .overview-detail-missing ul { display:flex; flex-direction:column; gap:6px; padding-left:18px; color:var(--text-secondary); }
-    .overview-detail-missing { border-color:rgba(210,153,34,.48); }
-    .overview-detail-missing p { color:var(--accent-amber); margin-bottom:8px; }
+    #overview-detail-content { display:flex; flex-direction:column; gap:16px; width:100%; }
+    .overview-detail-main-custom { width:100%; min-width:0; }
+    .overview-detail-meta-strip { display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); gap:12px; width:100%; }
+    @media (max-width:900px) { .overview-detail-meta-strip { grid-template-columns:repeat(2,minmax(0,1fr)); } }
+    @media (max-width:480px) { .overview-detail-meta-strip { grid-template-columns:1fr; } }
+    .overview-detail-section { background:var(--bg-surface-secondary); border:1px solid var(--border-subtle); border-radius:var(--radius-sm); padding:12px 14px; min-width:0; }
+    .overview-detail-section h3 { color:var(--text-tertiary); font:600 11px var(--font-mono); text-transform:uppercase; letter-spacing:0.04em; margin-bottom:8px; }
+    .overview-meta-list { display:flex; flex-direction:column; gap:4px; padding:0; margin:0; list-style:none; }
+    .overview-meta-list li { font-size:12px; color:var(--text-secondary); line-height:1.4; word-break:break-word; }
+    .overview-detail-missing { background:var(--bg-surface-secondary); border:1px solid rgba(210,153,34,.48); border-radius:var(--radius-sm); padding:12px 14px; }
+    .overview-detail-missing h3 { color:var(--text-primary); font-size:13px; margin-bottom:8px; }
+    .overview-detail-missing p { color:var(--accent-amber); margin-bottom:8px; font-size:12px; }
+    .overview-detail-missing ul { display:flex; flex-direction:column; gap:4px; padding-left:18px; color:var(--text-secondary); font-size:12px; }
     .overview-detail-actions { display:flex; justify-content:flex-end; gap:8px; flex-wrap:wrap; margin-top:18px; }
     .state-tools { margin-top:14px; }
     .state-health-card { display:grid; grid-template-columns:auto minmax(0,1fr) auto; gap:12px; align-items:center; background:var(--bg-surface-secondary); border:1px solid var(--border-medium); border-radius:var(--radius-md); padding:14px; }
@@ -1286,64 +1989,7 @@
     #tm-state-json { max-height:360px; overflow:auto; white-space:pre; background:var(--bg-canvas); border:1px solid var(--border-subtle); border-radius:var(--radius-sm); padding:12px; color:var(--text-secondary); font:12px/1.55 var(--font-mono); }
     .state-tools-actions { display:flex; align-items:center; gap:8px; flex-wrap:wrap; margin-top:10px; }
 
-    /* Welcome / Instructions Modal Dialog */
-    #welcome-dialog {
-      color: var(--text-primary);
-      background: var(--bg-surface-primary);
-      border: 2px solid var(--accent-red);
-      border-radius: var(--radius-lg);
-      width: min(840px, calc(100% - 32px));
-      max-width: none;
-      max-height: min(860px, calc(100dvh - 32px));
-      margin: auto;
-      padding: 0;
-      box-shadow: var(--shadow-lg), 0 0 50px rgba(248, 81, 73, 0.25);
-      overflow: hidden;
-    }
-    #welcome-dialog::backdrop {
-      background: rgba(3, 6, 10, 0.86);
-      backdrop-filter: blur(4px);
-    }
-    .welcome-dialog-container {
-      display: flex;
-      flex-direction: column;
-      max-height: min(860px, calc(100dvh - 32px));
-    }
-    .welcome-dialog-header {
-      display: flex;
-      align-items: flex-start;
-      justify-content: space-between;
-      gap: 16px;
-      padding: 20px 24px;
-      background: linear-gradient(180deg, rgba(248,81,73,0.14) 0%, rgba(22,27,34,0.6) 100%);
-      border-bottom: 1px solid rgba(248, 81, 73, 0.28);
-    }
-    .welcome-badge-title {
-      display: flex;
-      flex-direction: column;
-      gap: 6px;
-    }
-    .welcome-alert-badge {
-      display: inline-flex;
-      align-items: center;
-      gap: 6px;
-      background: rgba(248, 81, 73, 0.2);
-      color: #ff7b72;
-      border: 1px solid var(--accent-red);
-      border-radius: var(--radius-full);
-      padding: 4px 12px;
-      font: 800 13px var(--font-mono);
-      letter-spacing: 0.06em;
-      width: max-content;
-      box-shadow: 0 0 12px rgba(248, 81, 73, 0.3);
-    }
-    #welcome-dialog-title {
-      font-size: 20px;
-      font-weight: 700;
-      color: #ffffff;
-      margin: 0;
-      line-height: 1.3;
-    }
+    /* Modal Close Button for Detail Dialogs */
     .welcome-close-btn {
       background: rgba(255, 255, 255, 0.06);
       border: 1px solid var(--border-subtle);
@@ -1362,123 +2008,6 @@
       background: rgba(248, 81, 73, 0.2);
       color: #fff;
       border-color: var(--accent-red);
-    }
-    .welcome-dialog-body {
-      padding: 20px 24px;
-      overflow-y: auto;
-      display: flex;
-      flex-direction: column;
-      gap: 16px;
-    }
-    .welcome-intro {
-      font-size: 13px;
-      color: var(--text-secondary);
-      line-height: 1.5;
-    }
-    .welcome-steps-grid {
-      display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
-      gap: 12px;
-    }
-    .welcome-step-item {
-      background: var(--bg-surface-secondary);
-      border: 1px solid var(--border-subtle);
-      border-radius: var(--radius-md);
-      padding: 12px;
-      display: flex;
-      gap: 10px;
-      align-items: flex-start;
-    }
-    .welcome-step-number {
-      width: 24px;
-      height: 24px;
-      border-radius: 50%;
-      background: var(--accent-blue);
-      color: #0b0e14;
-      font: 700 12px var(--font-mono);
-      display: grid;
-      place-items: center;
-      flex-shrink: 0;
-      margin-top: 2px;
-    }
-    .welcome-step-item strong {
-      font-size: 12.5px;
-      color: var(--text-primary);
-      display: block;
-      margin-bottom: 2px;
-    }
-    .welcome-step-item p {
-      font-size: 11.5px;
-      color: var(--text-tertiary);
-      line-height: 1.35;
-      margin: 0;
-    }
-    .welcome-prompt-box {
-      background: var(--bg-surface-secondary);
-      border: 1px solid rgba(63, 185, 80, 0.4);
-      border-radius: var(--radius-md);
-      padding: 14px;
-      display: flex;
-      flex-direction: column;
-      gap: 10px;
-    }
-    .welcome-prompt-header {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      font-size: 13px;
-      font-weight: 600;
-      color: var(--accent-green);
-      gap: 8px;
-      flex-wrap: wrap;
-    }
-    .welcome-prompt-tag {
-      background: rgba(63, 185, 80, 0.15);
-      border: 1px solid var(--accent-green);
-      color: var(--accent-green);
-      font: 600 10px var(--font-mono);
-      padding: 2px 7px;
-      border-radius: var(--radius-full);
-      text-transform: uppercase;
-    }
-    .welcome-prompt-pre {
-      font: 11.5px/1.55 var(--font-mono);
-      color: #c9d1d9;
-      background: #0b0e14;
-      border: 1px solid var(--border-subtle);
-      border-radius: var(--radius-sm);
-      padding: 12px;
-      max-height: 220px;
-      overflow-y: auto;
-      white-space: pre-wrap;
-      word-break: break-word;
-      user-select: all;
-    }
-    .welcome-prompt-actions {
-      display: flex;
-      align-items: center;
-      gap: 12px;
-      flex-wrap: wrap;
-    }
-    .welcome-copy-feedback {
-      font-size: 12px;
-      color: var(--accent-green);
-      font-weight: 600;
-    }
-    .welcome-dialog-footer {
-      padding: 14px 24px;
-      background: var(--bg-surface-secondary);
-      border-top: 1px solid var(--border-subtle);
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      gap: 14px;
-      flex-wrap: wrap;
-    }
-    .welcome-footer-note {
-      font-size: 11.5px;
-      color: var(--text-tertiary);
-      max-width: 50ch;
     }
 
     /* Rich Detail Modals (Task, Todo, Git) */
@@ -1737,11 +2266,14 @@
       .codegraph-summary p { grid-column:1 / -1; }
       #codegraph-dialog { width:calc(100% - 16px); padding:16px; max-height:calc(100dvh - 16px); }
       #overview-detail-dialog { width:calc(100% - 16px); padding:16px; max-height:calc(100dvh - 16px); }
-      #welcome-dialog { width:calc(100% - 16px); padding:0; max-height:calc(100dvh - 16px); }
       .overview-detail-heading, .state-health-card { grid-template-columns:1fr; display:grid; }
       .state-health-counts { justify-content:flex-start; }
       .git-summary-grid, .tree-summary-grid { grid-template-columns:repeat(2,minmax(0,1fr)); }
-      .task-main-row, .task-badges, .task-footer-row { flex-wrap: wrap; min-width: 0; }
+      .panel-card, .phase-card, .phase-accordion-body { padding: 8px; }
+      .task-item { padding: 8px; }
+      .task-main-row, .task-badges, .task-footer-row { flex-wrap: wrap; min-width: 0; max-width: 100%; box-sizing: border-box; }
+      .task-footer-row { padding-left: 0; justify-content: flex-start; gap: 6px; }
+      .task-footer-row span { max-width: 100%; overflow-wrap: anywhere; word-break: break-word; }
       .task-badges { flex-shrink: 1; }
       .badge, .badge-tag { white-space: normal; overflow-wrap: anywhere; }
       .custom-checkbox { pointer-events: none; }
@@ -1751,7 +2283,7 @@
 <body>
   <!-- AI-EDITABLE: STATE — single source of truth, AI edits only this block -->
   <!-- AI-EDITABLE: STATE -->
-  <script type="application/json" id="tm-state">{"schemaVersion":"1.0","meta":{"projectName":"Task Manager Portable","version":"1.1.0","branch":"main","commit":"2faddaa","syncStatus":"Sincronizado","harness":"OpenCode","harnessRole":"Autonomous Multi-Agent Runtime","description":"Single-file offline project dashboard with zero runtime dependencies","lastUpdated":"2026-08-26T15:00:00Z","labels":{"es":{"overallProgress":"Progreso Global","filterAll":"Todas","filterActive":"Activas","todoTitle":"Tareas Rápidas","helpTitle":"Ayuda — Cómo usar este archivo","headerSubtitle":"Dashboard técnico drop-in — gestionado por orquestador IA"}},"features":{"git":true,"tree":true,"codegraph":true,"help":true},"history":[{"timestamp":"2026-08-18T09:00:00Z","completed":4,"total":16},{"timestamp":"2026-08-20T09:00:00Z","completed":8,"total":16},{"timestamp":"2026-08-24T09:00:00Z","completed":12,"total":16},{"timestamp":"2026-08-26T15:00:00Z","completed":16,"total":16}]},"phases":[{"id":"phase-1","number":1,"title":"Planificación y Arquitectura","status":"completed","target":"Fase 1","lead":"Orquestador","tasks":[{"id":"T1-01","title":"Definir esquema de datos y contratos JSON schemaVersion 1.0","status":"completed","tag":"Backend","note":"Esquema JSON inmutable validado con tipado estricto y manejo de errores sin white-screen.","owner":"sdd-spec","commit":"a1b2c3d","subtasks":[{"id":"ST1-1","title":"Modelar esquema JSON schemaVersion 1.0","status":"completed","done":true},{"id":"ST1-2","title":"Definir reglas de validación y límites","status":"completed","done":true},{"id":"ST1-3","title":"Aprobar contratos con el equipo","status":"completed","done":true}]},{"id":"T1-02","title":"Diseñar tokens del tema Obsidian Dark y layout responsivo","status":"completed","tag":"Design","note":"Tokens CSS verbatim, variables :root y soporte para viewports de 320px a 1920px.","owner":"sdd-design","commit":"b2c3d4e"},{"id":"T1-03","title":"Mapear estructura modular desacoplada y scripts de ensamblado","status":"completed","tag":"Arch","note":"Estructura modular 01-07 sin empaquetadores externos para portabilidad directa file://.","owner":"sdd-explore","commit":"c3d4e5f"}]},{"id":"phase-2","number":2,"title":"Núcleo y Métricas Reactivas","status":"completed","target":"Fase 2","lead":"sdd-tasks","tasks":[{"id":"T2-01","title":"Implementar parser seguro, validación y derivación matemática","status":"completed","tag":"Core","note":"Manejo seguro de división 0/0, prevención de NaN y escape de etiquetas script.","owner":"sdd-apply","commit":"d4e5f6a","subtasks":[{"id":"ST2-1","title":"Parser con escape seguro \\u003c/script\\u003e","status":"completed","done":true},{"id":"ST2-2","title":"Derivación de métricas y porcentajes","status":"completed","done":true}]},{"id":"T2-02","title":"Header y HUD panorámico con métricas derivadas","status":"completed","tag":"Frontend","note":"Cálculo dinámico en tiempo real del progreso global y tarjetas ejecutivas interactivas.","owner":"sdd-apply","commit":"e5f6a7b"},{"id":"T2-03","title":"Hub de cabecera con Reloj Digital 12h/24h y badge de última actualización","status":"completed","tag":"Frontend","note":"Reloj digital en vivo con zona horaria local, switch interactivo 12H/24H y pulso de frescura.","owner":"sdd-apply","commit":"2faddaa","subtasks":[{"id":"ST2-3a","title":"Reloj digital reactivo con horas, minutos, segundos y fecha","status":"completed","done":true},{"id":"ST2-3b","title":"Interruptor de formato horario 12H/24H y detector de timezone","status":"completed","done":true},{"id":"ST2-3c","title":"Badge con cálculo de tiempo relativo de última actualización","status":"completed","done":true}]}]},{"id":"phase-3","number":3,"title":"Fases, Tareas y Filtros Interactivos","status":"completed","target":"Fase 3","lead":"sdd-apply","tasks":[{"id":"T3-01","title":"Acordeón colapsable con toggle aislado y vista dedicada","status":"completed","tag":"UI","note":"Event delegation optimizado, persistencia en UI preferences e interactividad fluida.","owner":"sdd-apply","commit":"f6a7b8c","subtasks":[{"id":"ST3-1","title":"Event delegation en contenedor de fases","status":"completed","done":true},{"id":"ST3-2","title":"Aislamiento de toggle individual","status":"completed","done":true}]},{"id":"T3-02","title":"Toolbar de filtrado múltiple (texto, estado, responsable, tag, fase)","status":"completed","tag":"UI","note":"Filtrado AND unificado en lista y tablero Kanban con contadores reactivos.","owner":"sdd-apply","commit":"a7b8c9d"},{"id":"T3-03","title":"Barra de progreso por fase y checklist visual de subtareas","status":"completed","tag":"UI","note":"Checklists enriquecidos, barras de progreso dinámicas y visualización de bloqueos.","owner":"sdd-apply","commit":"b8c9d0e","subtasks":[{"id":"ST3-3a","title":"Cálculo de progreso por subtarea","status":"completed","done":true},{"id":"ST3-3b","title":"Checklist visual interactivo","status":"completed","done":true},{"id":"ST3-3c","title":"Animaciones de transición y badges","status":"completed","done":true}]},{"id":"T3-04","title":"Hardening de seguridad y prueba de escape hostil \\u003c/script\\u003e","status":"completed","tag":"Security","note":"Protección rigurosa contra inyección XSS y preservación de cadenas hostiles.","owner":"sdd-review","commit":"c9d0e1f","risk":"high","blockedReason":"Awaiting security review"}]},{"id":"phase-4","number":4,"title":"Paneles Opcionales y Visualizaciones","status":"completed","target":"Fase 4","lead":"sdd-apply","tasks":[{"id":"T4-01","title":"Panel Git Stream con historial de commits y estado de sincronización","status":"completed","tag":"Git","note":"Visualización de flujo git offline sin llamadas de red.","owner":"sdd-apply","commit":"d0e1f2a"},{"id":"T4-02","title":"Árbol jerárquico de archivos con navegación e indentación","status":"completed","tag":"Tree","note":"Explorador de arquitectura y estructura del repositorio.","owner":"sdd-apply","commit":"e1f2a3b"},{"id":"T4-03","title":"Mapa interactivo Codegraph SVG con diálogo accesible","status":"completed","tag":"Graph","note":"Grafo SVG de dependencias entre módulos con inspección semántica por nodo.","owner":"sdd-apply","commit":"f2a3b4c"}]},{"id":"phase-5","number":5,"title":"Consola IA, Ayuda y Verificación Total","status":"completed","target":"Fase 5","lead":"sdd-verify","tasks":[{"id":"T5-01","title":"Scratchpad de Tareas Rápidas (todos P0/P1/P2)","status":"completed","tag":"Docs","note":"Gestión de tareas de atención rápida con etiquetas prioritarias e indicadores de estado.","owner":"sdd-tasks","commit":"a3b4c5d"},{"id":"T5-02","title":"Consola IA con Prompt Maestro Autónomo y selector de modelos","status":"completed","tag":"AI","note":"Generación guiada de comandos para asistentes LLM y auto-actualización del estado.","owner":"Orquestador","commit":"b4c5d6e"},{"id":"T5-03","title":"Modal interactivo de bienvenida y suite de 136 pruebas e2e","status":"completed","tag":"QA","note":"Ventana emergente de bienvenida ¡ATENCIÓN!, checklist de portabilidad y pruebas 100% en verde.","owner":"sdd-verify","commit":"2faddaa","subtasks":[{"id":"ST5-3a","title":"Ventana emergente modal de bienvenida con ¡ATENCIÓN!","status":"completed","done":true},{"id":"ST5-3b","title":"Suite de pruebas unitarias automatizadas (136 tests)","status":"completed","done":true},{"id":"ST5-3c","title":"Validación Playwright e2e en navegador real con 9 viewports","status":"completed","done":true}]}]}],"todos":[{"id":"td-1","text":"Verificar compatibilidad offline file:// sin servidor","priority":"P0","done":true},{"id":"td-2","text":"Comprobar alternancia de formato de reloj 12H/24H","priority":"P1","done":true},{"id":"td-3","text":"Validar pulso y cálculo de última actualización","priority":"P1","done":true},{"id":"td-4","text":"Garantizar persistencia estricta en bloque tm-state","priority":"P2","done":true}],"git":{"branch":"main","commits":[{"hash":"2faddaa","message":"chore(release): 1.0.1"},{"hash":"d193e1e","message":"Merge pull request #2 from RamonsDka/fix/issue-1-portable-filename"},{"hash":"375dac5","message":"fix: clarify portable filename in help prompt and docs"},{"hash":"4172efd","message":"ci: update official GitHub actions"},{"hash":"1306233","message":"ci: verify with Node.js 24"}],"syncStatus":"Sincronizado"},"tree":[{"name":"Task-Manager-Portable.html","depth":0,"type":"file"},{"name":"modules/","depth":0,"type":"dir"},{"name":"01-skeleton.html","depth":1,"type":"file"},{"name":"02-core.js","depth":1,"type":"file"},{"name":"03-header-hud.js","depth":1,"type":"file"},{"name":"04-phases.js","depth":1,"type":"file"},{"name":"05-panels.js","depth":1,"type":"file"},{"name":"06-todo-help.js","depth":1,"type":"file"},{"name":"scripts/","depth":0,"type":"dir"},{"name":"assemble.mjs","depth":1,"type":"file"},{"name":"run-tests.mjs","depth":1,"type":"file"},{"name":"scan-portability.mjs","depth":1,"type":"file"},{"name":"tests/","depth":0,"type":"dir"},{"name":"docs/","depth":0,"type":"dir"}],"codegraph":{"nodes":[{"id":"skeleton","label":"Skeleton","files":["modules/01-skeleton.html"],"details":"Estructura HTML5 base, tokens y shells."},{"id":"core","label":"Core","files":["modules/02-core.js"],"taskIds":["T2-01"],"details":"Parsea, valida y deriva métricas del estado."},{"id":"hud","label":"HUD & Clock","files":["modules/03-header-hud.js"],"taskIds":["T2-02","T2-03"],"details":"Header, reloj digital, fecha, última act. y métricas."},{"id":"phases","label":"Phases & Kanban","files":["modules/04-phases.js"],"taskIds":["T3-01","T3-03"],"details":"Acordeón de fases, tareas, subtareas y Kanban."},{"id":"panels","label":"Panels","files":["modules/05-panels.js"],"taskIds":["T4-01","T4-02","T4-03"],"details":"Git stream, árbol de archivos y Codegraph SVG."},{"id":"help","label":"AI Console & Help","files":["modules/06-todo-help.js"],"taskIds":["T5-01","T5-02","T5-03"],"details":"Tareas rápidas, consola IA, prompts y bienvenida."}],"edges":[{"from":"skeleton","to":"core"},{"from":"core","to":"hud"},{"from":"core","to":"phases"},{"from":"core","to":"panels","label":"usa","details":"Panels consume los helpers de Core."},{"from":"core","to":"help"},{"from":"phases","to":"panels"}]}}</script>
+  <script type="application/json" id="tm-state">{"schemaVersion":"1.0","meta":{"projectName":"Task Manager Portable","version":"1.1.0","branch":"main","commit":"2faddaa","syncStatus":"Sincronizado","harness":"OpenCode","harnessRole":"Autonomous Multi-Agent Runtime","description":"Single-file offline project dashboard with zero runtime dependencies","lastUpdated":"2026-08-26T15:00:00Z","labels":{"es":{"overallProgress":"Progreso Global","filterAll":"Todas","filterActive":"Activas","todoTitle":"Tareas Rápidas","helpTitle":"Ayuda — Cómo usar este archivo","headerSubtitle":"Dashboard técnico drop-in — gestionado por orquestador IA"}},"features":{"git":true,"tree":true,"codegraph":true,"help":true},"history":[{"timestamp":"2026-08-18T09:00:00Z","completed":4,"total":16},{"timestamp":"2026-08-20T09:00:00Z","completed":8,"total":16},{"timestamp":"2026-08-24T09:00:00Z","completed":12,"total":16},{"timestamp":"2026-08-26T15:00:00Z","completed":16,"total":16}]},"phases":[{"id":"phase-1","number":1,"title":"Planificación y Arquitectura","status":"completed","target":"Fase 1","lead":"Orquestador","tasks":[{"id":"T1-01","title":"Definir esquema de datos y contratos JSON schemaVersion 1.0","status":"completed","tag":"Backend","note":"Esquema JSON inmutable validado con tipado estricto y manejo de errores sin white-screen.","owner":"sdd-spec","commit":"a1b2c3d","subtasks":[{"id":"ST1-1","title":"Modelar esquema JSON schemaVersion 1.0","status":"completed","done":true},{"id":"ST1-2","title":"Definir reglas de validación y límites","status":"completed","done":true},{"id":"ST1-3","title":"Aprobar contratos con el equipo","status":"completed","done":true}]},{"id":"T1-02","title":"Diseñar tokens del tema Obsidian Dark y layout responsivo","status":"completed","tag":"Design","note":"Tokens CSS verbatim, variables :root y soporte para viewports de 320px a 1920px.","owner":"sdd-design","commit":"b2c3d4e"},{"id":"T1-03","title":"Mapear estructura modular desacoplada y scripts de ensamblado","status":"completed","tag":"Arch","note":"Estructura modular 01-07 sin empaquetadores externos para portabilidad directa file://.","owner":"sdd-explore","commit":"c3d4e5f"}]},{"id":"phase-2","number":2,"title":"Núcleo y Métricas Reactivas","status":"completed","target":"Fase 2","lead":"sdd-tasks","tasks":[{"id":"T2-01","title":"Implementar parser seguro, validación y derivación matemática","status":"completed","tag":"Core","note":"Manejo seguro de división 0/0, prevención de NaN y escape de etiquetas script.","owner":"sdd-apply","commit":"d4e5f6a","subtasks":[{"id":"ST2-1","title":"Parser con escape seguro \\u003c/script\\u003e","status":"completed","done":true},{"id":"ST2-2","title":"Derivación de métricas y porcentajes","status":"completed","done":true}]},{"id":"T2-02","title":"Header y HUD panorámico con métricas derivadas","status":"completed","tag":"Frontend","note":"Cálculo dinámico en tiempo real del progreso global y tarjetas ejecutivas interactivas.","owner":"sdd-apply","commit":"e5f6a7b"},{"id":"T2-03","title":"Hub de cabecera con Reloj Digital 12h/24h y badge de última actualización","status":"completed","tag":"Frontend","note":"Reloj digital en vivo con zona horaria local, switch interactivo 12H/24H y pulso de frescura.","owner":"sdd-apply","commit":"2faddaa","subtasks":[{"id":"ST2-3a","title":"Reloj digital reactivo con horas, minutos, segundos y fecha","status":"completed","done":true},{"id":"ST2-3b","title":"Interruptor de formato horario 12H/24H y detector de timezone","status":"completed","done":true},{"id":"ST2-3c","title":"Badge con cálculo de tiempo relativo de última actualización","status":"completed","done":true}]}]},{"id":"phase-3","number":3,"title":"Fases, Tareas y Filtros Interactivos","status":"completed","target":"Fase 3","lead":"sdd-apply","tasks":[{"id":"T3-01","title":"Acordeón colapsable con toggle aislado y vista dedicada","status":"completed","tag":"UI","note":"Event delegation optimizado, persistencia en UI preferences e interactividad fluida.","owner":"sdd-apply","commit":"f6a7b8c","subtasks":[{"id":"ST3-1","title":"Event delegation en contenedor de fases","status":"completed","done":true},{"id":"ST3-2","title":"Aislamiento de toggle individual","status":"completed","done":true}]},{"id":"T3-02","title":"Toolbar de filtrado múltiple (texto, estado, responsable, tag, fase)","status":"completed","tag":"UI","note":"Filtrado AND unificado en lista y tablero Kanban con contadores reactivos.","owner":"sdd-apply","commit":"a7b8c9d"},{"id":"T3-03","title":"Barra de progreso por fase y checklist visual de subtareas","status":"completed","tag":"UI","note":"Checklists enriquecidos, barras de progreso dinámicas y visualización de bloqueos.","owner":"sdd-apply","commit":"b8c9d0e","subtasks":[{"id":"ST3-3a","title":"Cálculo de progreso por subtarea","status":"completed","done":true},{"id":"ST3-3b","title":"Checklist visual interactivo","status":"completed","done":true},{"id":"ST3-3c","title":"Animaciones de transición y badges","status":"completed","done":true}]},{"id":"T3-04","title":"Hardening de seguridad y prueba de escape hostil \\u003c/script\\u003e","status":"completed","tag":"Security","note":"Protección rigurosa contra inyección XSS y preservación de cadenas hostiles.","owner":"sdd-review","commit":"c9d0e1f","risk":"high","blockedReason":"Awaiting security review"}]},{"id":"phase-4","number":4,"title":"Paneles Opcionales y Visualizaciones","status":"completed","target":"Fase 4","lead":"sdd-apply","tasks":[{"id":"T4-01","title":"Panel Git Stream con historial de commits y estado de sincronización","status":"completed","tag":"Git","note":"Visualización de flujo git offline sin llamadas de red.","owner":"sdd-apply","commit":"d0e1f2a"},{"id":"T4-02","title":"Árbol jerárquico de archivos con navegación e indentación","status":"completed","tag":"Tree","note":"Explorador de arquitectura y estructura del repositorio.","owner":"sdd-apply","commit":"e1f2a3b"},{"id":"T4-03","title":"Mapa interactivo Codegraph SVG con diálogo accesible","status":"completed","tag":"Graph","note":"Grafo SVG de dependencias entre módulos con inspección semántica por nodo.","owner":"sdd-apply","commit":"f2a3b4c"}]},{"id":"phase-5","number":5,"title":"Consola IA, Ayuda y Verificación Total","status":"completed","target":"Fase 5","lead":"sdd-verify","tasks":[{"id":"T5-01","title":"Scratchpad de Tareas Rápidas (todos P0/P1/P2)","status":"completed","tag":"Docs","note":"Gestión de tareas de atención rápida con etiquetas prioritarias e indicadores de estado.","owner":"sdd-tasks","commit":"a3b4c5d"},{"id":"T5-02","title":"Consola IA con Prompt Maestro Autónomo y selector de modelos","status":"completed","tag":"AI","note":"Generación guiada de comandos para asistentes LLM y auto-actualización del estado.","owner":"Orquestador","commit":"b4c5d6e"},{"id":"T5-03","title":"Modal interactivo de bienvenida y suite de 136 pruebas e2e","status":"completed","tag":"QA","note":"Ventana emergente de bienvenida ¡ATENCIÓN!, checklist de portabilidad y pruebas 100% en verde.","owner":"sdd-verify","commit":"2faddaa","subtasks":[{"id":"ST5-3a","title":"Ventana emergente modal de bienvenida con ¡ATENCIÓN!","status":"completed","done":true},{"id":"ST5-3b","title":"Suite de pruebas unitarias automatizadas (136 tests)","status":"completed","done":true},{"id":"ST5-3c","title":"Validación Playwright e2e en navegador real con 9 viewports","status":"completed","done":true}]}]}],"todos":[{"id":"td-1","text":"Verificar compatibilidad offline file:// sin servidor","priority":"P0","done":true},{"id":"td-2","text":"Comprobar alternancia de formato de reloj 12H/24H","priority":"P1","done":true},{"id":"td-3","text":"Validar pulso y cálculo de última actualización","priority":"P1","done":true},{"id":"td-4","text":"Garantizar persistencia estricta en bloque tm-state","priority":"P2","done":true}],"tokenUsage":{"schemaVersion":"1.0","updatedAt":"2026-08-29T07:20:00.000Z","source":"opencode-sdk","scope":"opencode-sdd-profile-manager","root":"opencode-sdd-profile-manager","totals":{"input":84200,"output":18450,"reasoning":7200,"cacheRead":142000,"cacheWrite":4100,"total":255950,"cost":0.142},"byAgent":[{"agent":"sdd-apply","model":"claude-3-7-sonnet","models":["claude-3-7-sonnet"],"categories":{"input":38400,"output":9200,"reasoning":4800,"cacheRead":64000,"cacheWrite":2100,"total":118500},"total":118500,"cost":0.068,"sessions":4,"messages":18,"evidence":"measured","confidence":1},{"agent":"Orquestador","model":"claude-3-7-sonnet","models":["claude-3-7-sonnet"],"categories":{"input":24100,"output":4300,"reasoning":1800,"cacheRead":48000,"cacheWrite":1200,"total":79400},"total":79400,"cost":0.045,"sessions":5,"messages":14,"evidence":"measured","confidence":1},{"agent":"sdd-verify","model":"gemini-2.5-flash","models":["gemini-2.5-flash"],"categories":{"input":14200,"output":3150,"reasoning":600,"cacheRead":21000,"cacheWrite":500,"total":39450},"total":39450,"cost":0.019,"sessions":3,"messages":9,"evidence":"measured","confidence":1},{"agent":"Agent Task Manager","model":"claude-3-5-haiku","models":["claude-3-5-haiku"],"categories":{"input":7500,"output":1800,"reasoning":0,"cacheRead":9000,"cacheWrite":300,"total":18600},"total":18600,"cost":0.01,"sessions":2,"messages":6,"evidence":"derived","confidence":1}]},"git":{"branch":"main","totalCount":151,"limit":5,"commits":[{"hash":"2faddaa","message":"chore(release): 1.0.1"},{"hash":"d193e1e","message":"Merge pull request #2 from RamonsDka/fix/issue-1-portable-filename"},{"hash":"375dac5","message":"fix: clarify portable filename in help prompt and docs"},{"hash":"4172efd","message":"ci: update official GitHub actions"},{"hash":"1306233","message":"ci: verify with Node.js 24"}],"syncStatus":"Sincronizado"},"tree":[{"name":"Task-Manager-Portable.html","depth":0,"type":"file"},{"name":"modules/","depth":0,"type":"dir"},{"name":"01-skeleton.html","depth":1,"type":"file"},{"name":"02-core.js","depth":1,"type":"file"},{"name":"03-header-hud.js","depth":1,"type":"file"},{"name":"04-phases.js","depth":1,"type":"file"},{"name":"05-panels.js","depth":1,"type":"file"},{"name":"06-todo-help.js","depth":1,"type":"file"},{"name":"scripts/","depth":0,"type":"dir"},{"name":"assemble.mjs","depth":1,"type":"file"},{"name":"run-tests.mjs","depth":1,"type":"file"},{"name":"scan-portability.mjs","depth":1,"type":"file"},{"name":"tests/","depth":0,"type":"dir"},{"name":"docs/","depth":0,"type":"dir"}],"codegraph":{"nodes":[{"id":"skeleton","label":"Skeleton","files":["modules/01-skeleton.html"],"details":"Estructura HTML5 base, tokens y shells."},{"id":"core","label":"Core","files":["modules/02-core.js"],"taskIds":["T2-01"],"details":"Parsea, valida y deriva métricas del estado."},{"id":"hud","label":"HUD & Clock","files":["modules/03-header-hud.js"],"taskIds":["T2-02","T2-03"],"details":"Header, reloj digital, fecha, última act. y métricas."},{"id":"phases","label":"Phases & Kanban","files":["modules/04-phases.js"],"taskIds":["T3-01","T3-03"],"details":"Acordeón de fases, tareas, subtareas y Kanban."},{"id":"panels","label":"Panels","files":["modules/05-panels.js"],"taskIds":["T4-01","T4-02","T4-03"],"details":"Git stream, árbol de archivos y Codegraph SVG."},{"id":"help","label":"AI Console & Help","files":["modules/06-todo-help.js"],"taskIds":["T5-01","T5-02","T5-03"],"details":"Tareas rápidas, consola IA, prompts y bienvenida."}],"edges":[{"from":"skeleton","to":"core"},{"from":"core","to":"hud"},{"from":"core","to":"phases"},{"from":"core","to":"panels","label":"usa","details":"Panels consume los helpers de Core."},{"from":"core","to":"help"},{"from":"phases","to":"panels"}]}}</script>
 
   <div class="app-container" id="dashboard-root">
     <!-- AI-EDITABLE: HEADER -->
@@ -1762,7 +2294,6 @@
         </div>
         <div class="header-titles">
           <h1 id="project-title"><span>Drop-In Task Manager</span> <span class="badge">v0.1.0</span></h1>
-          <p id="project-subtitle">Obsidian Technical Cockpit — sincronizado con orquestador IA</p>
         </div>
       </div>
       <div class="header-center-hub" id="header-cockpit-hub">
@@ -1854,64 +2385,12 @@
       </div>
     </nav>
 
+    <!-- Synchronization banner / overlay -->
+    <div id="tm-sync-banner" class="sync-banner" role="status" aria-live="polite" hidden style="display:none;"></div>
     <!-- Error banner hidden by default -->
     <div id="tm-error-banner" hidden data-error-banner style="display:none;">Error banner placeholder</div>
     <dialog id="codegraph-dialog" aria-labelledby="codegraph-dialog-title" aria-describedby="codegraph-dialog-description"><h2 id="codegraph-dialog-title"></h2><p id="codegraph-dialog-description"></p><div id="codegraph-dialog-content"></div><button type="button" class="btn btn-secondary" data-codegraph-close>Cerrar</button></dialog>
     <dialog id="overview-detail-dialog" aria-labelledby="overview-detail-title" aria-describedby="overview-detail-summary"><div class="overview-detail-heading"><div><h2 id="overview-detail-title"></h2><div id="overview-detail-value"></div><p id="overview-detail-summary"></p></div><button type="button" class="btn btn-secondary" data-overview-close>Cerrar</button></div><div id="overview-detail-content"></div><div class="overview-detail-actions"><button type="button" class="btn btn-secondary" data-overview-view-section hidden>Ver sección</button></div></dialog>
-    <dialog id="welcome-dialog" aria-labelledby="welcome-dialog-title" aria-describedby="welcome-dialog-desc">
-      <div class="welcome-dialog-container">
-        <div class="welcome-dialog-header">
-          <div class="welcome-badge-title">
-            <span class="welcome-alert-badge">⚠️ ¡ATENCIÓN! — LEER ANTES DE EMPEZAR</span>
-            <h2 id="welcome-dialog-title">Activación Autónoma del Gestor de Tareas</h2>
-          </div>
-          <button type="button" class="welcome-close-btn" data-welcome-close aria-label="Cerrar ventana emergente">✕</button>
-        </div>
-        <div class="welcome-dialog-body">
-          <p class="welcome-intro" id="welcome-dialog-desc">
-            Este archivo es 100% portable y autónomo. Para que tu IA mantenga actualizado este dashboard en tiempo real sin interrumpirte con preguntas, copia el prompt maestro optimizado a continuación y pégaselo al inicio de tu sesión.
-          </p>
-          <div class="welcome-steps-grid">
-            <div class="welcome-step-item">
-              <div class="welcome-step-number">1</div>
-              <div>
-                <strong>Copia el Prompt</strong>
-                <p>Usa el botón verde para copiar el prompt oficial al portapapeles.</p>
-              </div>
-            </div>
-            <div class="welcome-step-item">
-              <div class="welcome-step-number">2</div>
-              <div>
-                <strong>Pégalo en tu IA</strong>
-                <p>Envíalo a Claude Code, OpenCode, Cursor o ChatGPT en la raíz de tu proyecto.</p>
-              </div>
-            </div>
-            <div class="welcome-step-item">
-              <div class="welcome-step-number">3</div>
-              <div>
-                <strong>100% Autónomo</strong>
-                <p>La IA autodescubre el proyecto, crea fases/subtareas y actualiza el HTML.</p>
-              </div>
-            </div>
-          </div>
-          <div class="welcome-prompt-box">
-            <div class="welcome-prompt-header">
-              <span>📋 Prompt Maestro para la IA</span>
-              <span class="welcome-prompt-tag">Autónomo + Subagente</span>
-            </div>
-            <pre class="welcome-prompt-pre" id="welcome-prompt-text" data-welcome-prompt></pre>
-            <div class="welcome-prompt-actions">
-              <button type="button" class="btn btn-secondary" style="background:#238636;border-color:#3fb950;color:#fff;" id="btn-copy-welcome-prompt" data-copy-welcome-prompt>📋 Copiar Prompt Maestro</button>
-              <span class="welcome-copy-feedback" id="welcome-copy-feedback" data-copy-welcome-feedback role="status" aria-live="polite" style="display:none;"></span>
-            </div>
-          </div>
-        </div>
-        <div class="welcome-dialog-footer">
-          <span class="welcome-footer-note">💡 Puedes consultar o volver a copiar este prompt en cualquier momento desde la pestaña <strong>Consola IA</strong>.</span>
-          <button type="button" class="btn btn-secondary" data-welcome-close>Entendido, comenzar</button>
-        </div>
-      </div>
-    </dialog>
 
     <!-- Task Detail Modal Dialog -->
     <dialog id="task-detail-dialog" aria-labelledby="task-detail-title" aria-describedby="task-detail-note">
@@ -1987,7 +2466,7 @@
           <div class="todo-detail-section">
             <h3>🎯 ¿Qué es esta Señal de Atención?</h3>
             <p id="todo-detail-desc" class="todo-detail-desc-text">
-              Las Señales de Atención son alertas tempranas, recordatorios operativos e invariantes técnicas que el orquestador IA y los subagentes deben monitorear y respetar durante el desarrollo sin ejecutar acciones destructivas no autorizadas.
+              Las Señales de Atención son alertas tempranas, recordatorios operativos e invariantes técnicas que Agent Task Manager y el orquestador deben monitorear y respetar durante el desarrollo sin ejecutar acciones destructivas no autorizadas.
             </p>
           </div>
           <div class="todo-detail-meta-grid">
@@ -1997,7 +2476,7 @@
             </div>
             <div class="todo-detail-meta-item">
               <span class="todo-detail-meta-label">Destinatario</span>
-              <strong>Orquestador IA & Subagentes</strong>
+              <strong>Agent Task Manager & Orquestador</strong>
             </div>
             <div class="todo-detail-meta-item">
               <span class="todo-detail-meta-label">Estado de Verificación</span>
@@ -2148,6 +2627,11 @@
 // Classic script: attaches to window/globalThis as TMCore, no ESM import/export.
 (function (global) {
   'use strict';
+
+  function finiteNumber(value, fallback) {
+    value = Number(value);
+    return isFinite(value) ? value : (fallback !== undefined ? fallback : 0);
+  }
 
   /**
    * Parse island JSON text (textContent of #tm-state).
@@ -2465,6 +2949,195 @@
     };
   }
 
+  function normalizeTokenUsage(raw, nowTimestamp) {
+    if (!raw || typeof raw !== 'object') {
+      return {
+        hasData: false,
+        schemaVersion: '1.0',
+        updatedAt: null,
+        isStale: false,
+        source: 'unavailable',
+        scope: '',
+        root: '',
+        totals: { input: 0, output: 0, reasoning: 0, cacheRead: 0, cacheWrite: 0, total: 0, cost: undefined },
+        byAgent: []
+      };
+    }
+
+    var updatedAt = typeof raw.updatedAt === 'string' ? raw.updatedAt : null;
+    var updatedDate = updatedAt ? new Date(updatedAt) : null;
+    var now = nowTimestamp || Date.now();
+    var isStale = Boolean(updatedDate && !isNaN(updatedDate.getTime()) && (now - updatedDate.getTime() > 24 * 60 * 60 * 1000));
+
+    var rawAgents = Array.isArray(raw.byAgent) ? raw.byAgent : [];
+    var byAgent = [];
+    var calcInput = 0, calcOutput = 0, calcReasoning = 0, calcCacheRead = 0, calcCacheWrite = 0, calcTotal = 0, calcCost = 0;
+    var anyCost = false;
+
+    for (var i = 0; i < rawAgents.length; i++) {
+      var item = rawAgents[i];
+      if (!item || typeof item !== 'object') continue;
+
+      var agentName = textValue(item.agent || 'orchestrator') || 'orchestrator';
+      var rawCats = (item.categories && typeof item.categories === 'object') ? item.categories : {};
+      var inp = Math.max(0, finiteNumber(rawCats.input, finiteNumber(item.input, 0)));
+      var out = Math.max(0, finiteNumber(rawCats.output, finiteNumber(item.output, 0)));
+      var rea = Math.max(0, finiteNumber(rawCats.reasoning, finiteNumber(item.reasoning, 0)));
+      var cRd = Math.max(0, finiteNumber(rawCats.cacheRead, finiteNumber(item.cacheRead, 0)));
+      var cWr = Math.max(0, finiteNumber(rawCats.cacheWrite, finiteNumber(item.cacheWrite, 0)));
+      var itemTotal = Math.max(0, finiteNumber(item.total, finiteNumber(rawCats.total, (inp + out + rea + cRd + cWr))));
+
+      var itemCost = (typeof item.cost === 'number' && isFinite(item.cost) && item.cost >= 0) ? item.cost : undefined;
+      if (itemCost !== undefined) {
+        calcCost += itemCost;
+        anyCost = true;
+      }
+
+      var modelsList = Array.isArray(item.models) ? item.models.map(String).filter(Boolean) : (item.model ? [String(item.model)] : []);
+      var evidence = String(item.evidence || 'measured');
+      if (evidence !== 'measured' && evidence !== 'derived' && evidence !== 'estimated') {
+        evidence = 'measured';
+      }
+      var confidence = (typeof item.confidence === 'number' && isFinite(item.confidence))
+        ? Math.max(0, Math.min(1, item.confidence))
+        : (evidence === 'estimated' ? 0.35 : 1.0);
+
+      var sessions = Math.max(0, Math.round(finiteNumber(item.sessions, 0)));
+      var messages = Math.max(0, Math.round(finiteNumber(item.messages, 0)));
+
+      byAgent.push({
+        agent: agentName,
+        model: modelsList[0] || (typeof item.model === 'string' ? item.model : undefined),
+        models: modelsList.length ? modelsList : undefined,
+        categories: {
+          input: inp,
+          output: out,
+          reasoning: rea,
+          cacheRead: cRd,
+          cacheWrite: cWr,
+          total: itemTotal
+        },
+        total: itemTotal,
+        cost: itemCost,
+        sessions: sessions,
+        messages: messages,
+        evidence: evidence,
+        confidence: confidence
+      });
+
+      calcInput += inp;
+      calcOutput += out;
+      calcReasoning += rea;
+      calcCacheRead += cRd;
+      calcCacheWrite += cWr;
+      calcTotal += itemTotal;
+    }
+
+    // Sort descending by total tokens
+    byAgent.sort(function (a, b) { return b.total - a.total; });
+
+    var rawTotals = (raw.totals && typeof raw.totals === 'object') ? raw.totals : {};
+    var totInput = Math.max(0, finiteNumber(rawTotals.input, calcInput));
+    var totOutput = Math.max(0, finiteNumber(rawTotals.output, calcOutput));
+    var totReasoning = Math.max(0, finiteNumber(rawTotals.reasoning, calcReasoning));
+    var totCacheRead = Math.max(0, finiteNumber(rawTotals.cacheRead, calcCacheRead));
+    var totCacheWrite = Math.max(0, finiteNumber(rawTotals.cacheWrite, calcCacheWrite));
+    var totTotal = Math.max(0, finiteNumber(rawTotals.total, calcTotal));
+    var totCost = (typeof rawTotals.cost === 'number' && isFinite(rawTotals.cost) && rawTotals.cost >= 0)
+      ? rawTotals.cost
+      : (anyCost ? Number(calcCost.toFixed(6)) : undefined);
+
+    var hasData = byAgent.length > 0 && totTotal > 0;
+
+    return {
+      hasData: hasData,
+      schemaVersion: '1.0',
+      updatedAt: updatedAt,
+      isStale: isStale,
+      source: String(raw.source || 'opencode-sdk'),
+      scope: String(raw.scope || ''),
+      root: String(raw.root || ''),
+      totals: {
+        input: totInput,
+        output: totOutput,
+        reasoning: totReasoning,
+        cacheRead: totCacheRead,
+        cacheWrite: totCacheWrite,
+        total: totTotal,
+        cost: totCost
+      },
+      byAgent: byAgent
+    };
+  }
+
+  function deriveActivityTokens(state) {
+    if (!state || typeof state !== 'object') return null;
+    var tasks = [];
+    if (Array.isArray(state.phases)) {
+      for (var p = 0; p < state.phases.length; p++) {
+        var phase = state.phases[p];
+        if (Array.isArray(phase.tasks)) {
+          tasks = tasks.concat(phase.tasks);
+        }
+      }
+    }
+    if (Array.isArray(state.tasks)) {
+      tasks = tasks.concat(state.tasks);
+    }
+    if (!tasks.length) return null;
+
+    var agentUnits = {};
+    var grandTotal = 0;
+    for (var i = 0; i < tasks.length; i++) {
+      var t = tasks[i];
+      var owner = (t.owner || 'orchestrator').trim() || 'orchestrator';
+      var weight = 2;
+      var status = String(t.status || '').toLowerCase();
+      if (status === 'completed') weight = 10;
+      else if (status === 'in-progress' || status === 'inprogress') weight = 5;
+      else if (status === 'blocked') weight = 3;
+
+      if (Array.isArray(t.subtasks)) {
+        for (var s = 0; s < t.subtasks.length; s++) {
+          if (t.subtasks[s] && t.subtasks[s].done) weight += 2;
+        }
+      }
+
+      if (!agentUnits[owner]) agentUnits[owner] = { units: 0, count: 0 };
+      agentUnits[owner].units += weight;
+      agentUnits[owner].count += 1;
+      grandTotal += weight;
+    }
+
+    if (grandTotal === 0) return null;
+
+    var byAgent = Object.keys(agentUnits).map(function (agent) {
+      var item = agentUnits[agent];
+      return {
+        agent: agent,
+        categories: { input: 0, output: 0, reasoning: 0, cacheRead: 0, cacheWrite: 0, total: item.units },
+        total: item.units,
+        messages: item.count,
+        sessions: 1,
+        evidence: 'estimated',
+        confidence: 0.25
+      };
+    });
+    byAgent.sort(function (a, b) { return b.total - a.total; });
+
+    return {
+      hasData: true,
+      schemaVersion: '1.0',
+      updatedAt: (state.meta && state.meta.lastUpdated) || new Date().toISOString(),
+      isStale: false,
+      source: 'activity-estimation',
+      scope: (state.meta && state.meta.scope) || '',
+      root: (state.meta && state.meta.root) || '',
+      totals: { input: 0, output: 0, reasoning: 0, cacheRead: 0, cacheWrite: 0, total: grandTotal, cost: undefined },
+      byAgent: byAgent
+    };
+  }
+
   function deriveInsights(state, validation) {
     var diagnostics = { errors: [], warnings: [] };
     if (validation) {
@@ -2486,6 +3159,14 @@
       }
     }
     var history = normalizeHistory(state, diagnostics);
+    var rawTokens = state && (state.tokenUsage || (state.meta && state.meta.tokenUsage));
+    var tokenUsage = normalizeTokenUsage(rawTokens);
+    if (!tokenUsage.hasData) {
+      var activityFallback = deriveActivityTokens(state);
+      if (activityFallback) {
+        tokenUsage = activityFallback;
+      }
+    }
     return {
       metrics: deriveMetrics(state),
       tasks: tasks,
@@ -2493,7 +3174,8 @@
       blockers: blockers,
       diagnostics: diagnostics,
       history: history,
-      forecast: deriveForecast(history)
+      forecast: deriveForecast(history),
+      tokenUsage: tokenUsage
     };
   }
 
@@ -2622,6 +3304,7 @@
     isEnabled: isEnabled,
     deriveMetrics: deriveMetrics,
     deriveInsights: deriveInsights,
+    normalizeTokenUsage: normalizeTokenUsage,
     normalizeCodegraph: normalizeCodegraph,
     matchesTask: matchesTask,
     getStateFromDocument: getStateFromDocument,
@@ -2675,11 +3358,184 @@
   function finiteNumber(value, fallback) { value = Number(value); return isFinite(value) ? value : fallback; }
   function clamp(value, min, max) { return Math.max(min, Math.min(max, finiteNumber(value, min))); }
   function svgNumber(value) { return String(Math.round(clamp(value, -100000, 100000) * 100) / 100); }
+
+  function formatNumber(n) {
+    if (typeof n !== 'number' || !isFinite(n)) return '0';
+    return String(Math.round(n)).replace(/\B(?=(\d{3})+(?!\d))/g, ',');
+  }
+
+  function formatCompactTokens(n) {
+    if (typeof n !== 'number' || !isFinite(n)) return '0';
+    if (n >= 1000000) return (n / 1000000).toFixed(1) + 'M';
+    if (n >= 1000) return (n / 1000).toFixed(1) + 'k';
+    return String(Math.round(n));
+  }
+
   function resolveInsights(state, metrics, core, supplied) {
     return supplied || (core && state && typeof core.deriveInsights === 'function' ? core.deriveInsights(state) : {
       metrics: metrics, tasks: [], dimensions: { owner: {}, tag: {} }, blockers: { total: 0 }, history: [],
-      forecast: { available: false, label: 'Forecast unavailable', reason: 'No history data' }
+      forecast: { available: false, label: 'Forecast unavailable', reason: 'No history data' },
+      tokenUsage: { hasData: false, totals: { input: 0, output: 0, reasoning: 0, cacheRead: 0, cacheWrite: 0, total: 0, cost: undefined }, byAgent: [] }
     });
+  }
+
+  function renderTokenChart(tokenUsage) {
+    if (!tokenUsage || !tokenUsage.hasData || !tokenUsage.byAgent || !tokenUsage.byAgent.length) {
+      return '<div class="insight-empty-telemetry">'
+        + '<span class="insight-empty-title">Sin telemetría de tokens registrada</span>'
+        + '<span class="insight-empty-copy">La telemetría se recopilará automáticamente en la próxima sincronización del orquestador.</span>'
+        + '</div>';
+    }
+
+    var isActivityEstimation = tokenUsage.source === 'activity-estimation';
+    var byAgent = tokenUsage.byAgent;
+    var maxTotal = byAgent.reduce(function (max, item) { return Math.max(max, item.total); }, 1);
+    var anyEstimated = false;
+
+    var rows = byAgent.map(function (item) {
+      if (item.evidence === 'estimated') anyEstimated = true;
+      var agentPct = clamp(Math.round(item.total / maxTotal * 100), 4, 100);
+      var cats = item.categories || {};
+      var inpPct = item.total ? clamp(Math.round(cats.input / item.total * 100), 0, 100) : 0;
+      var outPct = item.total ? clamp(Math.round(cats.output / item.total * 100), 0, 100) : 0;
+      var cRdPct = item.total ? clamp(Math.round(cats.cacheRead / item.total * 100), 0, 100) : 0;
+      var reaPct = item.total ? clamp(Math.round(cats.reasoning / item.total * 100), 0, 100) : 0;
+      var cWrPct = (item.total && cats.cacheWrite > 0) ? clamp(Math.round(cats.cacheWrite / item.total * 100), 0, 100) : 0;
+
+      var evidenceLabel = isActivityEstimation
+        ? 'Estimación por actividad'
+        : (item.evidence === 'measured' ? 'Medido' : (item.evidence === 'derived' ? 'Derivado' : 'Estimado'));
+      var evidenceClass = isActivityEstimation ? 'token-evidence-estimated' : ('token-evidence-' + item.evidence);
+      var costText = (!isActivityEstimation && item.cost !== undefined) ? ' · $' + item.cost.toFixed(3) : '';
+      var unitLabel = isActivityEstimation ? ' u. activ.' : ' tokens';
+
+      var barInnerHtml = isActivityEstimation
+        ? '<div class="token-seg token-seg-activity" style="width:100%;" title="' + esc('Actividad: ' + formatNumber(item.total) + ' unidades') + '"></div>'
+        : ('<div class="token-seg token-seg-input" style="width:' + inpPct + '%;" title="' + esc('Entrada: ' + formatNumber(cats.input)) + '"></div>'
+          + '<div class="token-seg token-seg-output" style="width:' + outPct + '%;" title="' + esc('Salida: ' + formatNumber(cats.output)) + '"></div>'
+          + '<div class="token-seg token-seg-cache-read" style="width:' + cRdPct + '%;" title="' + esc('Lectura Caché: ' + formatNumber(cats.cacheRead)) + '"></div>'
+          + '<div class="token-seg token-seg-reasoning" style="width:' + reaPct + '%;" title="' + esc('Razonamiento: ' + formatNumber(cats.reasoning)) + '"></div>'
+          + (cats.cacheWrite > 0 ? '<div class="token-seg token-seg-cache-write" style="width:' + cWrPct + '%;" title="' + esc('Escritura Caché: ' + formatNumber(cats.cacheWrite)) + '"></div>' : ''));
+
+      return '<div class="token-agent-row">'
+        + '<div class="token-agent-meta">'
+        + '<div class="token-agent-meta-left">'
+        + '<span class="token-agent-name">' + esc(item.agent) + '</span>'
+        + (item.model ? '<span class="token-agent-model-badge">' + esc(item.model) + '</span>' : '')
+        + '<span class="token-evidence-badge ' + evidenceClass + '">' + evidenceLabel + '</span>'
+        + '</div>'
+        + '<span class="token-agent-total">' + formatNumber(item.total) + unitLabel + costText + '</span>'
+        + '</div>'
+        + '<div class="token-bar-track" role="progressbar" aria-valuenow="' + item.total + '" aria-valuemin="0" aria-valuemax="' + maxTotal + '" aria-label="' + esc(item.agent + ': ' + formatNumber(item.total) + unitLabel) + '">'
+        + '<div class="token-bar-fill" style="width:' + agentPct + '%;">'
+        + barInnerHtml
+        + '</div>'
+        + '</div>'
+        + '</div>';
+    }).join('');
+
+    var anyCacheWrite = !isActivityEstimation && byAgent.some(function (item) { return item.categories && item.categories.cacheWrite > 0; });
+
+    var legendHtml = isActivityEstimation
+      ? ('<div class="token-chart-legend">'
+        + '<span class="legend-item"><span class="legend-swatch" style="background:linear-gradient(90deg,#38bdf8,#818cf8);"></span> Unidades relativas de actividad</span>'
+        + '<span class="token-estimate-note">* Estimación por actividad basada en asignación y avance de tareas (sin telemetría directa de tokens)</span>'
+        + '</div>')
+      : ('<div class="token-chart-legend">'
+        + '<span class="legend-item"><span class="legend-swatch legend-input"></span> Entrada</span>'
+        + '<span class="legend-item"><span class="legend-swatch legend-output"></span> Salida</span>'
+        + '<span class="legend-item"><span class="legend-swatch legend-cache-read"></span> Lectura Caché</span>'
+        + '<span class="legend-item"><span class="legend-swatch legend-reasoning"></span> Razonamiento</span>'
+        + (anyCacheWrite ? '<span class="legend-item"><span class="legend-swatch legend-cache-write"></span> Escritura Caché</span>' : '')
+        + (anyEstimated ? '<span class="token-estimate-note">* Estimación determinista (caracteres / 4)</span>' : '')
+        + '</div>');
+
+    return '<div class="token-chart-container">' + rows + '</div>' + legendHtml;
+  }
+
+  function renderTokenDetailsTable(tokenUsage) {
+    if (!tokenUsage || !tokenUsage.hasData || !tokenUsage.byAgent || !tokenUsage.byAgent.length) {
+      return '<p class="overview-section-copy">No hay telemetría de tokens registrada para este proyecto.</p>';
+    }
+
+    var isActivityEstimation = tokenUsage.source === 'activity-estimation';
+    var byAgent = tokenUsage.byAgent;
+    var totals = tokenUsage.totals;
+    var anyEstimated = false;
+
+    var rows = byAgent.map(function (item) {
+      if (item.evidence === 'estimated') anyEstimated = true;
+      var cats = item.categories || {};
+      var costStr = (!isActivityEstimation && item.cost !== undefined) ? '$' + item.cost.toFixed(4) : '—';
+      var evidenceLabel = isActivityEstimation
+        ? 'Estimación por actividad'
+        : (item.evidence === 'measured' ? 'Medido' : (item.evidence === 'derived' ? 'Derivado' : 'Estimado'));
+      var modelsStr = (item.models && item.models.length) ? item.models.join(', ') : (item.model || '—');
+
+      return '<tr>'
+        + '<td><strong>' + esc(item.agent) + '</strong></td>'
+        + '<td><code>' + esc(modelsStr) + '</code></td>'
+        + '<td class="num-col">' + (isActivityEstimation ? '—' : formatNumber(cats.input)) + '</td>'
+        + '<td class="num-col">' + (isActivityEstimation ? '—' : formatNumber(cats.output)) + '</td>'
+        + '<td class="num-col">' + (isActivityEstimation ? '—' : formatNumber(cats.reasoning)) + '</td>'
+        + '<td class="num-col">' + (isActivityEstimation ? '—' : formatNumber(cats.cacheRead)) + '</td>'
+        + '<td class="num-col">' + (isActivityEstimation ? '—' : formatNumber(cats.cacheWrite)) + '</td>'
+        + '<td class="num-col"><strong>' + formatNumber(item.total) + (isActivityEstimation ? ' u' : '') + '</strong></td>'
+        + '<td class="num-col">' + costStr + '</td>'
+        + '<td class="num-col">' + formatNumber(item.sessions || 0) + '</td>'
+        + '<td class="num-col">' + formatNumber(item.messages || 0) + '</td>'
+        + '<td><span class="token-evidence-badge token-evidence-' + item.evidence + '">' + evidenceLabel + '</span></td>'
+        + '</tr>';
+    }).join('');
+
+    var totalCostStr = (!isActivityEstimation && totals.cost !== undefined) ? '$' + totals.cost.toFixed(4) : '—';
+    var totalSessions = byAgent.reduce(function (sum, a) { return sum + (a.sessions || 0); }, 0);
+    var totalMessages = byAgent.reduce(function (sum, a) { return sum + (a.messages || 0); }, 0);
+    var totalColLabel = isActivityEstimation ? 'Total Actividad' : 'Total Tokens';
+
+    var tableHtml = '<div class="token-table-container">'
+      + '<table class="token-details-table" role="table" aria-label="Desglose detallado de telemetría por agente">'
+      + '<caption>Desglose de consumo y actividad por agente</caption>'
+      + '<thead>'
+      + '<tr>'
+      + '<th scope="col">Agente</th>'
+      + '<th scope="col">Modelo(s)</th>'
+      + '<th scope="col" class="num-col">Entrada</th>'
+      + '<th scope="col" class="num-col">Salida</th>'
+      + '<th scope="col" class="num-col">Razonamiento</th>'
+      + '<th scope="col" class="num-col">Lectura Caché</th>'
+      + '<th scope="col" class="num-col">Escritura Caché</th>'
+      + '<th scope="col" class="num-col">' + totalColLabel + '</th>'
+      + '<th scope="col" class="num-col">Costo</th>'
+      + '<th scope="col" class="num-col">Sesiones</th>'
+      + '<th scope="col" class="num-col">Tareas / Msg</th>'
+      + '<th scope="col">Evidencia</th>'
+      + '</tr>'
+      + '</thead>'
+      + '<tbody>' + rows + '</tbody>'
+      + '<tfoot>'
+      + '<tr>'
+      + '<th scope="row">Totales</th>'
+      + '<td>—</td>'
+      + '<td class="num-col">' + (isActivityEstimation ? '—' : formatNumber(totals.input)) + '</td>'
+      + '<td class="num-col">' + (isActivityEstimation ? '—' : formatNumber(totals.output)) + '</td>'
+      + '<td class="num-col">' + (isActivityEstimation ? '—' : formatNumber(totals.reasoning)) + '</td>'
+      + '<td class="num-col">' + (isActivityEstimation ? '—' : formatNumber(totals.cacheRead)) + '</td>'
+      + '<td class="num-col">' + (isActivityEstimation ? '—' : formatNumber(totals.cacheWrite)) + '</td>'
+      + '<td class="num-col"><strong>' + formatNumber(totals.total) + (isActivityEstimation ? ' u' : '') + '</strong></td>'
+      + '<td class="num-col">' + totalCostStr + '</td>'
+      + '<td class="num-col">' + formatNumber(totalSessions) + '</td>'
+      + '<td class="num-col">' + formatNumber(totalMessages) + '</td>'
+      + '<td>—</td>'
+      + '</tr>'
+      + '</tfoot>'
+      + '</table>'
+      + '</div>'
+      + (isActivityEstimation
+        ? '<p class="token-table-note">* Estimación determinista por volumen de tareas y subtareas asignadas.</p>'
+        : (anyEstimated ? '<p class="token-table-note">* Estimación determinista basada en longitud de caracteres (chars / 4).</p>' : ''));
+
+    return tableHtml;
   }
   function renderStatusSvg(insights) {
     var d = insights && insights.metrics && insights.metrics.distribution || {};
@@ -2767,7 +3623,7 @@
       },
       'metric-git': {
         title: 'Git', value: (git.branch || state && state.meta && state.meta.branch || 'Sin rama'), summary: git.syncStatus || state && state.meta && state.meta.syncStatus || 'Estado de sincronización no informado.',
-        sections: [detailSection('Snapshot', [Array.isArray(git.commits) ? git.commits.length + ' commits visibles' : 'Commits no informados', state && state.meta && state.meta.commit ? 'Commit actual: ' + String(state.meta.commit).substring(0, 7) : 'Commit actual no informado'])],
+        sections: [detailSection('Snapshot', [Array.isArray(git.commits) ? (git.totalCount && git.totalCount > git.commits.length ? git.commits.length + ' de ' + git.totalCount + ' commits recientes' : (git.commits.length ? git.commits.length + ' commits recientes' : '0 commits visibles')) : 'Commits no informados', state && state.meta && state.meta.commit ? 'Commit actual: ' + String(state.meta.commit).substring(0, 7) : 'Commit actual no informado'])],
         missing: !(git.branch || git.syncStatus || (Array.isArray(git.commits) && git.commits.length)) ? [{ field: 'git', guidance: 'Añade branch, syncStatus o commits al objeto git.' }] : [], targetView: 'view-git'
       },
       'metric-phase-coverage': {
@@ -2786,9 +3642,24 @@
         missing: missingCoverage, targetView: null
       },
       'metric-insights': {
-        title: 'Insights', value: context.total + ' tareas analizadas', summary: 'Resumen derivado de estado, riesgos, responsables, etiquetas e historial disponible.',
-        sections: [detailSection('Riesgo', ['Bloqueos: ' + Math.max(0, finiteNumber(insights.blockers && insights.blockers.total, 0)), 'Riesgo alto: ' + riskCount(insights, 'high'), 'Riesgo medio: ' + riskCount(insights, 'med')]), detailSection('Responsables', ownerLines), detailSection('Etiquetas', tagLines), detailSection('Historial', insights.history && insights.history.length ? [insights.history.length + ' puntos disponibles', insights.forecast && insights.forecast.label || 'Pronóstico no disponible'] : [])],
-        missing: insights.history && insights.history.length ? [] : [{ field: 'meta.history', guidance: 'Añade historial acotado para mostrar tendencia y pronóstico.' }], targetView: null
+        title: 'Desglose de consumo y actividad por agente',
+        value: (insights.tokenUsage && insights.tokenUsage.hasData ? formatNumber(insights.tokenUsage.totals.total) + ' tokens' : context.total + ' tareas analizadas'),
+        summary: (insights.tokenUsage && insights.tokenUsage.hasData
+          ? 'Telemetría de tokens por agente recopilada de OpenCode SDK. Desglose detallado y costos.'
+          : 'Resumen derivado de estado, riesgos, responsables y etiquetas disponibles.'),
+        customHtml: renderTokenDetailsTable(insights.tokenUsage),
+        sections: [
+          detailSection('Responsables', ownerLines),
+          detailSection('Etiquetas', tagLines),
+          detailSection('Riesgo', [
+            'Bloqueos: ' + Math.max(0, finiteNumber(insights.blockers && insights.blockers.total, 0)),
+            'Riesgo alto: ' + riskCount(insights, 'high'),
+            'Riesgo medio: ' + riskCount(insights, 'med')
+          ]),
+          detailSection('Historial', insights.history && insights.history.length ? [insights.history.length + ' puntos disponibles', insights.forecast && insights.forecast.label || 'Pronóstico no disponible'] : [])
+        ],
+        missing: insights.history && insights.history.length ? [] : [{ field: 'meta.history', guidance: 'Añade historial acotado para mostrar tendencia y pronóstico.' }],
+        targetView: null
       }
     };
   }
@@ -2816,10 +3687,40 @@
     dialog.querySelector('#overview-detail-title').textContent = model.title;
     dialog.querySelector('#overview-detail-value').textContent = model.value;
     dialog.querySelector('#overview-detail-summary').textContent = model.summary;
-    content.innerHTML = model.sections.map(function (section) {
-      if (!section.items.length) return '';
-      return '<section class="overview-detail-section"><h3>' + esc(section.label) + '</h3><ul>' + section.items.map(function (item) { return '<li>' + esc(item) + '</li>'; }).join('') + '</ul></section>';
-    }).join('') + (model.missing.length ? '<section class="overview-detail-missing"><h3>Información no disponible</h3><p>No se inventa información ausente.</p><ul>' + model.missing.map(function (item) { return '<li><code>' + esc(item.field) + '</code> — ' + esc(item.guidance) + '</li>'; }).join('') + '</ul></section>' : '');
+    var custom = model.customHtml || '';
+
+    var sectionsHtml = '';
+    if (model.sections && model.sections.length) {
+      var sectionCards = model.sections.map(function (section) {
+        if (!section.items.length) return '';
+        var itemsHtml = section.items.map(function (item) {
+          return '<li>' + esc(item) + '</li>';
+        }).join('');
+        return '<section class="overview-detail-section overview-meta-group">'
+          + '<h3>' + esc(section.label) + '</h3>'
+          + '<ul class="overview-meta-list">' + itemsHtml + '</ul>'
+          + '</section>';
+      }).filter(Boolean).join('');
+
+      if (sectionCards) {
+        sectionsHtml = '<div class="overview-detail-meta-strip">' + sectionCards + '</div>';
+      }
+    }
+
+    var missingHtml = '';
+    if (model.missing && model.missing.length) {
+      missingHtml = '<section class="overview-detail-missing"><h3>Información no disponible</h3><p>No se inventa información ausente.</p><ul>'
+        + model.missing.map(function (item) { return '<li><code>' + esc(item.field) + '</code> — ' + esc(item.guidance) + '</li>'; }).join('')
+        + '</ul></section>';
+    }
+
+    var mainHtml = '';
+    if (custom) {
+      mainHtml = '<div class="overview-detail-main-custom">' + custom + '</div>';
+    }
+
+    content.innerHTML = mainHtml + sectionsHtml + missingHtml;
+
     var viewButton = dialog.querySelector('[data-overview-view-section]');
     viewButton.hidden = !model.targetView;
     viewButton.setAttribute('data-target-view', model.targetView || '');
@@ -2983,8 +3884,16 @@
       }
     } catch (_) {}
 
-    // Check meta.lastUpdated or meta.updatedAt
+    // Check meta timestamps: lastSyncCompletedAt, lastSyncAt, lastUpdated, updatedAt
     if (state && state.meta) {
+      if (state.meta.lastSyncCompletedAt) {
+        var dComp = new Date(state.meta.lastSyncCompletedAt);
+        if (!isNaN(dComp.getTime())) dates.push(dComp);
+      }
+      if (state.meta.lastSyncAt) {
+        var dSync = new Date(state.meta.lastSyncAt);
+        if (!isNaN(dSync.getTime())) dates.push(dSync);
+      }
       if (state.meta.lastUpdated) {
         var d1 = new Date(state.meta.lastUpdated);
         if (!isNaN(d1.getTime())) dates.push(d1);
@@ -3047,9 +3956,12 @@
     }
     if (elExact) {
       try {
+        var syncRaw = state && state.meta && state.meta.syncStatus;
+        var syncLower = String(syncRaw || '').trim().toLowerCase();
+        var isSynced = syncLower === 'synced' || syncLower === 'sincronizado';
         var timeStr = date.toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' });
         var dateStr = date.toLocaleDateString(undefined, { day: '2-digit', month: '2-digit', year: 'numeric' });
-        elExact.textContent = dateStr + ' ' + timeStr;
+        elExact.textContent = (isSynced ? '✓ ' : '') + dateStr + ' ' + timeStr;
       } catch (_) {
         elExact.textContent = date.toLocaleString();
       }
@@ -3087,6 +3999,11 @@
         }
         var fmt = clockCard.getAttribute('data-clock-format') === '24h';
         updateClockDisplay(doc, fmt);
+        var elRel = doc.getElementById('last-update-relative');
+        if (elRel) {
+          var date = resolveLastUpdatedDate(window.__TM_STATE__ || null, doc);
+          elRel.textContent = formatRelativeTime(date);
+        }
       }, 1000);
       if (_clockTicker && typeof _clockTicker.unref === 'function') {
         _clockTicker.unref();
@@ -3096,7 +4013,7 @@
 
   /**
    * Render header panel from state.
-   * Updates #project-title, #project-subtitle, header-meta badges.
+   * Updates #project-title, header-meta badges.
    * @param {object} state
    * @param {Document} doc
    */
@@ -3118,13 +4035,6 @@
       } else {
         titleEl.innerHTML = '<span>' + esc(nameRaw) + '</span> ' + (versionRaw ? '<span class=\"badge\">v' + esc(versionRaw.replace(/^v/, '')) + '</span>' : '');
       }
-    }
-
-    // Subtitle: use meta.description or fallback
-    var subtitleEl = doc.getElementById('project-subtitle');
-    if (subtitleEl) {
-      var subtitle = meta.description || label('headerSubtitle', state, 'Obsidian Technical Cockpit — sincronizado con orquestador IA');
-      subtitleEl.textContent = subtitle;
     }
 
     // Dynamic digital clock, last update & harness card
@@ -3163,9 +4073,26 @@
       }
       if (badges.length >= 2) {
         var syncBadge = badges[1];
-        var syncText = syncRaw ? syncRaw : '—';
+        var syncText = syncRaw;
+        var syncLower = String(syncRaw || '').trim().toLowerCase();
+        if (syncLower === 'running' || syncLower === 'sincronizando') {
+          syncText = 'Sincronizando...';
+        } else if (syncLower === 'synced') {
+          syncText = 'Sincronizado';
+        } else if (syncLower === 'error') {
+          syncText = 'Error';
+        } else if (!syncText) {
+          syncText = '—';
+        }
         var dot2 = syncBadge.querySelector('.badge-dot');
         if (dot2) {
+          if (syncLower === 'running' || syncLower === 'sincronizando') {
+            dot2.className = 'badge-dot inprogress';
+          } else if (syncLower === 'error') {
+            dot2.className = 'badge-dot blocked';
+          } else if (syncLower === 'synced' || syncLower === 'sincronizado') {
+            dot2.className = 'badge-dot completed';
+          }
           var removes = [];
           syncBadge.childNodes.forEach(function (n) { if (n !== dot2 && n.nodeType === 3) removes.push(n); });
           removes.forEach(function (n) { syncBadge.removeChild(n); });
@@ -3175,6 +4102,7 @@
         }
       }
     }
+    renderSyncStatus(state, doc);
   }
 
   /**
@@ -3317,14 +4245,36 @@
       + '<div class="metric-summary-copy">Git · árbol · Codegraph según datos disponibles</div>'
       + '</div>'
 
-      + '<div class="metric-card accent-blue metric-insights-band" id="metric-insights">'
-      + '<div class="panel-title" style="grid-column:1 / -1;">Insights</div>'
-      + '<div class="insight-band-grid">'
-      + '<div class="insight-band-region insight-status-region"><span class="insight-region-label">Status composition</span>' + renderStatusSvg(insights) + '</div>'
-      + '<div class="insight-band-region insight-risk-region"><span class="insight-region-label">Risk & blockers</span><div class="insight-risk-values"><span>Blockers: ' + Math.round(Math.max(0, finiteNumber(insights.blockers && insights.blockers.total, 0))) + '</span><span>High risk: ' + riskCount(insights, 'high') + '</span><span>Med risk: ' + riskCount(insights, 'med') + '</span></div></div>'
-      + '<div class="insight-band-region insight-owners"><span class="insight-region-label">Owners</span>' + renderDimensionLines(insights.dimensions && insights.dimensions.owner) + '</div>'
-      + '<div class="insight-band-region insight-tags"><span class="insight-region-label">Tags</span>' + renderDimensionLines(insights.dimensions && insights.dimensions.tag) + '</div>'
-      + '<div class="insight-band-region insight-trend-region"><span class="insight-region-label">Bounded trend</span>' + renderTrend(insights) + '</div>'
+      + '<div class="metric-card accent-blue metric-insights-band" id="metric-insights" data-tm-capability="token-insights-v2">'
+      + '<div class="panel-title" style="grid-column:1 / -1;">Desglose de consumo y actividad por agente</div>'
+      + '<div class="insight-band-stack">'
+      + '<div class="insight-band-region insight-tokens-main">'
+      + '<div class="insight-tokens-header">'
+      + '<span class="insight-region-label">' + (insights.tokenUsage && insights.tokenUsage.source === 'activity-estimation' ? 'Estimación de Actividad por Agente' : 'Telemetría de Tokens por Agente') + '</span>'
+      + (function () {
+        var tokenUsage = insights.tokenUsage || { hasData: false, totals: { total: 0 } };
+        if (tokenUsage.hasData) {
+          var isAct = tokenUsage.source === 'activity-estimation';
+          var totals = tokenUsage.totals;
+          var cacheShare = (!isAct && totals.total > 0 && totals.cacheRead > 0) ? Math.round(totals.cacheRead / totals.total * 100) : 0;
+          return '<div class="insight-tokens-summary-chips">'
+            + '<span class="token-chip token-chip-total">' + formatCompactTokens(totals.total) + (isAct ? ' u. activ.' : ' tokens') + '</span>'
+            + '<span class="token-chip">' + tokenUsage.byAgent.length + ' agentes</span>'
+            + (cacheShare > 0 ? '<span class="token-chip">' + cacheShare + '% caché</span>' : '')
+            + (totals.cost !== undefined ? '<span class="token-chip">$' + totals.cost.toFixed(3) + '</span>' : '')
+            + (isAct ? '<span class="token-chip token-chip-estimate">Estimación por actividad</span>' : '')
+            + (tokenUsage.isStale ? '<span class="token-chip token-chip-stale">⚠️ Desactualizado (&gt;24h)</span>' : '')
+            + '</div>';
+        }
+        return '<div class="insight-tokens-summary-chips"><span class="token-chip">Sin telemetría</span></div>';
+      })()
+      + '</div>'
+      + renderTokenChart(insights.tokenUsage)
+      + '</div>'
+      + '<div class="insight-band-region insight-meta-strip insight-side-rail">'
+      + '<div class="insight-subregion insight-owners"><span class="insight-region-label">Owners</span>' + renderDimensionLines(insights.dimensions && insights.dimensions.owner) + '</div>'
+      + '<div class="insight-subregion insight-tags"><span class="insight-region-label">Tags</span>' + renderDimensionLines(insights.dimensions && insights.dimensions.tag) + '</div>'
+      + '</div>'
       + '</div>'
       + '</div>';
 
@@ -3351,9 +4301,10 @@
       return !!(target && (target.isContentEditable || ['INPUT', 'TEXTAREA', 'SELECT'].indexOf(target.tagName) !== -1));
     }
     function activateView(targetId) {
-      var targetButton = Array.prototype.find.call(tabButtons, function (button) { return button.getAttribute('data-target-view') === targetId; });
+      var currentTabButtons = doc.querySelectorAll('.tab-btn[data-target-view]');
+      var targetButton = Array.prototype.find.call(currentTabButtons, function (button) { return button.getAttribute('data-target-view') === targetId; });
       if (!targetButton) return;
-      tabButtons.forEach(function (b) {
+      currentTabButtons.forEach(function (b) {
         var active = b === targetButton;
         b.classList.toggle('active', active);
         b.setAttribute('aria-selected', active ? 'true' : 'false');
@@ -3404,7 +4355,8 @@
         if (isEditable(e.target)) return;
         var num = parseInt(e.key, 10);
         if (num >= 1 && num <= 7) {
-          var targetBtn = tabButtons[num - 1];
+          var btns = doc.querySelectorAll('.tab-btn[data-target-view]');
+          var targetBtn = btns[num - 1];
           if (targetBtn) activateView(targetBtn.getAttribute('data-target-view'));
         } else if (e.key === 'e' || e.key === 'E') {
           var expandBtn = doc.getElementById('btn-expand-all');
@@ -3414,6 +4366,97 @@
           if (searchInput) searchInput.focus();
         }
       });
+    }
+  }
+
+  /**
+   * Render Synchronization Status Overlay / Banner.
+   * Truthful, state-driven representation of running, error, or idle/synced states.
+   * @param {object} state
+   * @param {Document} doc
+   */
+  function renderSyncStatus(state, doc) {
+    doc = doc || (typeof document !== 'undefined' ? document : null);
+    if (!doc) return;
+    var banner = doc.getElementById('tm-sync-banner');
+    if (!banner) return;
+
+    var meta = (state && state.meta) || {};
+    var rawStatus = String(meta.syncStatus || '').trim().toLowerCase();
+    var lastError = meta.lastError || '';
+
+    if (rawStatus === 'running' || rawStatus === 'sincronizando' || rawStatus === 'sincronizando...') {
+      banner.hidden = false;
+      banner.removeAttribute('hidden');
+      banner.style.display = 'flex';
+      banner.className = 'sync-banner sync-running';
+      banner.setAttribute('role', 'status');
+      banner.setAttribute('aria-live', 'polite');
+      banner.innerHTML = '<div class=\"sync-energy-beam\" aria-hidden=\"true\"></div>'
+        + '<div class=\"sync-glow-sweep\" aria-hidden=\"true\"></div>'
+        + '<div class=\"sync-banner-content\">'
+        + '<div class=\"sync-signal-cluster\" aria-hidden=\"true\">'
+        + '<span class=\"sync-signal-node\"></span>'
+        + '<span class=\"sync-signal-node\"></span>'
+        + '<span class=\"sync-signal-node\"></span>'
+        + '<span class=\"sync-signal-node\"></span>'
+        + '</div>'
+        + '<div class=\"sync-banner-text\">'
+        + '<div class=\"sync-banner-header-row\">'
+        + '<span class=\"sync-agent-badge\">Agent Task Manager</span>'
+        + '<span class=\"sync-banner-title\">Sincronización en curso en segundo plano</span>'
+        + '</div>'
+        + '<span class=\"sync-banner-subtitle\">Analizando el workspace y sincronizando el estado técnico. Si no ves los cambios al terminar, presiona <kbd class=\"sync-kbd\">F5</kbd> para recargar.</span>'
+        + '</div>'
+        + '</div>';
+    } else if (rawStatus === 'prolonged' || rawStatus === 'prolongado') {
+      banner.hidden = false;
+      banner.removeAttribute('hidden');
+      banner.style.display = 'flex';
+      banner.className = 'sync-banner sync-prolonged';
+      banner.setAttribute('role', 'status');
+      banner.setAttribute('aria-live', 'polite');
+      banner.innerHTML = '<div class=\"sync-banner-content\">'
+        + '<div class=\"sync-segmented-rail\" aria-hidden=\"true\">'
+        + '<span class=\"sync-rail-seg\"></span>'
+        + '<span class=\"sync-rail-seg\"></span>'
+        + '<span class=\"sync-rail-seg\"></span>'
+        + '<span class=\"sync-rail-seg\"></span>'
+        + '<span class=\"sync-rail-seg\"></span>'
+        + '<span class=\"sync-rail-seg\"></span>'
+        + '</div>'
+        + '<div class=\"sync-banner-text\">'
+        + '<div class=\"sync-banner-header-row\">'
+        + '<span class=\"sync-agent-badge\" style=\"color:#7dd3fc;background:rgba(56,189,248,0.14);border-color:rgba(56,189,248,0.35);\">Agent Task Manager</span>'
+        + '<span class=\"sync-banner-title\">Procesando sincronización en segundo plano</span>'
+        + '</div>'
+        + '<span class=\"sync-banner-subtitle\">El agente sigue procesando el workspace de forma autónoma. La tarea puede tardar unos momentos más; cuando finalice, presiona <kbd class=\"sync-kbd\">F5</kbd> para ver el estado actualizado.</span>'
+        + '</div>'
+        + '</div>';
+    } else if (rawStatus === 'error') {
+      banner.hidden = false;
+      banner.removeAttribute('hidden');
+      banner.style.display = 'flex';
+      banner.className = 'sync-banner sync-error';
+      banner.setAttribute('role', 'alert');
+      banner.setAttribute('aria-live', 'assertive');
+      var errText = lastError ? lastError : 'No se pudo completar la sincronización automática.';
+      banner.innerHTML = '<div class=\"sync-banner-content\">'
+        + '<div class=\"sync-error-icon-box\" aria-hidden=\"true\">⚠️</div>'
+        + '<div class=\"sync-banner-text\">'
+        + '<div class=\"sync-banner-header-row\">'
+        + '<span class=\"sync-agent-badge\" style=\"color:#ff7b72;background:rgba(248,81,73,0.15);border-color:rgba(248,81,73,0.4);\">Agent Task Manager</span>'
+        + '<span class=\"sync-banner-title\">Error en la sincronización del Task Manager</span>'
+        + '</div>'
+        + '<span class=\"sync-banner-subtitle\">' + esc(errText) + ' — Abre Plugins → Task Manager para reintentar.</span>'
+        + '</div>'
+        + '</div>';
+    } else {
+      // Synced / Idle / unknown -> hide banner
+      banner.hidden = true;
+      banner.setAttribute('hidden', '');
+      banner.style.display = 'none';
+      banner.innerHTML = '';
     }
   }
 
@@ -3432,6 +4475,7 @@
     var insights = context && context.viewModels || (core && typeof core.deriveInsights === 'function' ? core.deriveInsights(immutableState) : null);
     renderHeader(immutableState, doc);
     renderHud(immutableState, metrics, doc, insights);
+    renderSyncStatus(immutableState, doc);
     setupNavTabs(doc);
     return context;
   }
@@ -3439,6 +4483,7 @@
   var TMHeaderHud = {
     renderHeader: renderHeader,
     renderHud: renderHud,
+    renderSyncStatus: renderSyncStatus,
     initDigitalClock: initDigitalClock,
     renderLastUpdate: renderLastUpdate,
     renderHarness: renderHarness,
@@ -4386,7 +5431,12 @@
           + (syncStatus ? '<span class=\"badge\" style=\"color:var(--accent-green);border-color:rgba(63,185,80,0.3);font-size:10px;\"><span class=\"badge-dot completed\"></span> ' + esc(syncStatus) + '</span>' : '')
           + '</div>';
       }
-      html += '<div class=\"git-summary-grid\"><div><strong>' + commits.length + '</strong><span> commits visibles</span></div><div><strong>' + Object.keys(kinds).length + '</strong><span> tipos detectados</span></div><div><strong>' + (syncStatus ? esc(syncStatus) : 'Sin dato') + '</strong><span> estado informado</span></div></div>';
+      var commitsSummaryText = (git.totalCount && git.totalCount > commits.length)
+        ? '<div><strong>' + commits.length + ' de ' + git.totalCount + '</strong><span> commits recientes</span></div>'
+        : (commits.length > 0
+          ? '<div><strong>' + commits.length + '</strong><span> commits recientes</span></div>'
+          : '<div><strong>0</strong><span> commits</span></div>');
+      html += '<div class=\"git-summary-grid\">' + commitsSummaryText + '<div><strong>' + Object.keys(kinds).length + '</strong><span> tipos detectados</span></div><div><strong>' + (syncStatus ? esc(syncStatus) : 'Sin dato') + '</strong><span> estado informado</span></div></div>';
       if (Object.keys(kinds).length) html += '<div class=\"git-kind-strip\">' + Object.keys(kinds).sort().map(function (kind) { return '<span class=\"git-kind\"><strong>' + esc(kind) + '</strong> ' + kinds[kind] + '</span>'; }).join('') + '</div>';
       if (commits.length > 0) {
         html += '<ol class=\"git-timeline\">';
@@ -4436,8 +5486,11 @@
       // Also mirror to #full-git-mount if available
       var fullGit = doc.getElementById('full-git-mount');
       if (fullGit) {
+        var fullGitBadgeText = (git.totalCount && git.totalCount > commits.length)
+          ? (commits.length + ' de ' + git.totalCount + ' commits recientes')
+          : (commits.length > 0 ? commits.length + ' commits recientes' : '0 commits');
         fullGit.innerHTML = '<div class=\"panel-card\">'
-          + '<div class=\"panel-header\"><div class=\"panel-title\"><span>🌿 Git Commit Timeline & Activity</span></div><span class=\"badge\" style=\"color:var(--accent-purple);\">' + commits.length + ' commits</span></div>'
+          + '<div class=\"panel-header\"><div class=\"panel-title\"><span>🌿 Git Commit Timeline & Activity</span></div><span class=\"badge\" style=\"color:var(--accent-purple);\">' + fullGitBadgeText + '</span></div>'
           + '<div class=\"panel-body\">' + html + '</div>'
           + '</div>';
         bindGitMount(fullGit);
@@ -4896,20 +5949,20 @@
     var health = errors.length ? 'error' : warnings.length ? 'warning' : 'healthy';
     var title = errors.length ? 'Estado con errores' : warnings.length ? 'Estado utilizable con advertencias' : 'Estado saludable';
     var summary = errors.length ? 'La inspección avanzada se abrió para facilitar la recuperación.' : warnings.length ? 'El panel sigue disponible; revisa las advertencias cuando lo necesites.' : 'No se detectaron problemas en el estado actual.';
-    var diagnosticsHtml = '<div id="tm-diagnostics" role="status">'
+    var diagnosticsHtml = '<div id=\"tm-diagnostics\" role=\"status\">'
       + (errors.length ? '<strong>Errores</strong><ul>' + errors.map(function (item) { return '<li>' + esc(item) + '</li>'; }).join('') + '</ul>' : '')
       + (warnings.length ? '<strong>Advertencias</strong><ul>' + warnings.map(function (item) { return '<li>' + esc(item) + '</li>'; }).join('') + '</ul>' : '')
       + (!errors.length && !warnings.length ? '<p>Sin diagnósticos pendientes.</p>' : '')
       + '</div>';
-    mount.innerHTML = '<section class="state-tools" aria-label="Diagnóstico e inspección del estado">'
-      + '<div class="state-health-card" data-health="' + health + '"><span class="state-health-icon">' + (errors.length ? '!' : warnings.length ? 'i' : '✓') + '</span><div><strong>' + title + '</strong><p>' + summary + '</p></div><div class="state-health-counts"><span class="badge ' + (errors.length ? 'badge-blocked' : 'badge-completed') + '">' + errors.length + ' errores</span><span class="badge ' + (warnings.length ? 'badge-pending' : 'badge-tag') + '">' + warnings.length + (warnings.length === 1 ? ' advertencia' : ' advertencias') + '</span></div></div>'
-      + '<details class="state-tools-advanced"' + (errors.length ? ' open' : '') + '><summary>Inspección avanzada del JSON</summary><div class="state-tools-advanced-body">'
+    mount.innerHTML = '<section class=\"state-tools\" aria-label=\"Diagnóstico e inspección del estado\">'
+      + '<div class=\"state-health-card\" data-health=\"' + health + '\"><span class=\"state-health-icon\">' + (errors.length ? '!' : warnings.length ? 'i' : '✓') + '</span><div><strong>' + title + '</strong><p>' + summary + '</p></div><div class=\"state-health-counts\"><span class=\"badge ' + (errors.length ? 'badge-blocked' : 'badge-completed') + '\">' + errors.length + ' errores</span><span class=\"badge ' + (warnings.length ? 'badge-pending' : 'badge-tag') + '\">' + warnings.length + (warnings.length === 1 ? ' advertencia' : ' advertencias') + '</span></div></div>'
+      + '<details class=\"state-tools-advanced\"' + (errors.length ? ' open' : '') + '><summary>Inspección avanzada del JSON</summary><div class=\"state-tools-advanced-body\">'
       + diagnosticsHtml
-      + '<pre id="tm-state-json" aria-label="Read-only state JSON">' + esc(text) + '</pre>'
-      + '<div class="state-tools-actions">'
-      + '<button type="button" class="btn btn-secondary btn-sm" data-state-copy>Copy State JSON</button>'
-      + '<button type="button" class="btn btn-secondary btn-sm" data-state-export>Export JSON</button>'
-      + '<span data-state-copy-feedback aria-live="polite"></span><span data-state-export-feedback aria-live="polite"></span>'
+      + '<pre id=\"tm-state-json\" aria-label=\"Read-only state JSON\">' + esc(text) + '</pre>'
+      + '<div class=\"state-tools-actions\">'
+      + '<button type=\"button\" class=\"btn btn-secondary btn-sm\" data-state-copy>Copy State JSON</button>'
+      + '<button type=\"button\" class=\"btn btn-secondary btn-sm\" data-state-export>Export JSON</button>'
+      + '<span data-state-copy-feedback aria-live=\"polite\"></span><span data-state-export-feedback aria-live=\"polite\"></span>'
       + '</div></div></details></section>';
     var copy = mount.querySelector('[data-state-copy]');
     var exportButton = mount.querySelector('[data-state-export]');
@@ -5037,13 +6090,13 @@
       var badgeCls = priorityBadgeClass(priority);
       var pLabel = esc(priorityLabel(priority));
 
-      html += '<div class="todo-item' + (done ? ' done' : '') + '" role="button" tabindex="0" aria-haspopup="dialog" data-id="' + id + '" data-priority="' + priority + '" data-done="' + (done ? '1' : '0') + '" title="Clic para ver detalles y recomendaciones de esta señal">'
-        + '<div class="todo-left">'
-        + '<span class="todo-text">' + text + '</span>'
+      html += '<div class=\"todo-item' + (done ? ' done' : '') + '\" role=\"button\" tabindex=\"0\" aria-haspopup=\"dialog\" data-id=\"' + id + '\" data-priority=\"' + priority + '\" data-done=\"' + (done ? '1' : '0') + '\" title=\"Clic para ver detalles y recomendaciones de esta señal\">'
+        + '<div class=\"todo-left\">'
+        + '<span class=\"todo-text\">' + text + '</span>'
         + '</div>'
-        + '<div style="display:flex;gap:6px;align-items:center;">'
-        + '<span class="badge ' + badgeCls + '">' + pLabel + '</span>'
-        + '<span class="badge-tag">Informativo</span>'
+        + '<div style=\"display:flex;gap:6px;align-items:center;\">'
+        + '<span class=\"badge ' + badgeCls + '\">' + pLabel + '</span>'
+        + '<span class=\"badge-tag\">Informativo</span>'
         + '</div>'
         + '</div>';
     }
@@ -5073,114 +6126,21 @@
   }
 
   function getMasterPrompt() {
-    return 'Usa la skill task-tracker-manager.\n\n'
-      + 'Mantén actualizado el archivo ./Task-Manager-Portable.html según avances en el proyecto. Si en el repositorio ya existe ./drop-in-task-manager.html, mantén ese archivo existente. NUNCA crees un archivo HTML nuevo con otro nombre.\n\n'
-      + 'MODO AUTÓNOMO (NO HAGAS PREGUNTAS AL USUARIO):\n'
-      + '1. Autodescubrimiento:\n'
-      + '   - Detecta el nombre del proyecto desde package.json, git remote o el nombre del directorio raíz.\n'
-      + '   - Analiza el código y los planes actuales para estructurar o actualizar fases, tareas y sub-tareas.\n'
-      + '2. Delegación y Subagente (Recomendado):\n'
-      + '   - Si tu entorno soporta subagentes o workers (ej: OpenCode Task, Claude Code agents, sub-workers), puedes delegar la edición de este HTML a un subagente con un modelo rápido o económico.\n'
-      + '   - El agente principal solo debe indicarle al subagente: la tarea completada, la próxima tarea y los cambios de estado en las tareas/subtareas.\n'
-      + '3. Reglas Técnicas Obligatorias:\n'
-      + '   - Edita ÚNICAMENTE el bloque \\x3cscript type="application/json" id="tm-state">. NUNCA toques el HTML ni scripts fuera de esa etiqueta.\n'
-      + '   - Mantén schemaVersion: "1.0".\n'
-      + '   - Escapa <\/script> dentro de strings como \\u003c/script\\u003e.\n'
-      + '   - Usa solo status: pending | in-progress | completed | blocked (desconocidos → pending).\n'
-      + '   - Soporta sub-tareas en tareas con: "subtasks": [{"id": "ST1", "title": "...", "status": "completed"|"in-progress"|"pending"|"blocked"}].\n'
-      + '   - No uses fetch, XHR, import ni leas .git en runtime.\n'
-      + '   - No hardcodees overallPct — se deriva automáticamente en la interfaz.\n\n'
-      + 'Cada vez que completes una tarea o iteración, actualiza las fases/tareas/subtareas en el JSON island, guarda el archivo y confirma brevemente el nuevo progreso (ej: 9/14 tareas → 64%).';
-  }
-
-  function dismissWelcome(doc, dialog) {
-    if (!dialog) return;
-    if (typeof dialog.close === 'function') dialog.close();
-    dialog.removeAttribute('open');
-    dialog.dataset.open = 'false';
-    if (doc) doc.__tmWelcomeSeen = true;
-    var win = doc && doc.defaultView || (typeof window !== 'undefined' ? window : null);
-    if (win) {
-      try { if (win.sessionStorage) win.sessionStorage.setItem('tm-welcome-dismissed', '1'); } catch (_) {}
-    }
-  }
-
-  function isWelcomeSeen(doc) {
-    if (doc && doc.__tmWelcomeSeen) return true;
-    var win = doc && doc.defaultView || (typeof window !== 'undefined' ? window : null);
-    if (!win) return false;
-    try {
-      if (win.sessionStorage && win.sessionStorage.getItem('tm-welcome-dismissed') === '1') return true;
-    } catch (_) {}
-    return false;
-  }
-
-  function initWelcomeModal(doc) {
-    doc = doc || (typeof document !== 'undefined' ? document : null);
-    if (!doc) return;
-    var dialog = doc.getElementById('welcome-dialog');
-    if (!dialog) return;
-
-    var promptPre = dialog.querySelector('[data-welcome-prompt]');
-    if (promptPre) {
-      promptPre.textContent = getMasterPrompt();
-    }
-
-    var copyBtn = dialog.querySelector('[data-copy-welcome-prompt]');
-    var feedback = dialog.querySelector('[data-copy-welcome-feedback]');
-    if (copyBtn && copyBtn.getAttribute('data-welcome-bound') !== '1') {
-      copyBtn.setAttribute('data-welcome-bound', '1');
-      copyBtn.addEventListener('click', function () {
-        var text = promptPre ? promptPre.textContent : getMasterPrompt();
-        copyText(doc, text, function (ok) {
-          if (ok) {
-            if (feedback) { feedback.textContent = '¡Copiado con éxito!'; feedback.style.display = 'inline'; }
-            copyBtn.textContent = '✓ Copiado al portapapeles!';
-            setTimeout(function () {
-              if (feedback) feedback.style.display = 'none';
-              copyBtn.textContent = '📋 Copiar Prompt Maestro';
-            }, 2000);
-          } else {
-            if (feedback) { feedback.textContent = 'Selecciona y copia el texto manualmente.'; feedback.style.display = 'inline'; }
-          }
-        });
-      });
-    }
-
-    var closeButtons = dialog.querySelectorAll('[data-welcome-close]');
-    closeButtons.forEach(function (btn) {
-      if (btn.getAttribute('data-welcome-bound') !== '1') {
-        btn.setAttribute('data-welcome-bound', '1');
-        btn.addEventListener('click', function () {
-          dismissWelcome(doc, dialog);
-        });
-      }
-    });
-
-    if (dialog.getAttribute('data-backdrop-bound') !== '1') {
-      dialog.setAttribute('data-backdrop-bound', '1');
-      dialog.addEventListener('click', function (event) {
-        if (event.target === dialog) {
-          dismissWelcome(doc, dialog);
-        }
-      });
-    }
-
-    if (!isWelcomeSeen(doc) && dialog.getAttribute('data-welcome-auto-opened') !== '1') {
-      dialog.setAttribute('data-welcome-auto-opened', '1');
-      try {
-        if (typeof dialog.showModal === 'function') {
-          dialog.showModal();
-          dialog.dataset.open = 'true';
-        } else {
-          dialog.setAttribute('open', '');
-          dialog.dataset.open = 'true';
-        }
-      } catch (_) {
-        dialog.setAttribute('open', '');
-        dialog.dataset.open = 'true';
-      }
-    }
+    return 'Usa la skill task-tracker-manager.\\\\n\\\\n'
+      + 'Eres Agent Task Manager, la autoridad de ejecución directa para mantener y sincronizar el panel HTML portable en ./Task-Manager-Portable.html (o ./drop-in-task-manager.html si ya existe en el proyecto). Ejecuta todas las mutaciones de forma directa y autónoma sin transferir tareas. NUNCA crees un archivo HTML nuevo con otro nombre.\\\\n\\\\n'
+      + 'NOTA DE SINCRONIZACIÓN EN SEGUNDO PLANO (RECUPERACIÓN / REFERENCIA):\\\\n'
+      + 'Este prompt sirve como referencia técnica o recuperación manual. La sincronización habitual opera en segundo plano de manera continua: se inicializa en la primera apertura (Plugins > Task Manager) y se refresca automáticamente en posteriores aperturas y durante hitos clave del flujo SDD (sdd-tasks, sdd-verify, sdd-archive). No es necesario copiar y pegar este prompt en condiciones normales.\\\\n\\\\n'
+      + 'REGLAS TÉCNICAS OBLIGATORIAS:\\\\n'
+      + '1. Edita ÚNICAMENTE el bloque \\\\x3cscript type=\\"application/json\\" id=\\"tm-state\\">. NUNCA modifiques marcado HTML, estilos CSS ni scripts JavaScript fuera de esa etiqueta.\\\\n'
+      + '2. Mantén schemaVersion: \\"1.0\\" intacto siempre.\\\\n'
+      + '3. Escapa cualquier ocurrencia de <\/script> dentro de strings JSON como \\\\u003c/script\\\\u003e.\\\\n'
+      + '4. Usa exclusivamente los estados válidos: \\"pending\\", \\"in-progress\\", \\"completed\\", \\"blocked\\" (estados desconocidos se mapean a \\"pending\\").\\\\n'
+      + '5. Soporta sub-tareas estructuradas en tareas con: \\"subtasks\\": [{\\"id\\": \\"ST1\\", \\"title\\": \\"...\\", \\"status\\": \\"pending\\"|\\"in-progress\\"|\\"completed\\"|\\"blocked\\"}].\\\\n'
+      + '6. Preserva IDs existentes, notas personalizadas del usuario, etiquetas y propietarios. Todas las actualizaciones deben ser aditivas y orientadas al estado.\\\\n'
+      + '7. Compatibilidad pura offline sobre file://: sin fetch, XMLHttpRequest, importaciones ESM ni dependencias externas en runtime.\\\\n'
+      + '8. No hardcodees métricas derivadas (como overallPct o conteos de estado), ya que se calculan dinámicamente en el renderizador.\\\\n'
+      + '9. La propiedad \\"tokenUsage\\" es telemetría gestionada por el host. PRESERVA el objeto tokenUsage intacto; NUNCA inventes, estimes ni sobrescribas tokenUsage.\\\\n\\\\n'
+      + 'Al finalizar, guarda el archivo con el JSON island actualizado de forma atómica y reporta un resumen conciso del estado de fases y tareas.';
   }
 
   function renderHelp(state, doc, validation) {
@@ -5205,63 +6165,63 @@
     var filterActive = label('filterActive', state, 'Activas');
 
     var helpHtml = ''
-      + '<h3 style="color:#fff;margin-bottom:8px;">' + esc(helpTitle) + '</h3>'
-      + '<p style="font-size:13px;color:#a0a0a0;margin-bottom:8px;">Este es un archivo HTML <strong>drop-in</strong>. Cópialo a cualquier carpeta de proyecto y ábrelo con doble clic (<code style="background:#12161d;padding:2px 6px;border-radius:4px;">file://</code>). No necesita servidor ni instalación.</p>'
-      + '<div style="background:#12161d;border:1px solid #30363d;border-radius:8px;padding:12px;margin-bottom:12px;">'
-      + '<h4 style="color:#fff;font-size:13px;margin-bottom:6px;">📋 Cómo copiar</h4>'
-      + '<ol style="font-size:13px;color:#a0a0a0;padding-left:18px;display:flex;flex-direction:column;gap:4px;">'
-      + '<li>Copia <code style="background:#1c222b;padding:2px 6px;border-radius:4px;">Task-Manager-Portable.html</code> a la raíz del proyecto</li>'
+      + '<h3 style=\"color:#fff;margin-bottom:8px;\">' + esc(helpTitle) + '</h3>'
+      + '<p style=\"font-size:13px;color:#a0a0a0;margin-bottom:8px;\">Este es un archivo HTML <strong>drop-in</strong>. Cópialo a cualquier carpeta de proyecto y ábrelo con doble clic (<code style=\"background:#12161d;padding:2px 6px;border-radius:4px;\">file://</code>). No necesita servidor ni instalación.</p>'
+      + '<div style=\"background:#12161d;border:1px solid #30363d;border-radius:8px;padding:12px;margin-bottom:12px;\">'
+      + '<h4 style=\"color:#fff;font-size:13px;margin-bottom:6px;\">📋 Cómo copiar</h4>'
+      + '<ol style=\"font-size:13px;color:#a0a0a0;padding-left:18px;display:flex;flex-direction:column;gap:4px;\">'
+      + '<li>Copia <code style=\"background:#1c222b;padding:2px 6px;border-radius:4px;\">Task-Manager-Portable.html</code> a la raíz del proyecto</li>'
       + '<li>Doble clic para abrir en el navegador (file://)</li>'
       + '<li>Verás fases, tareas, progreso y paneles opcionales</li>'
       + '</ol>'
       + '</div>'
 
-      + '<div style="background:#12161d;border:1px solid #30363d;border-radius:8px;padding:12px;margin-bottom:12px;">'
-      + '<h4 style="color:#fff;font-size:13px;margin-bottom:6px;">🤖 Cómo la IA actualiza</h4>'
-      + '<p style="font-size:13px;color:#a0a0a0;margin-bottom:6px;">La IA orquestadora actualiza <strong>SOLO</strong> el bloque <code style="background:#1c222b;padding:2px 6px;border-radius:4px;">#tm-state</code> en JSON. Todo lo visual se recalcula desde ahí.</p>'
-      + '<ul style="font-size:13px;color:#a0a0a0;padding-left:18px;display:flex;flex-direction:column;gap:4px;">'
+      + '<div style=\"background:#12161d;border:1px solid #30363d;border-radius:8px;padding:12px;margin-bottom:12px;\">'
+      + '<h4 style=\"color:#fff;font-size:13px;margin-bottom:6px;\">🤖 Cómo la IA actualiza</h4>'
+      + '<p style=\"font-size:13px;color:#a0a0a0;margin-bottom:6px;\">La IA orquestadora actualiza <strong>SOLO</strong> el bloque <code style=\"background:#1c222b;padding:2px 6px;border-radius:4px;\">#tm-state</code> en JSON. Todo lo visual se recalcula desde ahí.</p>'
+      + '<ul style=\"font-size:13px;color:#a0a0a0;padding-left:18px;display:flex;flex-direction:column;gap:4px;\">'
       + '<li>Asigna una IA: &quot;actualiza el task manager según avances en el proyecto&quot;</li>'
       + '<li>La IA edita solo el JSON island y guarda el HTML</li>'
       + '<li>Recarga el archivo en el navegador para ver progreso</li>'
-      + '<li>Esquema: <code style="background:#1c222b;padding:2px 6px;border-radius:4px;">meta</code> + <code style="background:#1c222b;padding:2px 6px;border-radius:4px;">phases[]</code> + <code style="background:#1c222b;padding:2px 6px;border-radius:4px;">todos[]</code> + <code style="background:#1c222b;padding:2px 6px;border-radius:4px;">git/tree/codegraph</code></li>'
+      + '<li>Esquema: <code style=\"background:#1c222b;padding:2px 6px;border-radius:4px;\">meta</code> + <code style=\"background:#1c222b;padding:2px 6px;border-radius:4px;\">phases[]</code> + <code style=\"background:#1c222b;padding:2px 6px;border-radius:4px;\">todos[]</code> + <code style=\"background:#1c222b;padding:2px 6px;border-radius:4px;\">git/tree/codegraph</code></li>'
       + '</ul>'
       + '</div>'
 
-      + '<div style="background:#12161d;border:1px solid #30363d;border-radius:8px;padding:12px;margin-bottom:12px;">'
-      + '<h4 style="color:#fff;font-size:13px;margin-bottom:6px;">📐 Esquema</h4>'
-      + '<pre style="font-family:var(--font-mono);font-size:11px;color:#a0a0a0;overflow-x:auto;background:#0b0e14;padding:8px;border-radius:4px;">{'
-      + '\n  &quot;schemaVersion&quot;: &quot;1.0&quot;,'
-      + '\n  &quot;meta&quot;: { &quot;projectName&quot;, &quot;version&quot;, &quot;branch&quot;, &quot;labels&quot;: {&quot;es&quot;:{}}, &quot;features&quot;: {&quot;git&quot;, &quot;tree&quot;, &quot;codegraph&quot;} },'
-      + '\n  &quot;phases&quot;: [{ &quot;id&quot;, &quot;title&quot;, &quot;status&quot;, &quot;tasks&quot;: [{&quot;id&quot;, &quot;title&quot;, &quot;status&quot;}] }],'
-      + '\n  &quot;todos&quot;: [{&quot;id&quot;, &quot;text&quot;, &quot;priority&quot;, &quot;done&quot;}],'
-      + '\n  &quot;git&quot;, &quot;tree&quot;, &quot;codegraph&quot;'
-      + '\n}</pre>'
+      + '<div style=\"background:#12161d;border:1px solid #30363d;border-radius:8px;padding:12px;margin-bottom:12px;\">'
+      + '<h4 style=\"color:#fff;font-size:13px;margin-bottom:6px;\">📐 Esquema</h4>'
+      + '<pre style=\"font-family:var(--font-mono);font-size:11px;color:#a0a0a0;overflow-x:auto;background:#0b0e14;padding:8px;border-radius:4px;\">{'
+      + '\\n  &quot;schemaVersion&quot;: &quot;1.0&quot;,'
+      + '\\n  &quot;meta&quot;: { &quot;projectName&quot;, &quot;version&quot;, &quot;branch&quot;, &quot;labels&quot;: {&quot;es&quot;:{}}, &quot;features&quot;: {&quot;git&quot;, &quot;tree&quot;, &quot;codegraph&quot;} },'
+      + '\\n  &quot;phases&quot;: [{ &quot;id&quot;, &quot;title&quot;, &quot;status&quot;, &quot;tasks&quot;: [{&quot;id&quot;, &quot;title&quot;, &quot;status&quot;}] }],'
+      + '\\n  &quot;todos&quot;: [{&quot;id&quot;, &quot;text&quot;, &quot;priority&quot;, &quot;done&quot;}],'
+      + '\\n  &quot;git&quot;, &quot;tree&quot;, &quot;codegraph&quot;'
+      + '\\n}</pre>'
       + '</div>'
 
-      + '<div id="ai-instructions" style="background:rgba(88,166,255,0.08);border:1px solid #58a6ff;border-radius:8px;padding:12px;">'
-      + '<h4 style="color:#58a6ff;font-size:13px;margin-bottom:6px;">🧠 Instrucciones para IA Orquestadora (AI-EDITABLE)</h4>'
-      + '<ul style="font-size:12px;color:#a0a0a0;padding-left:18px;display:flex;flex-direction:column;gap:4px;">'
-      + '<li><strong>SOLO</strong> edita el bloque <code style="background:#1c222b;padding:1px 4px;border-radius:3px;">&lt;script type=&quot;application/json&quot; id=&quot;tm-state&quot;&gt;</code> — nunca toques el HTML fuera del island</li>'
+      + '<div id=\"ai-instructions\" style=\"background:rgba(88,166,255,0.08);border:1px solid #58a6ff;border-radius:8px;padding:12px;\">'
+      + '<h4 style=\"color:#58a6ff;font-size:13px;margin-bottom:6px;\">🧠 Instrucciones para IA Orquestadora (AI-EDITABLE)</h4>'
+      + '<ul style=\"font-size:12px;color:#a0a0a0;padding-left:18px;display:flex;flex-direction:column;gap:4px;\">'
+      + '<li><strong>SOLO</strong> edita el bloque <code style=\"background:#1c222b;padding:1px 4px;border-radius:3px;\">&lt;script type=&quot;application/json&quot; id=&quot;tm-state&quot;&gt;</code> — nunca toques el HTML fuera del island</li>'
       + '<li>Mantén <code>schemaVersion</code> como <code>&quot;1.0&quot;</code> siempre</li>'
-      + '<li>Escapa <code>&lt;/script&gt;</code> como <code>\\u003c/script\\u003e</code> dentro de cualquier texto de tarea/nota para no romper el HTML</li>'
+      + '<li>Escapa <code>&lt;/script&gt;</code> como <code>\\\\u003c/script\\\\u003e</code> dentro de cualquier texto de tarea/nota para no romper el HTML</li>'
       + '<li>Usa <code>status</code> solo con: <code>pending</code>, <code>in-progress</code>, <code>completed</code>, <code>blocked</code> — desconocidos se mapean a <code>pending</code></li>'
       + '<li>No hagas <code>fetch</code>, <code>XML' + 'HttpRequest</code>, <code>import</code> ni leas <code>.git</code> en runtime — todo es estático</li>'
-      + '<li>Ejemplo válido: <code style="background:#1c222b;padding:1px 4px;border-radius:3px;">{&quot;id&quot;:&quot;T1-01&quot;,&quot;title&quot;:&quot;Definir esquema&quot;,&quot;status&quot;:&quot;completed&quot;}</code></li>'
+      + '<li>Ejemplo válido: <code style=\"background:#1c222b;padding:1px 4px;border-radius:3px;\">{&quot;id&quot;:&quot;T1-01&quot;,&quot;title&quot;:&quot;Definir esquema&quot;,&quot;status&quot;:&quot;completed&quot;}</code></li>'
       + '</ul>'
-      + '<p style="font-size:11px;color:#8b949e;margin-top:8px;">Filtros: ' + esc(filterAll) + ' / ' + esc(filterActive) + ' · Todo: ' + esc(todoTitle) + ' · Código en inglés, UI en español vía <code>meta.labels.es</code></p>'
+      + '<p style=\"font-size:11px;color:#8b949e;margin-top:8px;\">Filtros: ' + esc(filterAll) + ' / ' + esc(filterActive) + ' · Todo: ' + esc(todoTitle) + ' · Código en inglés, UI en español vía <code>meta.labels.es</code></p>'
       + '</div>'
 
-      + '<div id="prompt-inicial" style="background:#12161d;border:1px solid #3fb950;border-radius:8px;padding:12px;margin-top:12px;">'
-      + '<h4 style="color:#3fb950;font-size:13px;margin-bottom:6px;display:flex;align-items:center;gap:6px;">📋 Prompt Maestro para la IA — Copiar y pegar</h4>'
-      + '<p style="font-size:12px;color:#8b949e;margin-bottom:8px;">Copia este prompt y envíaselo a tu IA orquestadora al iniciar cada sesión. La IA trabajará de forma autónoma sin hacer preguntas innecesarias:</p>'
-      + '<pre id="initial-prompt-text" data-help-prompt style="font-family:var(--font-mono);font-size:11px;color:#c9d1d9;background:#0b0e14;padding:10px;border-radius:6px;overflow-x:auto;white-space:pre-wrap;word-break:break-word;border:1px solid #30363d;line-height:1.5;max-height:280px;overflow-y:auto;">' + esc(getMasterPrompt()) + '</pre>'
-      + '<button id="btn-copy-prompt" data-copy-prompt type="button" style="margin-top:8px;background:#238636;border:1px solid #3fb950;color:#fff;padding:6px 12px;border-radius:6px;cursor:pointer;font-size:13px;display:inline-flex;align-items:center;gap:6px;">📋 Copiar prompt</button>'
-      + '<span id="copy-feedback" data-copy-prompt-feedback role="status" aria-live="polite" style="margin-left:8px;font-size:12px;color:#3fb950;display:none;"></span>'
+      + '<div id=\"prompt-inicial\" style=\"background:#12161d;border:1px solid #3fb950;border-radius:8px;padding:12px;margin-top:12px;\">'
+      + '<h4 style=\"color:#3fb950;font-size:13px;margin-bottom:6px;display:flex;align-items:center;gap:6px;\">📋 Prompt para Agent Task Manager (Recuperación / Manual)</h4>'
+      + '<p style=\"font-size:12px;color:#8b949e;margin-bottom:8px;\">La sincronización normal es automática desde Plugins > Task Manager y durante hitos soportados. Si necesitas sincronizar manualmente, copia este prompt:</p>'
+      + '<pre id=\"initial-prompt-text\" data-help-prompt style=\"font-family:var(--font-mono);font-size:11px;color:#c9d1d9;background:#0b0e14;padding:10px;border-radius:6px;overflow-x:auto;white-space:pre-wrap;word-break:break-word;border:1px solid #30363d;line-height:1.5;max-height:280px;overflow-y:auto;\">' + esc(getMasterPrompt()) + '</pre>'
+      + '<button id=\"btn-copy-prompt\" data-copy-prompt type=\"button\" style=\"margin-top:8px;background:#238636;border:1px solid #3fb950;color:#fff;padding:6px 12px;border-radius:6px;cursor:pointer;font-size:13px;display:inline-flex;align-items:center;gap:6px;\">📋 Copiar prompt</button>'
+      + '<span id=\"copy-feedback\" data-copy-prompt-feedback role=\"status\" aria-live=\"polite\" style=\"margin-left:8px;font-size:12px;color:#3fb950;display:none;\"></span>'
       + '</div>'
 
-      + '<aside class="help-portability-note" aria-label="Portabilidad y documentación"><span class="help-portability-icon">i</span><div><strong>Referencia técnica local</strong><p>Documentación: <code>openspec/changes/drop-in-task-manager/</code></p><div class="help-portability-tags"><span>Tokens del prototipo</span><span><code>file://</code> compatible</span><span>Sin dependencias externas</span></div></div></aside>';
+      + '<aside class=\"help-portability-note\" aria-label=\"Portabilidad y documentación\"><span class=\"help-portability-icon\">i</span><div><strong>Referencia técnica local</strong><p>Documentación: <code>openspec/changes/drop-in-task-manager/</code></p><div class=\"help-portability-tags\"><span>Tokens del prototipo</span><span><code>file://</code> compatible</span><span>Sin dependencias externas</span></div></div></aside>';
 
-    panel.innerHTML = helpHtml + '<div id="state-inspection-mount"></div>';
+    panel.innerHTML = helpHtml + '<div id=\"state-inspection-mount\"></div>';
     renderStateTools(state, doc, validation, 'state-inspection-mount');
 
     // Attach copy handler for prompt (file:// compatible, no inline script)
@@ -5298,7 +6258,6 @@
   function renderAllTodoHelp(state, doc, validation) {
     renderTodo(state, doc);
     renderHelp(state, doc, validation);
-    initWelcomeModal(doc);
   }
 
   var TMTodoHelp = {
@@ -5308,8 +6267,7 @@
     renderStateTools: renderStateTools,
     copyText: copyText,
     exportState: exportState,
-    getMasterPrompt: getMasterPrompt,
-    initWelcomeModal: initWelcomeModal
+    getMasterPrompt: getMasterPrompt
   };
 
   try { if (typeof window !== 'undefined') window.TMTodoHelp = TMTodoHelp; } catch (_) {}
