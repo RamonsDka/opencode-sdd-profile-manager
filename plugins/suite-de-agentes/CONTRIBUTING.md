@@ -17,7 +17,7 @@ All contributions must originate from an approved GitHub issue:
 ## 2. Development Setup
 
 ### Prerequisites
-- **Node.js**: `24.x` (e.g. `24.14.0+`)
+- **Node.js**: `24.x` (e.g. `24.15.0+`)
 - **npm**: version compatible with Node 24
 - **OpenCode**: version `1.18.5+`
 

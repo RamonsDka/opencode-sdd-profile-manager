@@ -3,19 +3,19 @@ import * as fs from "node:fs";
 import * as path from "node:path";
 import { execFileSync } from "node:child_process";
 
-type ImportDefinition = { id: "suite" | "task-manager"; source: string; destination: string; remote: string; commit: string; version: string };
+type ImportDefinition = { id: "task-manager"; source: string; destination: string; remote: string; commit: string; version: string };
 type TreeEntry = { mode: string; type: string; oid: string; relativePath: string };
 
 const ROOT = path.resolve(import.meta.dirname, "..");
+// Note: 'suite-de-agentes' is maintained directly and canonically inside 'plugins/suite-de-agentes'.
+// External imports are only defined for externally-tracked vendored packages (e.g. task-manager).
 const DEFINITIONS: ImportDefinition[] = [
-  { id: "suite", source: process.env.SUITE_SOURCE_ROOT ?? path.resolve(ROOT, "../suite-de-agentes"), destination: "suite-de-agentes", remote: "https://github.com/RamonsDka/suite-de-agentes.git", commit: "f49270e8e738ef1babe6210c910f786b9da735e0", version: "1.1.0" },
   { id: "task-manager", source: process.env.TASK_MANAGER_SOURCE_ROOT ?? path.resolve(ROOT, "../proyecto-HTLM"), destination: "task-manager", remote: "https://github.com/RamonsDka/task-manager-portable.git", commit: "8264461d8e4fdf6df9072f50401692a51b6355ff", version: "1.1.0" },
 ];
 
 function excluded(id: ImportDefinition["id"], relativePath: string): boolean {
   const common = [".git/", "node_modules/", "dist/", "coverage/"];
-  const suiteOnly = ["openspec/", ".history/", ".atl/", ".codegraph/", ".github/"];
-  const prefixes = id === "suite" ? [...common, ...suiteOnly] : [...common, ".github/"];
+  const prefixes = [...common, ".github/"];
   return prefixes.some((prefix) => relativePath === prefix.slice(0, -1) || relativePath.startsWith(prefix));
 }
 
@@ -53,7 +53,7 @@ function importDefinition(definition: ImportDefinition): void {
   const manifest = `${records.join("\n")}\n`;
   const manifestSha256 = crypto.createHash("sha256").update(manifest).digest("hex");
   fs.writeFileSync(path.join(target, "MANIFEST.txt"), manifest);
-  fs.writeFileSync(path.join(target, "PROVENANCE.json"), `${JSON.stringify({ source: definition.remote, commit: definition.commit, version: definition.version, manifestAlgorithm: "sorted entries <git_mode> <git_blob_oid> <sha256_content> <bytes> <lines> <rel_path>\\n", manifestSha256, inventory: { files: entries.length, textFiles, textLines, binaryFiles, binaryBytes, totalBytes }, exclusions: definition.id === "suite" ? [".git/**", "node_modules/**", "dist/**", "coverage/**", "openspec/**", ".history/**", ".atl/**", ".codegraph/**", ".github/**"] : [".git/**", "node_modules/**", "dist/**", "coverage/**", ".github/**"] }, null, 2)}\n`);
+  fs.writeFileSync(path.join(target, "PROVENANCE.json"), `${JSON.stringify({ source: definition.remote, commit: definition.commit, version: definition.version, manifestAlgorithm: "sorted entries <git_mode> <git_blob_oid> <sha256_content> <bytes> <lines> <rel_path>\\n", manifestSha256, inventory: { files: entries.length, textFiles, textLines, binaryFiles, binaryBytes, totalBytes }, exclusions: [".git/**", "node_modules/**", "dist/**", "coverage/**", ".github/**"] }, null, 2)}\n`);
   console.log(`${definition.destination}: ${entries.length} files, ${manifestSha256}`);
 }
 

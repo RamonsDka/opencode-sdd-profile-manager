@@ -1,7 +1,7 @@
 # Suite de Agentes
 
 [![version](https://img.shields.io/badge/version-1.1.0-blue.svg)](package.json)
-[![node](https://img.shields.io/badge/node-%3E%3D24%20%3C25-brightgreen.svg)](package.json)
+[![node](https://img.shields.io/badge/node-%3E%3D24.15.0%20%3C25-brightgreen.svg)](package.json)
 [![opencode](https://img.shields.io/badge/opencode-%3E%3D1.18.5-blueviolet.svg)](package.json)
 [![license](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
 

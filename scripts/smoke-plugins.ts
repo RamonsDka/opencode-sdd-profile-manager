@@ -8,6 +8,7 @@ const distributionRoot = path.join(packageRoot, "dist");
 const requiredAssets = [
 	"plugins/task-manager/Task-Manager-Portable.html",
 	"plugins/suite-de-agentes/README.md",
+	"plugins/suite-de-agentes/skills/task-tracker-manager/SKILL.md",
 ];
 const requiredProvenance = ["suite-de-agentes", "task-manager"];
 
