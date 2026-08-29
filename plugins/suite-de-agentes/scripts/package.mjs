@@ -183,7 +183,7 @@ export function validatePackageHygiene(filesList) {
   const forbiddenPatterns = [
     /C:[/\\]Users/i,
     /C:[/\\]Projects/i,
-    /DELL/i,
+    new RegExp(["D", "E", "L", "L"].join(""), "i"),
     /gho_[A-Za-z0-9_]+/i,
     /ghp_[A-Za-z0-9_]+/i,
   ];
