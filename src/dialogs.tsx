@@ -1550,6 +1550,9 @@ export async function showProjectMemoriesMenu(api: any) {
  * Detects git root for a directory synchronously
  */
 export function detectGitRootForDirectory(directory: string): string | undefined {
+  if (!directory || !fs.existsSync(directory)) {
+    return undefined;
+  }
   try {
     const root = execFileSync(
       "git",

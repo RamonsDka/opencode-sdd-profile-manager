@@ -13,7 +13,8 @@ export function runTaskManagerOnboardingExperiment(portableHtml: string): Onboar
     import path from "node:path";
     const root = ${JSON.stringify(root)};
     const portableHtml = ${JSON.stringify(portableHtml)};
-    const { Window } = await import(pathToFileURL(path.join(root, "plugins/task-manager/node_modules/happy-dom/lib/index.js")).href);
+    let Window;
+try { ({ Window } = await import("happy-dom")); } catch { const fallbackPath = pathToFileURL(path.join(root, "plugins/task-manager/node_modules/happy-dom/lib/index.js")).href; ({ Window } = await import(fallbackPath)); }
     const window = new Window({ url: "https://fixture.invalid" });
     window.sessionStorage.setItem("tm-welcome-dismissed", "1");
     window.document.write(readFileSync(portableHtml, "utf8"));

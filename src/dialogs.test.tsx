@@ -174,6 +174,13 @@ describe("Task Manager Action & Integration (Unit 3)", () => {
   it("3.2 RED: real provisioning idempotency at Unit 3 boundary ensures existing dashboard is not overwritten", async () => {
     const api = createMockApi("C:/custom/workspace");
 
+    vi.spyOn(rootModule, "resolveTaskManagerRoot").mockReturnValue({
+      root: "C:/custom/workspace",
+      canonicalRoot: "C:/custom/workspace",
+      key: "c:/custom/workspace",
+      confirmed: true,
+    });
+
     let provisionCallCount = 0;
     const realProvisionSpy = vi.spyOn(lifecycle, "provisionTaskManagerBase").mockImplementation((root, template, route) => {
       provisionCallCount++;

@@ -27,7 +27,25 @@ function verifyProvenance(): void {
 	}
 }
 
+function ensureDistributedPluginAssets(): void {
+	for (const plugin of ["suite-de-agentes", "task-manager"]) {
+		const src = path.join(packageRoot, "plugins", plugin);
+		const dest = path.join(distributionRoot, "plugins", plugin);
+		if (!fs.existsSync(dest)) {
+			fs.cpSync(src, dest, {
+				recursive: true,
+				filter: (sourcePath) => {
+					const relative = path.relative(src, sourcePath);
+					if (relative.split(path.sep).includes("node_modules")) return false;
+					return true;
+				},
+			});
+		}
+	}
+}
+
 function main(): void {
+	ensureDistributedPluginAssets();
 	const originalCwd = process.cwd();
 	const temporaryCwd = fs.mkdtempSync(path.join(os.tmpdir(), "sdd-engram-plugin-smoke-"));
 	try {
