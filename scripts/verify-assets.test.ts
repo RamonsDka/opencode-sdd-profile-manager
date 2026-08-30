@@ -5,7 +5,7 @@ import * as os from "node:os";
 import yaml from "js-yaml";
 import { describe, expect, it } from "vitest";
 import { requiredPluginAssets, verifyPluginAssets } from "./verify-assets";
-import { shouldCopyPluginAsset } from "./copy-plugin-assets";
+import { copyPluginAssets, shouldCopyPluginAsset } from "./copy-plugin-assets";
 // @ts-ignore
 import { validatePackageHygiene } from "./package-release.mjs";
 
@@ -71,6 +71,16 @@ describe("Phase 0 Publication Foundation & Asset Boundaries", () => {
       expect(shouldCopyPluginAsset(fakeSrc, "/fake/plugins/suite-de-agentes/skills/task-tracker-manager/SKILL.md")).toBe(true);
       expect(shouldCopyPluginAsset(fakeSrc, "/fake/plugins/task-manager/Task-Manager-Portable.html")).toBe(true);
       expect(shouldCopyPluginAsset(fakeSrc, "/fake/plugins/suite-de-agentes/docs/images/catalog-overview.png")).toBe(true);
+    });
+
+    it("builds suite-de-agentes and copies required server.js and tui.js", () => {
+      copyPluginAssets(root);
+      const serverPath = path.join(root, "dist", "plugins", "suite-de-agentes", "dist", "server.js");
+      const tuiPath = path.join(root, "dist", "plugins", "suite-de-agentes", "dist", "tui.js");
+      expect(fs.existsSync(serverPath)).toBe(true);
+      expect(fs.existsSync(tuiPath)).toBe(true);
+      expect(fs.statSync(serverPath).size).toBeGreaterThan(0);
+      expect(fs.statSync(tuiPath).size).toBeGreaterThan(0);
     });
   });
 

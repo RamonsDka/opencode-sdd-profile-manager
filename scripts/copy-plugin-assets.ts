@@ -1,5 +1,6 @@
 import * as fs from "node:fs";
 import * as path from "node:path";
+import { execSync } from "node:child_process";
 
 const root = path.resolve(import.meta.dirname, "..");
 
@@ -78,6 +79,11 @@ export function shouldCopyPluginAsset(srcRoot: string, sourcePath: string): bool
 }
 
 export function copyPluginAssets(packageRoot = root): void {
+  const suiteDir = path.join(packageRoot, "plugins", "suite-de-agentes");
+  if (fs.existsSync(path.join(suiteDir, "package.json"))) {
+    execSync("npm run build", { cwd: suiteDir, stdio: "inherit" });
+  }
+
   for (const plugin of ["suite-de-agentes", "task-manager"]) {
     const src = path.join(packageRoot, "plugins", plugin);
     const dest = path.join(packageRoot, "dist", "plugins", plugin);
