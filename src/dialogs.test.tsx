@@ -118,7 +118,7 @@ describe("Task Manager Action & Integration (Unit 3)", () => {
     const api = createMockApi("C:/custom/workspace/subdir");
 
     const resolveRootSpy = vi.spyOn(rootModule, "resolveTaskManagerRoot");
-    const launchSpy = vi.spyOn(coordinator, "launchTaskManagerBrowser").mockResolvedValue({
+    vi.spyOn(coordinator, "launchTaskManagerBrowser").mockResolvedValue({
       opened: true,
       method: "process",
       path: "C:/custom/workspace/Task-Manager-Portable.html",
@@ -140,8 +140,6 @@ describe("Task Manager Action & Integration (Unit 3)", () => {
   });
 
   it("3.1 RED: detectGitRootForDirectory and buildTaskManagerRootCandidates supply detected Git root when present so Git wins", () => {
-    const api = createMockApi("C:/custom/repo/packages/sub");
-    
     // Test pure candidate building logic with mock
     const candidates = rootModule.resolveTaskManagerRoot({
       cwd: "C:/custom/repo/packages/sub",
@@ -165,10 +163,11 @@ describe("Task Manager Action & Integration (Unit 3)", () => {
     });
 
     let provisionCallCount = 0;
-    const realProvisionSpy = vi.spyOn(lifecycle, "provisionTaskManagerBase").mockImplementation((root, template, route) => {
+    const realProvisionSpy = vi.spyOn(lifecycle, "provisionTaskManagerBase").mockImplementation((root, _template, route) => {
       provisionCallCount++;
       return {
         created: provisionCallCount === 1,
+        migrated: false,
         path: `${root}/Task-Manager-Portable.html`,
         route,
       };
@@ -206,6 +205,7 @@ describe("Task Manager Action & Integration (Unit 3)", () => {
 
     vi.spyOn(lifecycle, "provisionTaskManagerBase").mockReturnValue({
       created: false,
+      migrated: false,
       path: "C:/fake/project/Task-Manager-Portable.html",
       route: "foreground",
     });
@@ -251,6 +251,7 @@ describe("Task Manager Action & Integration (Unit 3)", () => {
 
     vi.spyOn(lifecycle, "provisionTaskManagerBase").mockReturnValue({
       created: false,
+      migrated: false,
       path: "C:/fake/project/Task-Manager-Portable.html",
       route: "foreground",
     });
@@ -290,6 +291,7 @@ describe("Task Manager Action & Integration (Unit 3)", () => {
 
     vi.spyOn(lifecycle, "provisionTaskManagerBase").mockReturnValue({
       created: true,
+      migrated: false,
       path: "C:/fake/project/Task-Manager-Portable.html",
       route: "foreground",
     });
@@ -331,6 +333,7 @@ describe("Task Manager Action & Integration (Unit 3)", () => {
 
     vi.spyOn(lifecycle, "provisionTaskManagerBase").mockReturnValue({
       created: false,
+      migrated: false,
       path: "C:/fake/project/Task-Manager-Portable.html",
       route: "foreground",
     });
@@ -345,5 +348,18 @@ describe("Task Manager Action & Integration (Unit 3)", () => {
     const dialog = api.getCurrentDialog();
     await expect(dialog.props.onSelect({ value: "task-manager" })).resolves.not.toThrow();
     expect(api.ui.toast).toHaveBeenCalled();
+  });
+
+  it("calls setSize exactly once per dialog transition without duplicate consecutive calls", () => {
+    const api = createMockApi();
+
+    showProfilesMenu(api);
+    expect(api.ui.dialog.setSize).toHaveBeenCalledTimes(1);
+    expect(api.ui.dialog.setSize).toHaveBeenCalledWith("medium");
+
+    api.ui.dialog.setSize.mockClear();
+    showPluginHelpDetail(api, "hub");
+    expect(api.ui.dialog.setSize).toHaveBeenCalledTimes(1);
+    expect(api.ui.dialog.setSize).toHaveBeenCalledWith("xlarge");
   });
 });

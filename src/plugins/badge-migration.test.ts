@@ -3,14 +3,18 @@ import { badgeDisplayMode, setBadgeDisplayMode, setShowModelBadge, showModelBadg
 import { showProfilesMenu } from "../dialogs";
 import { formatActiveModelBadgeText } from "../../components";
 
-describe("permanent model badge", () => {
-  it("keeps the badge visible after a legacy hidden preference", () => {
+describe("model badge state and migration", () => {
+  it("updates badge visibility when setShowModelBadge is called with arguments", () => {
     setShowModelBadge(false);
+    expect(showModelBadge()).toBe(false);
+    setShowModelBadge(true);
     expect(showModelBadge()).toBe(true);
   });
 
-  it("keeps model mode after a legacy profile preference", () => {
+  it("updates badge display mode when setBadgeDisplayMode is called with arguments", () => {
     setBadgeDisplayMode("profile");
+    expect(badgeDisplayMode()).toBe("profile");
+    setBadgeDisplayMode("model");
     expect(badgeDisplayMode()).toBe("model");
   });
 

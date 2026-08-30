@@ -143,7 +143,7 @@ describe("safeSetDialogSize (T27, T28)", () => {
 		["empty dialog", { ui: { dialog: {} } }],
 		["undefined setSize", { ui: { dialog: { setSize: undefined } } }],
 	])("T27: degrades safely when setSize is missing on %s", (_, api) => {
-		expect(() => safeSetDialogSize(api as any, "large")).not.toThrow();
+		expect(() => safeSetDialogSize(api, "large")).not.toThrow();
 	});
 
 	it.each([
@@ -154,7 +154,7 @@ describe("safeSetDialogSize (T27, T28)", () => {
 			throw errorToThrow;
 		});
 		const api = { ui: { dialog: { setSize: setSizeSpy } } };
-		expect(() => safeSetDialogSize(api as any, "xlarge")).not.toThrow();
+		expect(() => safeSetDialogSize(api, "xlarge")).not.toThrow();
 		expect(setSizeSpy).toHaveBeenCalledWith("xlarge");
 		expect(consoleErrorSpy).toHaveBeenCalledTimes(1);
 	});
@@ -162,7 +162,7 @@ describe("safeSetDialogSize (T27, T28)", () => {
 	it("invokes setSize with target DialogSize when available", () => {
 		const setSizeSpy = vi.fn();
 		const api = { ui: { dialog: { setSize: setSizeSpy } } };
-		safeSetDialogSize(api as any, "medium");
+		safeSetDialogSize(api, "medium");
 		expect(setSizeSpy).toHaveBeenCalledWith("medium");
 		expect(consoleErrorSpy).not.toHaveBeenCalled();
 	});
