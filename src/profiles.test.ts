@@ -315,7 +315,7 @@ describe('profiles logic', () => {
       } as any);
 
       expect(fs.writeFileSync).toHaveBeenCalledWith(
-        expect.stringMatching(/^[\/\\]mock[\/\\]profiles[\/\\]compatible\.json\.tmp-[0-9a-f]{8}$/),
+        expect.stringMatching(/^[/\\]mock[/\\]profiles[/\\]compatible\.json\.tmp-[0-9a-f]{8}$/),
         JSON.stringify({
           description: 'team defaults',
           models: { 'sdd-init': 'gpt-4', 'not-sdd': 'ignore-me' },
@@ -418,17 +418,17 @@ describe('profiles logic', () => {
 
     it('fsyncs both temp file and parent directory during atomic write', () => {
       vi.mocked(fs.openSync)
-        .mockReturnValueOnce(101 as any)
-        .mockReturnValueOnce(202 as any);
+        .mockReturnValueOnce(100 as any) // lock file
+        .mockReturnValueOnce(101 as any) // temp file
+        .mockReturnValueOnce(202 as any); // dir
 
       writeProfileData('/mock/profiles/compatible.json', { models: { 'sdd-init': 'gpt-4' } });
 
-      expect(fs.openSync).toHaveBeenNthCalledWith(
-        1,
+      expect(fs.openSync).toHaveBeenCalledWith(
         expect.stringMatching(/^\/mock\/profiles\/compatible\.json\.tmp-[0-9a-f]{8}$/),
         'r+'
       );
-      expect(fs.openSync).toHaveBeenNthCalledWith(2, '/mock/profiles', 'r');
+      expect(fs.openSync).toHaveBeenCalledWith('/mock/profiles', 'r');
       expect(fs.fsyncSync).toHaveBeenCalledWith(101);
       expect(fs.fsyncSync).toHaveBeenCalledWith(202);
       expect(fs.closeSync).toHaveBeenCalledWith(101);
@@ -488,6 +488,7 @@ describe('profiles logic', () => {
 
     it('rethrows non-EPERM errors from directory fsync after rename', () => {
       vi.mocked(fs.openSync)
+        .mockReturnValueOnce(100 as any) // lock file
         .mockReturnValueOnce(101 as any)
         .mockReturnValueOnce(202 as any);
       vi.mocked(fs.fsyncSync)
@@ -503,7 +504,7 @@ describe('profiles logic', () => {
       );
       expect(fs.closeSync).toHaveBeenCalledWith(101);
       expect(fs.closeSync).toHaveBeenCalledWith(202);
-      expect(fs.unlinkSync).not.toHaveBeenCalled();
+      expect(vi.mocked(fs.unlinkSync).mock.calls.every(([p]) => String(p).endsWith('.lock'))).toBe(true);
     });
 
     it('writeProfileModels preserves non-model profile fields', () => {
@@ -1865,7 +1866,7 @@ describe('profiles logic', () => {
         toPosix(filePath).includes('/profile-versions/team.json/')
       )).toBe(true);
       expect(vi.mocked(fs.unlinkSync).mock.calls.every(([filePath]) =>
-        toPosix(filePath).includes('/profile-versions/team.json/') || toPosix(filePath).includes('/mock/profiles/team.json.tmp-')
+        toPosix(filePath).includes('/profile-versions/team.json/') || toPosix(filePath).includes('/mock/profiles/team.json.tmp-') || String(filePath).endsWith('.lock')
       )).toBe(true);
     });
 
@@ -3848,6 +3849,45 @@ describe('profiles logic', () => {
 
       expect(result?.agent['gentle-orchestrator']?.reasoningEffort).toBeUndefined();
       expect(result?.agent['gentle-orchestrator']?.options?.reasoningEffort).toBeUndefined();
+    });
+
+    it('handles malformed config.agent (array, null, string, number) without crashing or corrupting object structure', () => {
+      const malformedConfigs = [
+        { agent: ['sdd-init', 'sdd-spec'] },
+        { agent: null },
+        { agent: 'invalid-string' },
+        { agent: 12345 },
+        { agent: false },
+      ];
+
+      for (const badConfig of malformedConfigs) {
+        const result = applyProfileDataToConfig(badConfig, {
+          models: { 'sdd-init': 'anthropic/claude-3-5-sonnet' },
+          fallback: { 'sdd-init': 'anthropic/claude-3-5-haiku' },
+        });
+
+        expect(result).toBeDefined();
+        expect(typeof result.agent).toBe('object');
+        expect(Array.isArray(result.agent)).toBe(false);
+        expect(result.agent).not.toBeNull();
+        expect(result.agent['sdd-init']?.model).toBe('anthropic/claude-3-5-sonnet');
+        expect(result.agent['sdd-init-fallback']?.model).toBe('anthropic/claude-3-5-haiku');
+      }
+    });
+
+    it('validates fallback mapping safely when config.agent is malformed array/null/primitive', () => {
+      const badConfigs = [
+        { agent: ['not-an-object'] },
+        { agent: null },
+        { agent: 42 },
+        {},
+      ];
+
+      for (const badConfig of badConfigs) {
+        const errors = validateProfileFallbackMapping(badConfig, { 'sdd-init': 'anthropic/claude-3-5-haiku' });
+        expect(Array.isArray(errors)).toBe(true);
+        expect(errors.some((err) => err.includes('does not exist in active config'))).toBe(true);
+      }
     });
   });
 });

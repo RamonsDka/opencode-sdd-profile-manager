@@ -1,3 +1,6 @@
+import * as fs from 'node:fs';
+import * as os from 'node:os';
+import * as path from 'node:path';
 import { describe, it, expect, vi } from 'vitest';
 import {
   formatContext,
@@ -14,6 +17,7 @@ import {
   resolveModelInfo,
   parseActiveProfileFromRaw,
   resolveSessionActiveModel,
+  withFileLock,
 } from './utils';
 
 describe('utils logic', () => {
@@ -331,6 +335,131 @@ describe('utils logic', () => {
         contextLimit: 128000,
         reasoningEffort: 'medium',
       });
+    });
+  });
+
+  describe('withFileLock', () => {
+    it('executes callback and releases lock file on completion', () => {
+      const testFile = path.join(os.tmpdir(), `test-lock-${Date.now()}-${Math.random().toString(36).slice(2)}.json`);
+      const lockFile = `${path.resolve(testFile)}.lock`;
+
+      const result = withFileLock(testFile, () => {
+        expect(fs.existsSync(lockFile)).toBe(true);
+        return 'executed';
+      });
+
+      expect(result).toBe('executed');
+      expect(fs.existsSync(lockFile)).toBe(false);
+    });
+
+    it('does not execute callback and throws timeout when active lock cannot be acquired', () => {
+      const testFile = path.join(os.tmpdir(), `test-active-lock-${Date.now()}-${Math.random().toString(36).slice(2)}.json`);
+      const lockFile = `${path.resolve(testFile)}.lock`;
+      fs.writeFileSync(lockFile, '999999:1000:active-token', 'utf8');
+
+      const callbackSpy = vi.fn();
+      expect(() => {
+        withFileLock(
+          testFile,
+          callbackSpy,
+          {
+            maxRetries: 3,
+            retryDelayMs: 0,
+            sleepFn: () => {},
+            isPidAlive: () => true,
+          }
+        );
+      }).toThrow(/Failed to acquire file lock/);
+
+      expect(callbackSpy).not.toHaveBeenCalled();
+      expect(fs.existsSync(lockFile)).toBe(true);
+      fs.unlinkSync(lockFile);
+    });
+
+    it('recovers orphan lock when owner PID is dead', () => {
+      const testFile = path.join(os.tmpdir(), `test-dead-pid-${Date.now()}-${Math.random().toString(36).slice(2)}.json`);
+      const lockFile = `${path.resolve(testFile)}.lock`;
+      fs.writeFileSync(lockFile, '999999:1000:dead-token', 'utf8');
+
+      const result = withFileLock(
+        testFile,
+        () => 'orphan-recovered',
+        {
+          maxRetries: 5,
+          retryDelayMs: 0,
+          sleepFn: () => {},
+          isPidAlive: () => false,
+        }
+      );
+
+      expect(result).toBe('orphan-recovered');
+      expect(fs.existsSync(lockFile)).toBe(false);
+    });
+
+    it('handles reentrancy without deadlock when called recursively on the same file', () => {
+      const testFile = path.join(os.tmpdir(), `test-reentrancy-${Date.now()}-${Math.random().toString(36).slice(2)}.json`);
+
+      const executionOrder: string[] = [];
+      const result = withFileLock(testFile, () => {
+        executionOrder.push('outer-start');
+        const innerResult = withFileLock(testFile, () => {
+          executionOrder.push('inner');
+          return 'inner-result';
+        });
+        executionOrder.push('outer-end');
+        return innerResult;
+      });
+
+      expect(result).toBe('inner-result');
+      expect(executionOrder).toEqual(['outer-start', 'inner', 'outer-end']);
+    });
+
+    it('releases lock even if callback throws an error', () => {
+      const testFile = path.join(os.tmpdir(), `test-throw-${Date.now()}-${Math.random().toString(36).slice(2)}.json`);
+      const lockFile = `${path.resolve(testFile)}.lock`;
+
+      expect(() => {
+        withFileLock(testFile, () => {
+          throw new Error('callback-failure');
+        });
+      }).toThrow('callback-failure');
+
+      expect(fs.existsSync(lockFile)).toBe(false);
+    });
+
+    it('cleans up stale lock file if older than threshold when PID is unparseable', () => {
+      const testFile = path.join(os.tmpdir(), `test-stale-${Date.now()}-${Math.random().toString(36).slice(2)}.json`);
+      const lockFile = `${path.resolve(testFile)}.lock`;
+
+      // Create a stale lock file with unparseable content and an old mtime
+      fs.writeFileSync(lockFile, 'invalid-content', 'utf8');
+      const pastTime = (Date.now() - 10000) / 1000;
+      fs.utimesSync(lockFile, pastTime, pastTime);
+
+      const result = withFileLock(testFile, () => 'recovered', {
+        staleAgeMs: 5000,
+        retryDelayMs: 0,
+        sleepFn: () => {},
+      });
+      expect(result).toBe('recovered');
+      expect(fs.existsSync(lockFile)).toBe(false);
+    });
+
+    it('does not delete lock file if ownership was replaced by another owner', () => {
+      const testFile = path.join(os.tmpdir(), `test-replaced-${Date.now()}-${Math.random().toString(36).slice(2)}.json`);
+      const lockFile = `${path.resolve(testFile)}.lock`;
+
+      withFileLock(testFile, () => {
+        expect(fs.existsSync(lockFile)).toBe(true);
+        // Simulate another owner replacing the lock file
+        fs.writeFileSync(lockFile, '888888:9999:other-owner-token', 'utf8');
+        return 'done';
+      });
+
+      expect(fs.existsSync(lockFile)).toBe(true);
+      const content = fs.readFileSync(lockFile, 'utf8');
+      expect(content).toBe('888888:9999:other-owner-token');
+      fs.unlinkSync(lockFile);
     });
   });
 });

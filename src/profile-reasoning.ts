@@ -60,7 +60,7 @@ function isStoredReasoningOwner(
 }
 
 function canonicalizeProfileConfigs(configs: ProfileConfigs, policy: OrchestratorPolicy): ProfileConfigs {
-  const next = { ...(configs || {}) };
+  const next = { ...configs };
   const canonicalEffort =
     next?.[policy.canonicalName]?.reasoningEffort ||
     next?.[LEGACY_ORCHESTRATOR]?.reasoningEffort ||
@@ -70,7 +70,7 @@ function canonicalizeProfileConfigs(configs: ProfileConfigs, policy: Orchestrato
   delete next[UPDATED_ORCHESTRATOR];
   if (canonicalEffort) {
     next[policy.canonicalName] = {
-      ...(next[policy.canonicalName] || {}),
+      ...next[policy.canonicalName],
       reasoningEffort: canonicalEffort,
     };
   }
@@ -156,10 +156,10 @@ export function normalizeProfileConfigs(
 
 export function updateProfileReasoningEffort(profile: ProfileData, agentName: string, value?: string): ProfileData {
   if (!isReasoningOwner(agentName)) return profile;
-  const nextConfigs: Record<string, any> = { ...(profile?.configs || {}) };
+  const nextConfigs: Record<string, any> = { ...profile?.configs };
   const trimmed = normalizeReasoningEffortValue(value) || "";
   if (!trimmed) delete nextConfigs[agentName];
-  else nextConfigs[agentName] = { ...(nextConfigs[agentName] || {}), reasoningEffort: trimmed };
+  else nextConfigs[agentName] = { ...nextConfigs[agentName], reasoningEffort: trimmed };
   const normalized = normalizeProfileConfigs(nextConfigs);
   const nextProfile: any = { ...(profile || { models: {} }) };
   delete nextProfile.configs;
@@ -168,7 +168,7 @@ export function updateProfileReasoningEffort(profile: ProfileData, agentName: st
 }
 
 export function clearProfileReasoningEffort(profile: ProfileData, agentName: string): ProfileData {
-  const nextConfigs: Record<string, any> = { ...(profile?.configs || {}) };
+  const nextConfigs: Record<string, any> = { ...profile?.configs };
   delete nextConfigs[agentName];
   if (agentName === LEGACY_ORCHESTRATOR || agentName === UPDATED_ORCHESTRATOR) {
     delete nextConfigs[LEGACY_ORCHESTRATOR];
@@ -210,7 +210,7 @@ function clearAgentReasoningEffort(agentConfig: any): boolean {
 
 function applyAgentReasoningEffort(agentConfig: any, effort: string): any {
   return {
-    ...(agentConfig || {}),
+    ...agentConfig,
     reasoningEffort: effort,
     options: {
       ...((agentConfig && typeof agentConfig.options === "object") ? agentConfig.options : {}),
@@ -226,6 +226,9 @@ export function applyProfileReasoningEffort(currentConfig: any, profile: Profile
   clearedAgents: string[];
 } {
   const nextConfig = JSON.parse(JSON.stringify(currentConfig || {}));
+  if (!nextConfig.agent || typeof nextConfig.agent !== "object" || Array.isArray(nextConfig.agent)) {
+    nextConfig.agent = {};
+  }
   const warnings: string[] = [];
   const appliedAgents: string[] = [];
   const clearedAgents: string[] = [];

@@ -6,11 +6,156 @@
  * and profile parsing.
  */
 
+import * as fs from "node:fs";
+import * as path from "node:path";
 import type { ActiveProfileState, PersistibleAgentKey } from "./types";
 import { getOrchestratorPolicy } from "./orchestrator";
 import { createLogger } from "./logger";
 
 const log = createLogger("utils");
+
+const activeProcessLocks = new Set<string>();
+
+export interface FileLockOptions {
+  maxRetries?: number;
+  retryDelayMs?: number;
+  staleAgeMs?: number;
+  isPidAlive?: (pid: number) => boolean;
+  sleepFn?: (ms: number) => void;
+}
+
+function defaultIsPidAlive(pid: number): boolean {
+  if (!Number.isInteger(pid) || pid <= 0) return false;
+  try {
+    process.kill(pid, 0);
+    return true;
+  } catch (err: any) {
+    if (err?.code === "EPERM") return true;
+    return false;
+  }
+}
+
+function defaultSleepFn(ms: number): void {
+  if (ms <= 0) return;
+  try {
+    const sab = new SharedArrayBuffer(4);
+    const int32 = new Int32Array(sab);
+    Atomics.wait(int32, 0, 0, ms);
+  } catch {
+    const start = Date.now();
+    while (Date.now() - start < ms) {}
+  }
+}
+
+function parseLockContent(raw: string): { pid: number | null; timestamp: number | null } {
+  const [pidStr, timestampStr] = raw.trim().split(":");
+  const pid = pidStr ? Number.parseInt(pidStr, 10) : null;
+  const timestamp = timestampStr ? Number.parseInt(timestampStr, 10) : null;
+  return {
+    pid: Number.isInteger(pid) ? pid : null,
+    timestamp: Number.isFinite(timestamp) ? timestamp : null,
+  };
+}
+
+/**
+ * Executes a synchronous callback inside an exclusive file lock.
+ * Safe against reentrancy within the same process/call stack.
+ */
+export function withFileLock<T>(
+  filePath: string,
+  fn: () => T,
+  optionsOrMaxRetries: number | FileLockOptions = 50,
+): T {
+  const canonicalPath = path.resolve(filePath);
+  if (activeProcessLocks.has(canonicalPath)) {
+    return fn();
+  }
+
+  const options: FileLockOptions = typeof optionsOrMaxRetries === "number"
+    ? { maxRetries: optionsOrMaxRetries }
+    : (optionsOrMaxRetries || {});
+
+  const maxRetries = options.maxRetries ?? 50;
+  const retryDelayMs = options.retryDelayMs ?? 10;
+  const staleAgeMs = options.staleAgeMs ?? 5000;
+  const isPidAlive = options.isPidAlive ?? defaultIsPidAlive;
+  const sleepFn = options.sleepFn ?? defaultSleepFn;
+
+  const dir = path.dirname(canonicalPath);
+  if (!fs.existsSync(dir)) {
+    fs.mkdirSync(dir, { recursive: true });
+  }
+  const lockFile = `${canonicalPath}.lock`;
+  const lockToken = `${process.pid}:${Date.now()}:${Math.random().toString(36).slice(2)}`;
+
+  let acquired = false;
+  for (let attempt = 0; attempt < maxRetries; attempt++) {
+    try {
+      const fd = fs.openSync(lockFile, "wx");
+      try {
+        fs.writeSync(fd, lockToken);
+      } finally {
+        fs.closeSync(fd);
+      }
+      acquired = true;
+      break;
+    } catch (err: any) {
+      if (err?.code === "EEXIST") {
+        try {
+          const raw = fs.readFileSync(lockFile, "utf-8");
+          const { pid } = parseLockContent(raw);
+          let isOrphan = false;
+
+          if (pid !== null) {
+            if (pid === process.pid) {
+              if (!activeProcessLocks.has(canonicalPath)) {
+                isOrphan = true;
+              }
+            } else if (!isPidAlive(pid)) {
+              isOrphan = true;
+            }
+          } else {
+            try {
+              const stat = fs.statSync(lockFile);
+              if (Date.now() - stat.mtimeMs > staleAgeMs) {
+                isOrphan = true;
+              }
+            } catch {}
+          }
+
+          if (isOrphan) {
+            try {
+              fs.unlinkSync(lockFile);
+            } catch {}
+            continue;
+          }
+        } catch {}
+      }
+      if (attempt < maxRetries - 1) {
+        sleepFn(retryDelayMs);
+      }
+    }
+  }
+
+  if (!acquired) {
+    throw new Error(`Failed to acquire file lock for '${canonicalPath}' after ${maxRetries} attempts`);
+  }
+
+  activeProcessLocks.add(canonicalPath);
+  try {
+    return fn();
+  } finally {
+    activeProcessLocks.delete(canonicalPath);
+    try {
+      if (fs.existsSync(lockFile)) {
+        const currentContent = fs.readFileSync(lockFile, "utf-8").trim();
+        if (currentContent === lockToken) {
+          fs.unlinkSync(lockFile);
+        }
+      }
+    } catch {}
+  }
+}
 
 const MANAGED_AGENT_PREFIXES = ["sdd-", "review-", "jd-"];
 const MANAGED_SDD_AGENT_EXCEPTIONS = new Set(["gentle-orchestrator", "model-audit"]);
