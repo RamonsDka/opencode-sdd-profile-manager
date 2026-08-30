@@ -5,12 +5,8 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {
   buildTaskManagerInitPrompt,
   buildTaskManagerRefreshPrompt,
-  captureTaskManagerIslandFingerprint,
   createTaskManagerStore,
   defaultTaskManagerAgentRunner,
-  dispatchTaskManagerSync,
-  getGlobalTaskManagerDispatcher,
-  sanitizeAndMigrateStateData,
   setTaskManagerDispatcherForTests,
   TaskManagerDispatcher,
   verifyDashboardUpdated,

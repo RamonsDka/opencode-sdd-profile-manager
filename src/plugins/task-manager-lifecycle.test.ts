@@ -3,7 +3,6 @@ import * as os from "node:os";
 import * as path from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
 import {
-  migrateLegacyTaskManagerHtml,
   provisionTaskManagerBase,
   setTaskManagerErrorState,
   setTaskManagerProlongedState,
@@ -54,7 +53,7 @@ describe("Task Manager lifecycle filesystem harness", () => {
     const content = fs.readFileSync(target, "utf8");
     expect(content).not.toContain("welcome-dialog");
     expect(content).toContain('"signature":"opencode-task-manager"');
-    expect(content).toContain('\"templateVersion\":\"1.4.0\"');
+    expect(content).toContain('"templateVersion":"1.4.0"');
     expect(content).toContain('"Test Migration"');
     expect(content).toContain('"Phase 1"');
     expect(content).toContain('"Task 1"');
@@ -95,7 +94,7 @@ describe("Task Manager lifecycle filesystem harness", () => {
     const content = fs.readFileSync(target, "utf8");
     expect(content).toContain('data-tm-capability="token-insights-v2"');
     expect(content).not.toContain('minmax(126px, 0.85fr)');
-    const state = JSON.parse(content.match(/<script\b[^>]*\bid=[\"']tm-state[\"'][^>]*>([\s\S]*?)<\/script>/i)![1]);
+    const state = JSON.parse(content.match(/<script\b[^>]*\bid=["']tm-state["'][^>]*>([\s\S]*?)<\/script>/i)![1]);
     expect(state.templateVersion).toBe("1.4.0");
     expect(state.meta.templateVersion).toBe("1.4.0");
     expect(state.meta.projectName).toBe("Prior 1.1.0 Project");

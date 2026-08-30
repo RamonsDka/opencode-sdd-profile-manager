@@ -47,7 +47,7 @@ export function resolveCanonicalOrchestratorModel(models: Record<string, string>
 }
 
 export function canonicalizeProfileModels(models: Record<string, string>, policy: OrchestratorPolicy): Record<string, string> {
-  const next = { ...(models || {}) };
+  const next = { ...models };
   const resolved = resolveCanonicalOrchestratorModel(next, policy);
   delete next[LEGACY_ORCHESTRATOR];
   delete next[UPDATED_ORCHESTRATOR];
@@ -71,7 +71,7 @@ export function canonicalizeAgentConfig(agentConfig: Record<string, any>, policy
 
   if (canonicalModel) {
     next[policy.canonicalName] = {
-      ...(next[policy.canonicalName] || {}),
+      ...next[policy.canonicalName],
       model: canonicalModel,
     };
   }

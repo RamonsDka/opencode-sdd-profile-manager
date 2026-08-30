@@ -6,7 +6,6 @@ import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import {
   collectTaskManagerGitEvidence,
   syncTaskManagerGitEvidence,
-  type TaskManagerGitEvidence,
 } from "./task-manager-git";
 import type { TaskManagerProjectIdentity } from "./task-manager-root";
 

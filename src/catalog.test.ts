@@ -67,9 +67,9 @@ const EXPECTED_CATALOG_GROUPS: readonly (readonly string[])[] = [
   ["gentle-ai-windows-validator", "compaction", "summary", "title"],
 ] as const;
 
-const EXPECTED_RUNTIME_SYNC_KEYS = [
-  ...EXPECTED_CATALOG_GROUPS.flat(),
-].filter((name) => !["sdd-ORCHETATOR", "compaction", "summary", "title"].includes(name));
+const EXPECTED_RUNTIME_SYNC_KEYS = EXPECTED_CATALOG_GROUPS.flat().filter(
+  (name) => !["sdd-ORCHETATOR", "compaction", "summary", "title"].includes(name)
+);
 
 describe("catalog SSOT & validation", () => {
   describe("grouped catalog views (Unit 1)", () => {
