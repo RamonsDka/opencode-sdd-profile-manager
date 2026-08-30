@@ -47,13 +47,13 @@ import {
   UpdateProfilePhaseModelResult,
 } from "./types";
 import {
-  isManagedSddAgent,
   isFallbackEligibleSddAgent,
   isEditablePrimaryAgent,
   isPrimarySddAgent,
   isSddFallbackAgent,
   isRuntimeSyncEligibleAgent,
   isCatalogVisibleAgent,
+  withFileLock,
 } from "./utils";
 import { FALLBACK_SYNC_BASE_ORDER, deriveFallbackProfileKey, isValidAgentKey } from "./catalog";
 import { resolvePaths, ensureProfilesDir } from "./config";
@@ -174,13 +174,24 @@ export function sanitizeProfileName(profileName: string): string {
 }
 
 /**
+ * Validates and normalizes config.agent to a clean Record<string, any> object.
+ * Protects against arrays, null, or malformed primitives.
+ */
+export function normalizeConfigAgent(agent: unknown): Record<string, any> {
+  if (agent && typeof agent === "object" && !Array.isArray(agent)) {
+    return agent as Record<string, any>;
+  }
+  return {};
+}
+
+/**
  * Extracts models specifically for managed base agents from a configuration object
  *
  * @param config - The raw configuration object
  * @returns Mapping of managed agent names to their model IDs
  */
 export function extractSddAgentModels(config: any): ProfileModels {
-  const agents = config?.agent || {};
+  const agents = normalizeConfigAgent(config?.agent);
   return Object.fromEntries(
     Object.entries(agents)
       .filter(
@@ -198,7 +209,7 @@ export function extractSddAgentModels(config: any): ProfileModels {
  * Extracts models for all valid agent keys from a configuration object (persisted layer)
  */
 export function extractPersistedAgentModels(config: any): ProfileModels {
-  const agents = config?.agent || {};
+  const agents = normalizeConfigAgent(config?.agent);
   return Object.fromEntries(
     Object.entries(agents)
       .filter(
@@ -421,15 +432,17 @@ export function writeProfileData(
   policy?: OrchestratorPolicy,
   options?: ProfileWriteOptions,
 ): void {
-  const normalized = normalizePersistedProfileData(profile, policy, options);
-  if (normalized.configs) {
-    const configs = Object.fromEntries(
-      Object.entries(normalized.configs).filter(([name]) => isValidAgentKey(name) && (isEditablePrimaryAgent(name) || name === policy?.canonicalName)),
-    );
-    if (Object.keys(configs).length > 0) normalized.configs = configs;
-    else delete normalized.configs;
-  }
-  atomicWriteFile(profilePath, JSON.stringify(normalized, null, 2));
+  withFileLock(profilePath, () => {
+    const normalized = normalizePersistedProfileData(profile, policy, options);
+    if (normalized.configs) {
+      const configs = Object.fromEntries(
+        Object.entries(normalized.configs).filter(([name]) => isValidAgentKey(name) && (isEditablePrimaryAgent(name) || name === policy?.canonicalName)),
+      );
+      if (Object.keys(configs).length > 0) normalized.configs = configs;
+      else delete normalized.configs;
+    }
+    atomicWriteFile(profilePath, JSON.stringify(normalized, null, 2));
+  });
 }
 
 function normalizePrimarySddAgentNames(primarySddAgentNames: string[]): string[] {
@@ -756,8 +769,8 @@ export function applyBulkProfilePhaseAssignment(
     throw new Error("modelId must be a non-empty string");
   }
 
-  const nextModels: ProfileModels = { ...(profile?.models || {}) };
-  const nextFallback: ProfileFallbackModels = { ...(profile?.fallback || {}) };
+  const nextModels: ProfileModels = { ...profile?.models };
+  const nextFallback: ProfileFallbackModels = { ...profile?.fallback };
   const primaryAgentNames = normalizePrimarySddAgentNames(primarySddAgentNames);
   let modelsAssigned = 0;
   let fallbackAssigned = 0;
@@ -786,7 +799,7 @@ export function applyBulkProfilePhaseAssignment(
 
   return {
     profile: {
-      ...(profile || {}),
+      ...profile,
       models: nextModels,
       fallback: nextFallback,
     },
@@ -846,14 +859,14 @@ function preparePrimaryModelMutation(
     return {
       profile: {
         ...profile,
-        models: { ...(profile.models || {}), [agentName]: modelId },
+        models: { ...profile.models, [agentName]: modelId },
       },
       agentName,
     };
   }
 
-  const models = { ...(profile.models || {}) };
-  const configs = { ...(profile.configs || {}) };
+  const models = { ...profile.models };
+  const configs = { ...profile.configs };
   for (const aliasName of policy.aliasNames) {
     delete models[aliasName];
     delete configs[aliasName];
@@ -945,9 +958,9 @@ export function buildBulkProfileOverwrite(
   const uniqueTargets = deduplicateBulkProfileTargets(targets);
   const policy = runtimePolicy ?? getOrchestratorPolicy(Object.keys(profile?.models || {}));
   const reasoningEffort = resolveBulkReasoningEffort(context, trimmedModelId, effortSelection);
-  const nextModels = { ...(profile?.models || {}) };
-  const nextFallback = { ...(profile?.fallback || {}) };
-  const nextConfigs = { ...(profile?.configs || {}) };
+  const nextModels = { ...profile?.models };
+  const nextFallback = { ...profile?.fallback };
+  const nextConfigs = { ...profile?.configs };
   let modelsAssigned = 0;
   let effortsAssigned = 0;
 
@@ -968,7 +981,7 @@ export function buildBulkProfileOverwrite(
     const currentEffort = nextConfigs[configKey]?.reasoningEffort;
     if (currentEffort !== reasoningEffort) effortsAssigned += 1;
     modelMap[targetName] = trimmedModelId;
-    nextConfigs[configKey] = { ...(nextConfigs[configKey] || {}), reasoningEffort };
+    nextConfigs[configKey] = { ...nextConfigs[configKey], reasoningEffort };
   }
 
   const { configs: _ignoredConfigs, ...profileWithoutConfigs } = profile || { models: {} };
@@ -995,23 +1008,25 @@ export function updateProfileWithBulkOverwrite(
   runtimePolicy?: OrchestratorPolicy,
   target: "primary" | "fallback" = BULK_ASSIGNMENT_TARGET.PRIMARY,
 ): { assignment: BulkProfileOverwriteResult; version?: ProfileVersion } {
-  const beforeRaw = fs.readFileSync(profilePath, "utf-8").toString();
-  const profileData = readProfileDataFromRaw(beforeRaw);
-  const policy = runtimePolicy ?? getOrchestratorPolicy(Object.keys(profileData.models || {}));
-  const assignment = buildBulkProfileOverwrite(profileData, targets, modelId, effortSelection, context, policy, target);
-  if (!assignment.changed) return { assignment };
+  return withFileLock(profilePath, () => {
+    const beforeRaw = fs.readFileSync(profilePath, "utf-8").toString();
+    const profileData = readProfileDataFromRaw(beforeRaw);
+    const policy = runtimePolicy ?? getOrchestratorPolicy(Object.keys(profileData.models || {}));
+    const assignment = buildBulkProfileOverwrite(profileData, targets, modelId, effortSelection, context, policy, target);
+    if (!assignment.changed) return { assignment };
 
-  const version = createProfileVersion(
-    profilePath,
-    normalizeBulkVersionOperation({ target, mode: BULK_ASSIGNMENT_MODE.OVERWRITE }, assignment.modelsAssigned),
-    `Override ${assignment.modelsAssigned} configurable ${target} agents`,
-    DEFAULT_PROFILE_VERSION_RETENTION,
-    beforeRaw,
-  );
-  persistVersionedProfileMutation(profilePath, assignment.profile, version, policy, {
-    preserveProviderDefaultReasoning: true,
+    const version = createProfileVersion(
+      profilePath,
+      normalizeBulkVersionOperation({ target, mode: BULK_ASSIGNMENT_MODE.OVERWRITE }, assignment.modelsAssigned),
+      `Override ${assignment.modelsAssigned} configurable ${target} agents`,
+      DEFAULT_PROFILE_VERSION_RETENTION,
+      beforeRaw,
+    );
+    persistVersionedProfileMutation(profilePath, assignment.profile, version, policy, {
+      preserveProviderDefaultReasoning: true,
+    });
+    return { assignment, version };
   });
-  return { assignment, version };
 }
 
 export function createProfileVersion(
@@ -1086,7 +1101,7 @@ export function listProfileVersions(profilePathOrFile: string): ProfileVersionMe
     })
     .filter((version): version is ProfileVersion => Boolean(version))
     .sort((a, b) => b.createdAt.localeCompare(a.createdAt))
-    .map(({ beforeRaw, ...metadata }) => metadata);
+    .map(({ beforeRaw: _beforeRaw, ...metadata }) => metadata);
 }
 
 export function restoreProfileVersion(profilePathOrFile: string, versionId: string): ProfileVersion {
@@ -1097,34 +1112,37 @@ export function restoreProfileVersion(profilePathOrFile: string, versionId: stri
   }
   const { profilesDir } = resolvePaths();
   const profilePath = path.join(profilesDir, profileFile);
-  createProfileVersion(
-    profilePath,
-    {
-      source: PROFILE_VERSION_SOURCE.BULK,
-      target: BULK_ASSIGNMENT_TARGET.BOTH,
-      mode: BULK_ASSIGNMENT_MODE.OVERWRITE,
-    },
-    `Snapshot before restoring ${path.basename(versionId)}`
-  );
 
-  let parsedBeforeRaw: any;
-  try {
-    parsedBeforeRaw = JSON.parse(version.beforeRaw);
-  } catch (e) {
-    log.warn(`restoreProfileVersion: beforeRaw is not JSON for ${versionId}; restoring raw content`, e);
+  return withFileLock(profilePath, () => {
+    createProfileVersion(
+      profilePath,
+      {
+        source: PROFILE_VERSION_SOURCE.BULK,
+        target: BULK_ASSIGNMENT_TARGET.BOTH,
+        mode: BULK_ASSIGNMENT_MODE.OVERWRITE,
+      },
+      `Snapshot before restoring ${path.basename(versionId)}`
+    );
+
+    let parsedBeforeRaw: any;
+    try {
+      parsedBeforeRaw = JSON.parse(version.beforeRaw);
+    } catch (e) {
+      log.warn(`restoreProfileVersion: beforeRaw is not JSON for ${versionId}; restoring raw content`, e);
+      atomicWriteFile(profilePath, version.beforeRaw);
+      return version;
+    }
+
+    if (parsedBeforeRaw && typeof parsedBeforeRaw === "object" && !Array.isArray(parsedBeforeRaw) && parsedBeforeRaw.configs) {
+      const runtimePolicy = getOrchestratorPolicy(Object.keys(parsedBeforeRaw?.agent || parsedBeforeRaw?.models || parsedBeforeRaw || {}));
+      const normalizedProfile = readProfileDataFromRaw(version.beforeRaw);
+      writeProfileData(profilePath, normalizedProfile, runtimePolicy);
+      return version;
+    }
+
     atomicWriteFile(profilePath, version.beforeRaw);
     return version;
-  }
-
-  if (parsedBeforeRaw && typeof parsedBeforeRaw === "object" && !Array.isArray(parsedBeforeRaw) && parsedBeforeRaw.configs) {
-    const runtimePolicy = getOrchestratorPolicy(Object.keys(parsedBeforeRaw?.agent || parsedBeforeRaw?.models || parsedBeforeRaw || {}));
-    const normalizedProfile = readProfileDataFromRaw(version.beforeRaw);
-    writeProfileData(profilePath, normalizedProfile, runtimePolicy);
-    return version;
-  }
-
-  atomicWriteFile(profilePath, version.beforeRaw);
-  return version;
+  });
 }
 
 export function updateProfileWithBulkPhaseAssignment(
@@ -1135,32 +1153,34 @@ export function updateProfileWithBulkPhaseAssignment(
   runtimePolicy?: OrchestratorPolicy,
   context?: ModelMutationContext,
 ): { assignment: BulkProfilePhaseAssignmentResult; version?: ProfileVersion } {
-  const beforeRaw = fs.readFileSync(profilePath, "utf-8").toString();
-  const profileData = readProfileDataFromRaw(beforeRaw);
-  const assignment = applyBulkProfilePhaseAssignment(profileData, primarySddAgentNames, modelId, operation);
-  if (!assignment.changed) return { assignment };
+  return withFileLock(profilePath, () => {
+    const beforeRaw = fs.readFileSync(profilePath, "utf-8").toString();
+    const profileData = readProfileDataFromRaw(beforeRaw);
+    const assignment = applyBulkProfilePhaseAssignment(profileData, primarySddAgentNames, modelId, operation);
+    if (!assignment.changed) return { assignment };
 
-  const bulkReasoning = operation.target === BULK_ASSIGNMENT_TARGET.PRIMARY || operation.target === BULK_ASSIGNMENT_TARGET.BOTH;
-  if (bulkReasoning && context?.effortPolicy === "bulk-compatible-prune" && assignment.profile.configs) {
-    let nextProfile = assignment.profile;
-    for (const agentName of normalizePrimarySddAgentNames(primarySddAgentNames)) {
-      const currentModel = nextProfile.models?.[agentName];
-      if (!currentModel) continue;
-      nextProfile = pruneProfileReasoningEffort(nextProfile, agentName, currentModel, context.providers as any[], runtimePolicy);
+    const bulkReasoning = operation.target === BULK_ASSIGNMENT_TARGET.PRIMARY || operation.target === BULK_ASSIGNMENT_TARGET.BOTH;
+    if (bulkReasoning && context?.effortPolicy === "bulk-compatible-prune" && assignment.profile.configs) {
+      let nextProfile = assignment.profile;
+      for (const agentName of normalizePrimarySddAgentNames(primarySddAgentNames)) {
+        const currentModel = nextProfile.models?.[agentName];
+        if (!currentModel) continue;
+        nextProfile = pruneProfileReasoningEffort(nextProfile, agentName, currentModel, context.providers as any[], runtimePolicy);
+      }
+      assignment.profile = nextProfile;
     }
-    assignment.profile = nextProfile;
-  }
 
-  const version = createProfileVersion(
-    profilePath,
-    normalizeBulkVersionOperation(operation, assignment.modelsAssigned + assignment.fallbackAssigned),
-    buildOperationSummary(operation, assignment.modelsAssigned, assignment.fallbackAssigned),
-    DEFAULT_PROFILE_VERSION_RETENTION,
-    beforeRaw
-  );
-  const policy = runtimePolicy ?? getOrchestratorPolicy(primarySddAgentNames);
-  persistVersionedProfileMutation(profilePath, assignment.profile, version, policy);
-  return { assignment, version };
+    const version = createProfileVersion(
+      profilePath,
+      normalizeBulkVersionOperation(operation, assignment.modelsAssigned + assignment.fallbackAssigned),
+      buildOperationSummary(operation, assignment.modelsAssigned, assignment.fallbackAssigned),
+      DEFAULT_PROFILE_VERSION_RETENTION,
+      beforeRaw
+    );
+    const policy = runtimePolicy ?? getOrchestratorPolicy(primarySddAgentNames);
+    persistVersionedProfileMutation(profilePath, assignment.profile, version, policy);
+    return { assignment, version };
+  });
 }
 
 export function updateProfilePhaseModel(
@@ -1185,51 +1205,53 @@ export function updateProfilePhaseModel(
     throw new Error("agentName is not eligible for fallback models");
   }
 
-  const profileData = readProfileData(profilePath);
-  const policy = runtimePolicy ?? getOrchestratorPolicy(Object.keys(profileData.models || {}));
-  const currentValue = field === PROFILE_PHASE_MODEL_FIELD.FALLBACK
-    ? profileData.fallback?.[agentName]
-    : profileData.models?.[agentName];
-  if (currentValue === trimmedModelId) {
-    return { profile: profileData, changed: false, context: context || { providers: [], effortPolicy: "none" } };
-  }
+  return withFileLock(profilePath, () => {
+    const profileData = readProfileData(profilePath);
+    const policy = runtimePolicy ?? getOrchestratorPolicy(Object.keys(profileData.models || {}));
+    const currentValue = field === PROFILE_PHASE_MODEL_FIELD.FALLBACK
+      ? profileData.fallback?.[agentName]
+      : profileData.models?.[agentName];
+    if (currentValue === trimmedModelId) {
+      return { profile: profileData, changed: false, context: context || { providers: [], effortPolicy: "none" } };
+    }
 
-  const nextProfile: ProfileData = {
-    ...profileData,
-    models: { ...(profileData.models || {}) },
-    fallback: { ...(profileData.fallback || {}) },
-  };
+    const nextProfile: ProfileData = {
+      ...profileData,
+      models: { ...profileData.models },
+      fallback: { ...profileData.fallback },
+    };
 
-  const mutationContext = resolveModelMutationContext(
-    context,
-    field === PROFILE_PHASE_MODEL_FIELD.FALLBACK ? "none" : "interactive-clear",
-  );
+    const mutationContext = resolveModelMutationContext(
+      context,
+      field === PROFILE_PHASE_MODEL_FIELD.FALLBACK ? "none" : "interactive-clear",
+    );
 
-  if (field === PROFILE_PHASE_MODEL_FIELD.FALLBACK) {
-    nextProfile.fallback = { ...(nextProfile.fallback || {}), [agentName]: trimmedModelId };
-  } else {
-    const mutation = preparePrimaryModelMutation(nextProfile, agentName, trimmedModelId, policy);
-    const reasonedProfile = applyModelReasoningMutation(mutation.profile, mutation.agentName, trimmedModelId, mutationContext, policy);
-    delete nextProfile.configs;
-    Object.assign(nextProfile, reasonedProfile);
-  }
+    if (field === PROFILE_PHASE_MODEL_FIELD.FALLBACK) {
+      nextProfile.fallback = { ...nextProfile.fallback, [agentName]: trimmedModelId };
+    } else {
+      const mutation = preparePrimaryModelMutation(nextProfile, agentName, trimmedModelId, policy);
+      const reasonedProfile = applyModelReasoningMutation(mutation.profile, mutation.agentName, trimmedModelId, mutationContext, policy);
+      delete nextProfile.configs;
+      Object.assign(nextProfile, reasonedProfile);
+    }
 
-  const operation: PhaseProfileVersionOperation = {
-    source: PROFILE_VERSION_SOURCE.PHASE,
-    phase: agentName,
-    field,
-    modelId: trimmedModelId,
-    changedPhases: 1,
-  };
-  const version = createProfileVersion(profilePath, operation, buildPhaseOperationSummary(agentName, field, trimmedModelId));
-  persistVersionedProfileMutation(profilePath, nextProfile, version, policy);
-  return {
-    profile: nextProfile,
-    changed: true,
-    version,
-    versionId: version.id,
-    context: mutationContext,
-  };
+    const operation: PhaseProfileVersionOperation = {
+      source: PROFILE_VERSION_SOURCE.PHASE,
+      phase: agentName,
+      field,
+      modelId: trimmedModelId,
+      changedPhases: 1,
+    };
+    const version = createProfileVersion(profilePath, operation, buildPhaseOperationSummary(agentName, field, trimmedModelId));
+    persistVersionedProfileMutation(profilePath, nextProfile, version, policy);
+    return {
+      profile: nextProfile,
+      changed: true,
+      version,
+      versionId: version.id,
+      context: mutationContext,
+    };
+  });
 }
 
 export function updateProfileReasoningWithoutVersion(
@@ -1238,10 +1260,12 @@ export function updateProfileReasoningWithoutVersion(
   value?: string,
   runtimePolicy?: OrchestratorPolicy,
 ): ProfileData {
-  const profile = readProfileData(profilePath);
-  const nextProfile = updateProfileReasoningEffort(profile, agentName, value);
-  writeProfileData(profilePath, nextProfile, runtimePolicy);
-  return nextProfile;
+  return withFileLock(profilePath, () => {
+    const profile = readProfileData(profilePath);
+    const nextProfile = updateProfileReasoningEffort(profile, agentName, value);
+    writeProfileData(profilePath, nextProfile, runtimePolicy);
+    return nextProfile;
+  });
 }
 
 export function stageProfileModelSelection(
@@ -1270,71 +1294,73 @@ export function commitPendingModelSelection(
   runtimePolicy?: OrchestratorPolicy,
   context?: ModelMutationContext,
 ): ProfileWriteTransaction {
-  if (pending.field === PROFILE_PHASE_MODEL_FIELD.PRIMARY && effortSelection === undefined) {
-    const profile = readProfileData(profilePath);
-    return { profile, changed: false, context: context || { providers: [], effortPolicy: "none" } };
-  }
-
-  const beforeRaw = fs.readFileSync(profilePath, "utf-8").toString();
-  const profileData = readProfileDataFromRaw(beforeRaw);
-  const policy = runtimePolicy ?? getOrchestratorPolicy(Object.keys(profileData.models || {}));
-  const currentModel = pending.field === PROFILE_PHASE_MODEL_FIELD.FALLBACK
-    ? profileData.fallback?.[pending.agentName]
-    : profileData.models?.[pending.agentName];
-  const nextProfile: ProfileData = {
-    ...profileData,
-    models: { ...(profileData.models || {}) },
-    ...(profileData.fallback ? { fallback: { ...profileData.fallback } } : {}),
-  };
-
-  if (pending.field === PROFILE_PHASE_MODEL_FIELD.FALLBACK) {
-    nextProfile.fallback = { ...(nextProfile.fallback || {}), [pending.agentName]: pending.modelId };
-    const resolvedEffort = resolvePendingReasoningEffort(context, pending.modelId, effortSelection || "provider-default");
-    const fallbackConfigKey = `${pending.agentName}-fallback`;
-    const nextConfigs = { ...(nextProfile.configs || {}) };
-    if (resolvedEffort) {
-      nextConfigs[fallbackConfigKey] = {
-        ...(nextConfigs[fallbackConfigKey] || {}),
-        reasoningEffort: resolvedEffort,
-      };
-    } else {
-      delete nextConfigs[fallbackConfigKey];
+  return withFileLock(profilePath, () => {
+    if (pending.field === PROFILE_PHASE_MODEL_FIELD.PRIMARY && effortSelection === undefined) {
+      const profile = readProfileData(profilePath);
+      return { profile, changed: false, context: context || { providers: [], effortPolicy: "none" } };
     }
-    delete nextProfile.configs;
-    if (Object.keys(nextConfigs).length > 0) nextProfile.configs = nextConfigs;
-  } else {
-    const resolvedEffort = resolvePendingReasoningEffort(context, pending.modelId, effortSelection || "provider-default");
-    const mutation = preparePrimaryModelMutation(nextProfile, pending.agentName, pending.modelId, policy);
-    const reasonedProfile = updateProfileReasoningEffort(mutation.profile, mutation.agentName, resolvedEffort);
-    delete nextProfile.configs;
-    Object.assign(nextProfile, reasonedProfile);
-  }
 
-  const effortConfigKey = pending.field === PROFILE_PHASE_MODEL_FIELD.FALLBACK
-    ? `${pending.agentName}-fallback`
-    : pending.agentName;
-  const currentEffort = profileData.configs?.[effortConfigKey]?.reasoningEffort;
-  const nextEffort = nextProfile.configs?.[effortConfigKey]?.reasoningEffort;
-  const changed = currentModel !== pending.modelId || currentEffort !== nextEffort;
-  const contextValue = context || { providers: [], effortPolicy: "none" as const };
-  if (!changed) return { profile: profileData, changed: false, context: contextValue };
+    const beforeRaw = fs.readFileSync(profilePath, "utf-8").toString();
+    const profileData = readProfileDataFromRaw(beforeRaw);
+    const policy = runtimePolicy ?? getOrchestratorPolicy(Object.keys(profileData.models || {}));
+    const currentModel = pending.field === PROFILE_PHASE_MODEL_FIELD.FALLBACK
+      ? profileData.fallback?.[pending.agentName]
+      : profileData.models?.[pending.agentName];
+    const nextProfile: ProfileData = {
+      ...profileData,
+      models: { ...profileData.models },
+      ...(profileData.fallback ? { fallback: { ...profileData.fallback } } : {}),
+    };
 
-  const operation: PhaseProfileVersionOperation = {
-    source: PROFILE_VERSION_SOURCE.PHASE,
-    phase: pending.agentName,
-    field: pending.field,
-    modelId: pending.modelId,
-    changedPhases: 1,
-  };
-  const version = createProfileVersion(
-    profilePath,
-    operation,
-    buildPhaseOperationSummary(pending.agentName, pending.field, pending.modelId),
-    DEFAULT_PROFILE_VERSION_RETENTION,
-    beforeRaw,
-  );
-  persistVersionedProfileMutation(profilePath, nextProfile, version, policy);
-  return { profile: nextProfile, changed: true, version, versionId: version.id, context: contextValue };
+    if (pending.field === PROFILE_PHASE_MODEL_FIELD.FALLBACK) {
+      nextProfile.fallback = { ...nextProfile.fallback, [pending.agentName]: pending.modelId };
+      const resolvedEffort = resolvePendingReasoningEffort(context, pending.modelId, effortSelection || "provider-default");
+      const fallbackConfigKey = `${pending.agentName}-fallback`;
+      const nextConfigs = { ...nextProfile.configs };
+      if (resolvedEffort) {
+        nextConfigs[fallbackConfigKey] = {
+          ...nextConfigs[fallbackConfigKey],
+          reasoningEffort: resolvedEffort,
+        };
+      } else {
+        delete nextConfigs[fallbackConfigKey];
+      }
+      delete nextProfile.configs;
+      if (Object.keys(nextConfigs).length > 0) nextProfile.configs = nextConfigs;
+    } else {
+      const resolvedEffort = resolvePendingReasoningEffort(context, pending.modelId, effortSelection || "provider-default");
+      const mutation = preparePrimaryModelMutation(nextProfile, pending.agentName, pending.modelId, policy);
+      const reasonedProfile = updateProfileReasoningEffort(mutation.profile, mutation.agentName, resolvedEffort);
+      delete nextProfile.configs;
+      Object.assign(nextProfile, reasonedProfile);
+    }
+
+    const effortConfigKey = pending.field === PROFILE_PHASE_MODEL_FIELD.FALLBACK
+      ? `${pending.agentName}-fallback`
+      : pending.agentName;
+    const currentEffort = profileData.configs?.[effortConfigKey]?.reasoningEffort;
+    const nextEffort = nextProfile.configs?.[effortConfigKey]?.reasoningEffort;
+    const changed = currentModel !== pending.modelId || currentEffort !== nextEffort;
+    const contextValue = context || { providers: [], effortPolicy: "none" as const };
+    if (!changed) return { profile: profileData, changed: false, context: contextValue };
+
+    const operation: PhaseProfileVersionOperation = {
+      source: PROFILE_VERSION_SOURCE.PHASE,
+      phase: pending.agentName,
+      field: pending.field,
+      modelId: pending.modelId,
+      changedPhases: 1,
+    };
+    const version = createProfileVersion(
+      profilePath,
+      operation,
+      buildPhaseOperationSummary(pending.agentName, pending.field, pending.modelId),
+      DEFAULT_PROFILE_VERSION_RETENTION,
+      beforeRaw,
+    );
+    persistVersionedProfileMutation(profilePath, nextProfile, version, policy);
+    return { profile: nextProfile, changed: true, version, versionId: version.id, context: contextValue };
+  });
 }
 
 function resolvePendingReasoningEffort(
@@ -1457,7 +1483,7 @@ export function detectActiveProfileFile(files: string[], api: any): string | und
  * Returns fallback-eligible managed base agents from config
  */
 export function listFallbackEligibleSddAgents(config: any): string[] {
-  const agents = config?.agent || {};
+  const agents = normalizeConfigAgent(config?.agent);
   return Object.keys(agents).filter((name) => isFallbackEligibleSddAgent(name));
 }
 
@@ -1466,7 +1492,7 @@ export function listFallbackEligibleSddAgents(config: any): string[] {
  */
 export function validateProfileFallbackMapping(config: any, fallback: ProfileFallbackModels): string[] {
   const errors: string[] = [];
-  const agents = config?.agent || {};
+  const agents = normalizeConfigAgent(config?.agent);
 
   for (const [baseAgentName, model] of Object.entries(fallback || {})) {
     const isStoredOnlyCatalogKey = isCatalogVisibleAgent(baseAgentName);
@@ -1513,7 +1539,7 @@ export function syncSddFallbackAgents(
   fallbackConfigs?: ProfileConfigs,
 ): any {
   const nextConfig = JSON.parse(JSON.stringify(currentConfig || {}));
-  if (!nextConfig.agent) nextConfig.agent = {};
+  nextConfig.agent = normalizeConfigAgent(nextConfig.agent);
 
   const baseAgents = Object.keys(nextConfig.agent).filter((name) => isFallbackSyncBaseAgent(name, fallbackModels));
   const canonicalEligibleSet = new Set(
@@ -1522,7 +1548,7 @@ export function syncSddFallbackAgents(
 
   for (const baseAgentName of baseAgents) {
     const baseConfig = nextConfig.agent?.[baseAgentName];
-    if (!baseConfig || typeof baseConfig !== "object") continue;
+    if (!baseConfig || typeof baseConfig !== "object" || Array.isArray(baseConfig)) continue;
 
     const isCanonical = canonicalEligibleSet.has(baseAgentName);
     const hasExplicitOverride = hasExplicitFallbackOverride(fallbackModels, baseAgentName);
@@ -1547,19 +1573,19 @@ export function syncSddFallbackAgents(
     if (fallbackEffort && fallbackEffort !== "provider-default") {
       desiredFallbackConfig.reasoningEffort = fallbackEffort;
       desiredFallbackConfig.options = {
-        ...(desiredFallbackConfig.options || {}),
+        ...desiredFallbackConfig.options,
         reasoningEffort: fallbackEffort,
       };
     } else {
       delete desiredFallbackConfig.reasoningEffort;
-      if (desiredFallbackConfig.options && typeof desiredFallbackConfig.options === "object") {
+      if (desiredFallbackConfig.options && typeof desiredFallbackConfig.options === "object" && !Array.isArray(desiredFallbackConfig.options)) {
         delete desiredFallbackConfig.options.reasoningEffort;
       }
     }
 
     const currentFallbackConfig = nextConfig.agent[fallbackAgentName];
 
-    if (!currentFallbackConfig || typeof currentFallbackConfig !== "object") {
+    if (!currentFallbackConfig || typeof currentFallbackConfig !== "object" || Array.isArray(currentFallbackConfig)) {
       nextConfig.agent[fallbackAgentName] = desiredFallbackConfig;
       continue;
     }
@@ -1590,12 +1616,13 @@ export function syncSddFallbackAgents(
  */
 function applyProfileModelsToConfig(currentConfig: any, profileModels: ProfileModels): any {
   const nextConfig = JSON.parse(JSON.stringify(currentConfig || {}));
-  if (!nextConfig.agent) nextConfig.agent = {};
+  nextConfig.agent = normalizeConfigAgent(nextConfig.agent);
 
   const policy = getOrchestratorPolicy(Object.keys(nextConfig.agent), currentConfig?.default_agent);
   for (const [agentName, modelId] of Object.entries(canonicalizeProfileModels(profileModels || {}, policy))) {
+    const existing = nextConfig.agent[agentName];
     nextConfig.agent[agentName] = {
-      ...(nextConfig.agent[agentName] || {}),
+      ...(existing && typeof existing === "object" && !Array.isArray(existing) ? existing : {}),
       model: modelId,
     };
   }
@@ -1613,9 +1640,9 @@ export function discoverInstalledAgentDefinitions(
   profileModels: ProfileModels,
 ): { config: any; models: ProfileModels; missing: string[] } {
   const config = JSON.parse(JSON.stringify(diskConfig || {}));
-  const diskAgents = diskConfig?.agent || {};
-  const runtimeAgents = runtimeConfig?.agent || {};
-  config.agent = { ...(config.agent || {}) };
+  const diskAgents = normalizeConfigAgent(diskConfig?.agent);
+  const runtimeAgents = normalizeConfigAgent(runtimeConfig?.agent);
+  config.agent = normalizeConfigAgent(config.agent);
 
   const models: ProfileModels = {};
   const missing: string[] = [];
@@ -1639,7 +1666,7 @@ export function applyProfileDataToConfig(currentConfig: any, profile: ProfileDat
   const withPrimaryModels = applyProfileModelsToConfig(currentConfig, profile.models || {});
   const fallbackModels = profile.fallback || {};
   const withFallback = syncSddFallbackAgents(withPrimaryModels, fallbackModels, profile.configs);
-  const policy = getOrchestratorPolicy(Object.keys(withFallback?.agent || {}), withFallback?.default_agent);
+  const policy = getOrchestratorPolicy(Object.keys(normalizeConfigAgent(withFallback?.agent)), withFallback?.default_agent);
   return applyProfileReasoningEffort(withFallback, profile, [], policy).config;
 }
 
@@ -1823,12 +1850,14 @@ export function deleteProfileFile(fileName: string): void {
   const { profilesDir } = resolvePaths();
   const safeFileName = safeProfileFileName(fileName);
   const profilePath = path.join(profilesDir, safeFileName);
-  fs.unlinkSync(profilePath);
+  withFileLock(profilePath, () => {
+    fs.unlinkSync(profilePath);
 
-  const versionDir = resolveProfileVersionDir(safeFileName);
-  if (fs.existsSync(versionDir)) {
-    fs.rmSync(versionDir, { recursive: true, force: true });
-  }
+    const versionDir = resolveProfileVersionDir(safeFileName);
+    if (fs.existsSync(versionDir)) {
+      fs.rmSync(versionDir, { recursive: true, force: true });
+    }
+  });
 }
 
 /**
@@ -1845,88 +1874,93 @@ export function renameProfileFile(oldFileName: string, newFileName: string): voi
   const newPath = path.join(profilesDir, safeNewFileName);
   const oldVersionDir = resolveProfileVersionDir(safeOldFileName);
   const newVersionDir = resolveProfileVersionDir(safeNewFileName);
-  if (!fs.existsSync(oldPath)) {
-    throw new Error("Profile file not found");
-  }
-  if (fs.existsSync(newPath)) {
-    throw new Error("Target profile file already exists");
-  }
-  if (fs.existsSync(newVersionDir)) {
-    throw new Error("Target profile version history already exists");
-  }
 
-  const migratedVersions = fs.existsSync(oldVersionDir)
-    ? fs.readdirSync(oldVersionDir)
-      .filter((file) => String(file).endsWith(".json"))
-      .map((file) => {
-        const versionFile = String(file);
-        const versionPath = path.join(oldVersionDir, versionFile);
-        const originalContent = fs.readFileSync(versionPath, "utf-8").toString();
-        try {
-          const version = buildRenamedProfileVersion(
-            versionFile,
-            originalContent,
-            safeOldFileName,
-            safeNewFileName
-          );
-          return {
-            versionFile,
-            rewrittenContent: JSON.stringify(version, null, 2),
-            originalContent,
-          };
-        } catch (e) {
-          log.warn(`renameProfileFile: skipping invalid profile version ${safeOldFileName}/${versionFile}`, e);
-          return null;
+  withFileLock(oldPath, () => {
+    withFileLock(newPath, () => {
+      if (!fs.existsSync(oldPath)) {
+        throw new Error("Profile file not found");
+      }
+      if (fs.existsSync(newPath)) {
+        throw new Error("Target profile file already exists");
+      }
+      if (fs.existsSync(newVersionDir)) {
+        throw new Error("Target profile version history already exists");
+      }
+
+      const migratedVersions = fs.existsSync(oldVersionDir)
+        ? fs.readdirSync(oldVersionDir)
+          .filter((file) => String(file).endsWith(".json"))
+          .map((file) => {
+            const versionFile = String(file);
+            const versionPath = path.join(oldVersionDir, versionFile);
+            const originalContent = fs.readFileSync(versionPath, "utf-8").toString();
+            try {
+              const version = buildRenamedProfileVersion(
+                versionFile,
+                originalContent,
+                safeOldFileName,
+                safeNewFileName
+              );
+              return {
+                versionFile,
+                rewrittenContent: JSON.stringify(version, null, 2),
+                originalContent,
+              };
+            } catch (e) {
+              log.warn(`renameProfileFile: skipping invalid profile version ${safeOldFileName}/${versionFile}`, e);
+              return null;
+            }
+          })
+          .filter((version): version is { versionFile: string; rewrittenContent: string; originalContent: string } => Boolean(version))
+        : [];
+
+      let profileRenamed = false;
+      let versionDirRenamed = false;
+      const rewrittenVersionContents = new Map<string, string>();
+
+      try {
+        if (fs.existsSync(oldVersionDir)) {
+          fs.renameSync(oldVersionDir, newVersionDir);
+          versionDirRenamed = true;
         }
-      })
-      .filter((version): version is { versionFile: string; rewrittenContent: string; originalContent: string } => Boolean(version))
-    : [];
 
-  let profileRenamed = false;
-  let versionDirRenamed = false;
-  const rewrittenVersionContents = new Map<string, string>();
+        fs.renameSync(oldPath, newPath);
+        profileRenamed = true;
 
-  try {
-    if (fs.existsSync(oldVersionDir)) {
-      fs.renameSync(oldVersionDir, newVersionDir);
-      versionDirRenamed = true;
-    }
+        if (!versionDirRenamed) return;
 
-    fs.renameSync(oldPath, newPath);
-    profileRenamed = true;
+        for (const migratedVersion of migratedVersions) {
+          const versionPath = path.join(newVersionDir, migratedVersion.versionFile);
+          rewrittenVersionContents.set(versionPath, migratedVersion.originalContent);
+          atomicWriteFile(versionPath, migratedVersion.rewrittenContent);
+        }
+      } catch (error) {
+        for (const [versionPath, originalContent] of rewrittenVersionContents.entries()) {
+          try {
+            atomicWriteFile(versionPath, originalContent);
+          } catch (rollbackError) {
+            log.error(`renameProfileFile: failed to restore version content ${versionPath}`, rollbackError);
+          }
+        }
 
-    if (!versionDirRenamed) return;
+        if (profileRenamed) {
+          try {
+            fs.renameSync(newPath, oldPath);
+          } catch (rollbackError) {
+            log.error(`renameProfileFile: failed to roll back profile rename ${newPath} -> ${oldPath}`, rollbackError);
+          }
+        }
 
-    for (const migratedVersion of migratedVersions) {
-      const versionPath = path.join(newVersionDir, migratedVersion.versionFile);
-      rewrittenVersionContents.set(versionPath, migratedVersion.originalContent);
-      atomicWriteFile(versionPath, migratedVersion.rewrittenContent);
-    }
-  } catch (error) {
-    for (const [versionPath, originalContent] of rewrittenVersionContents.entries()) {
-      try {
-        atomicWriteFile(versionPath, originalContent);
-      } catch (rollbackError) {
-        log.error(`renameProfileFile: failed to restore version content ${versionPath}`, rollbackError);
+        if (versionDirRenamed) {
+          try {
+            fs.renameSync(newVersionDir, oldVersionDir);
+          } catch (rollbackError) {
+            log.error(`renameProfileFile: failed to roll back version directory ${newVersionDir} -> ${oldVersionDir}`, rollbackError);
+          }
+        }
+
+        throw error;
       }
-    }
-
-    if (profileRenamed) {
-      try {
-        fs.renameSync(newPath, oldPath);
-      } catch (rollbackError) {
-        log.error(`renameProfileFile: failed to roll back profile rename ${newPath} -> ${oldPath}`, rollbackError);
-      }
-    }
-
-    if (versionDirRenamed) {
-      try {
-        fs.renameSync(newVersionDir, oldVersionDir);
-      } catch (rollbackError) {
-        log.error(`renameProfileFile: failed to roll back version directory ${newVersionDir} -> ${oldVersionDir}`, rollbackError);
-      }
-    }
-
-    throw error;
-  }
+    });
+  });
 }

@@ -10,14 +10,10 @@ import * as fs from "node:fs";
 import * as path from "node:path";
 import { execFileSync } from "node:child_process";
 import {
-  BULK_ASSIGNMENT_MODE,
-  BULK_ASSIGNMENT_TARGET,
-  BulkAssignmentOperation,
   PROFILE_VERSION_SOURCE,
   ProfileVersion,
   ProfileVersionMetadata,
   NAV_CATEGORY,
-  type BadgeDisplayMode,
   type CatalogEntry,
   type AgentFamily,
   type ModelMutationContext,
@@ -59,11 +55,7 @@ import { buildReasoningEditState, updateProfileReasoningEffort } from "./profile
 import { deleteProjectMemory, listProjectMemories } from "./memories";
 import {
   activeProfile,
-  badgeDisplayMode,
   setActiveProfile,
-  setBadgeDisplayMode,
-  setShowModelBadge,
-  showModelBadge,
 } from "./state";
 import { createLogger } from "./logger";
 import { canonicalizeProfileModels, getOrchestratorPolicy, type OrchestratorPolicy } from "./orchestrator";
@@ -374,7 +366,7 @@ export function buildPrimaryModelSubmenuOptions(profileData: any, sections: any,
   return [...options, buildBackOption()];
 }
 
-export function buildReasoningSubmenuOptions(profileData: any, sections: any) {
+export function buildReasoningSubmenuOptions(profileData: any, _sections: any) {
   const entries = buildCatalogEntries("model");
 
   const options = buildCatalogRows(CATALOG_GROUPS, (key) => {
@@ -498,7 +490,6 @@ export function showMemoryDetail(api: any, memory: any) {
  */
 export function showDeleteMemory(api: any, memory: any) {
   safeSetDialogSize(api, "medium");
-  safeSetDialogSize(api, "medium");
   const title = memory.title || memory.topic_key || `Memoria #${memory.id}`;
 
   api.ui.dialog.replace(() => (
@@ -598,7 +589,6 @@ export function registerDialogCallbacks(callbacks: {
  */
 export function showProfilesMenu(api: any) {
   safeSetDialogSize(api, "medium");
-  safeSetDialogSize(api, "medium");
   api.ui.dialog.replace(() => (
     <api.ui.DialogSelect
       title={NAV_TEXT.profileManagement}
@@ -642,8 +632,7 @@ export function showProfilesMenu(api: any) {
  */
 export function showCreateProfile(api: any) {
   safeSetDialogSize(api, "medium");
-  safeSetDialogSize(api, "medium");
-  const { configPath, profilesDir } = resolvePaths();
+  const { profilesDir } = resolvePaths();
   ensureProfilesDir();
 
   api.ui.dialog.replace(() => (
@@ -741,7 +730,6 @@ export function createProfileListDialogProps(
 
 export function showProfileList(api: any) {
   safeSetDialogSize(api, "xlarge");
-  safeSetDialogSize(api, "xlarge");
   ensureProfilesDir();
 
   const files = listProfileFiles();
@@ -776,7 +764,6 @@ export function showProfileList(api: any) {
  * @param profileOpt - Selected profile option containing title and value (filename)
  */
 export function showProfileDetail(api: any, profileOpt: any) {
-  safeSetDialogSize(api, "xlarge");
   safeSetDialogSize(api, "xlarge");
   const { profilesDir } = resolvePaths();
   try {
@@ -855,20 +842,17 @@ export function createProfileDetailDialogProps(
 
 export function showProfileDetailSubmenuPrimary(api: any, profileOpt: any, profileData: any, sections?: any) {
   safeSetDialogSize(api, "xlarge");
-  safeSetDialogSize(api, "xlarge");
   const resolvedSections = sections || buildProfileDetailAgentSections(api.state.config, profileData);
   api.ui.dialog.replace(() => (<api.ui.DialogSelect {...createPrimarySubmenuDialogProps(api, profileOpt, profileData, resolvedSections)} />));
 }
 
 export function showProfileDetailSubmenuReasoning(api: any, profileOpt: any, profileData: any, sections?: any) {
   safeSetDialogSize(api, "xlarge");
-  safeSetDialogSize(api, "xlarge");
   const resolvedSections = sections || buildProfileDetailAgentSections(api.state.config, profileData);
   api.ui.dialog.replace(() => (<api.ui.DialogSelect {...createReasoningSubmenuDialogProps(api, profileOpt, profileData, resolvedSections)} />));
 }
 
 export function showProfileDetailSubmenuFallback(api: any, profileOpt: any, profileData: any, sections?: any) {
-  safeSetDialogSize(api, "xlarge");
   safeSetDialogSize(api, "xlarge");
   const resolvedSections = sections || buildProfileDetailAgentSections(api.state.config, profileData);
   api.ui.dialog.replace(() => (<api.ui.DialogSelect {...createFallbackSubmenuDialogProps(api, profileOpt, profileData, resolvedSections)} />));
@@ -1156,7 +1140,6 @@ export async function handleActivateProfile(api: any, profilePath: string, profi
  */
 export function showDeleteProfile(api: any, profileOpt: any) {
   safeSetDialogSize(api, "medium");
-  safeSetDialogSize(api, "medium");
   api.ui.dialog.replace(() => (
     <api.ui.DialogConfirm
       title="Eliminar perfil"
@@ -1181,7 +1164,6 @@ export function showDeleteProfile(api: any, profileOpt: any) {
  * Displays a prompt to rename an existing profile
  */
 export function showRenameProfile(api: any, profileOpt: any) {
-  safeSetDialogSize(api, "medium");
   safeSetDialogSize(api, "medium");
   api.ui.dialog.replace(() => (
     <api.ui.DialogPrompt
@@ -1226,7 +1208,6 @@ export function showRenameProfile(api: any, profileOpt: any) {
  */
 export function showBulkProfileActions(api: any, profileOpt: any) {
   safeSetDialogSize(api, "xlarge");
-  safeSetDialogSize(api, "xlarge");
   const options = buildBulkProfileActionOptions();
 
   api.ui.dialog.replace(() => (
@@ -1257,7 +1238,6 @@ export function showBulkProfileActions(api: any, profileOpt: any) {
  * Displays a menu to select a provider for bulk phase assignment.
  */
 export function showProviderPickerForBulkProfilePhases(api: any, profileOpt: any, action: BulkProfileActionOption) {
-  safeSetDialogSize(api, "xlarge");
   safeSetDialogSize(api, "xlarge");
   const providers = (api.state.provider || []).filter((p: any) => Object.keys(p.models || {}).length > 0);
 
@@ -1326,7 +1306,6 @@ export function createBulkModelPickerDialogProps(
 
 export function showModelPickerForBulkProfilePhases(api: any, profileOpt: any, provider: any, action: BulkProfileActionOption) {
   safeSetDialogSize(api, "xlarge");
-  safeSetDialogSize(api, "xlarge");
   api.ui.dialog.replace(() => (
     <api.ui.DialogSelect {...createBulkModelPickerDialogProps(api, profileOpt, provider, action, {
       onModelSelected: (modelId) => createBulkModelSelectionHandler(api, profileOpt, modelId, action.target || "primary")(),
@@ -1346,7 +1325,6 @@ export function showBulkReasoningEffortPicker(
 }
 
 export function showProfileVersions(api: any, profileOpt: any) {
-  safeSetDialogSize(api, "xlarge");
   safeSetDialogSize(api, "xlarge");
   try {
     const versions = listProfileVersions(profileOpt.value);
@@ -1380,7 +1358,6 @@ export function showProfileVersions(api: any, profileOpt: any) {
 
 export function showProfileVersionPreview(api: any, profileOpt: any, versionId: string) {
   safeSetDialogSize(api, "xlarge");
-  safeSetDialogSize(api, "xlarge");
   try {
     const version = readProfileVersion(versionId);
     const lines = formatProfileVersionPreviewLines(version);
@@ -1409,7 +1386,6 @@ export function showProfileVersionPreview(api: any, profileOpt: any, versionId: 
 }
 
 export function showConfirmRestoreProfileVersion(api: any, profileOpt: any, versionId: string) {
-  safeSetDialogSize(api, "medium");
   safeSetDialogSize(api, "medium");
   api.ui.dialog.replace(() => (
     <api.ui.DialogConfirm
@@ -1479,13 +1455,6 @@ export function showProviderPickerForAgent(
 export function showModelPickerForAgent(api: any, profileOpt: any, agentName: string, provider: any, mode: "model" | "fallback", returnTarget: ProfileDetailReturnTarget = "hub") {
   safeSetDialogSize(api, "xlarge");
   api.ui.dialog.replace(() => <api.ui.DialogSelect {...createModelPickerDialogProps(api, profileOpt, agentName, provider, mode === "fallback" ? "fallback" : "model", returnTarget)} />);
-}
-
-/**
- * Updates a specific agent's model within a profile file
- */
-function updateAgentModel(api: any, profileOpt: any, agentName: string, fullModelId: string, mode: "model" | "fallback", returnTarget: ProfileDetailReturnTarget = "hub") {
-  createModelSelectionHandler(api, profileOpt, agentName, mode === "fallback" ? "fallback" : "primary", returnTarget)(fullModelId);
 }
 
 /**

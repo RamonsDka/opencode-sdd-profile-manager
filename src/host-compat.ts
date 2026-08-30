@@ -7,12 +7,17 @@ const RENDERER_MISSING_MESSAGE = "No renderer found";
 
 export interface HostApi {
   app?: { version?: string };
+  ui?: {
+    dialog?: {
+      setSize?: (size: DialogSize) => void;
+    };
+  };
 }
 
 let rendererMissingReported = false;
 const reportedSlotFailures = new Set<string>();
 
-export function getHostVersion(api: HostApi): string {
+export function getHostVersion(api?: HostApi | null): string {
   return api?.app?.version ?? "unknown";
 }
 
@@ -81,7 +86,7 @@ export async function safeHostAsyncAction<T>(
 	}
 }
 
-export function safeSetDialogSize(api: any, size: DialogSize): void {
+export function safeSetDialogSize(api: HostApi | null | undefined, size: DialogSize): void {
 	try {
 		api?.ui?.dialog?.setSize?.(size);
 	} catch (error) {

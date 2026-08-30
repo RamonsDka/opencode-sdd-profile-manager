@@ -63,9 +63,17 @@ export function estimateTokensFromText(text?: string | null): number {
   return Math.ceil(text.length / 4);
 }
 
-function canonicalizePath(p?: string): string {
+export function canonicalizeTelemetryPath(p?: string, platform: NodeJS.Platform = process.platform): string {
   if (!p) return "";
-  return path.win32.normalize(p).replaceAll("\\", "/").replace(/\/$/, "").toLowerCase();
+  const normalized = platform === "win32"
+    ? path.win32.normalize(p).replaceAll("\\", "/")
+    : path.posix.normalize(p);
+  const clean = normalized.replace(/\/$/, "");
+  return platform === "win32" ? clean.toLowerCase() : clean;
+}
+
+function canonicalizePath(p?: string): string {
+  return canonicalizeTelemetryPath(p);
 }
 
 export interface RawSession {
