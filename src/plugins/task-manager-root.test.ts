@@ -11,20 +11,21 @@ import { canonicalizeWriterKey } from "./task-manager-writer";
 
 describe("Task Manager root and consent", () => {
   it("prefers a canonical Git root over a nested manifest directory without confirmation", () => {
+    const nativeRoot = canonicalizeTaskManagerPath("C:\\work\\app");
     const identity = resolveTaskManagerRoot({
-      cwd: "C:\\\\work\\\\app\\\\packages\\\\web",
-      gitRoot: "C:\\\\work\\\\app",
-      manifestRoot: "C:\\\\work\\\\app\\\\packages\\\\web",
+      cwd: "C:\\work\\app\\packages\\web",
+      gitRoot: "C:\\work\\app",
+      manifestRoot: "C:\\work\\app\\packages\\web",
     });
 
-    expect(identity.root).toBe("C:/work/app");
-    expect(identity.canonicalRoot).toBe("C:/work/app");
+    expect(identity.root).toBe(nativeRoot);
+    expect(identity.canonicalRoot).toBe(nativeRoot);
     expect(identity.confirmed).toBe(true);
   });
 
   it("canonicalizes cross-platform paths respecting Windows case-insensitivity and POSIX case-sensitivity", () => {
     // Windows semantics: backslashes normalized, forward slashes used, keys lowercased
-    const winPath = "C:\\\\Work\\\\App\\\\SubDir\\\\";
+    const winPath = "C:\\Work\\App\\SubDir\\";
     expect(canonicalizeTaskManagerPath(winPath, "win32")).toBe("C:/Work/App/SubDir");
     expect(buildTaskManagerProjectKey(winPath, "win32")).toBe("c:/work/app/subdir");
     expect(canonicalizeTelemetryPath(winPath, "win32")).toBe("c:/work/app/subdir");
@@ -43,11 +44,12 @@ describe("Task Manager root and consent", () => {
   });
 
   it("requires explicit confirmation for an unmarked directory and keys consent by canonical identity", async () => {
-    const identity = resolveTaskManagerRoot({ cwd: "C:\\\\work\\\\scratch\\\\..\\\\scratch" });
+    const nativeRoot = canonicalizeTaskManagerPath("C:\\work\\scratch\\..\\scratch");
+    const identity = resolveTaskManagerRoot({ cwd: "C:\\work\\scratch\\..\\scratch" });
     const consent = createTaskManagerConsentStore();
 
     expect(identity.confirmed).toBe(false);
-    expect(buildTaskManagerConsentNotice(identity)).toContain("C:/work/scratch");
+    expect(buildTaskManagerConsentNotice(identity)).toContain(nativeRoot);
     expect(buildTaskManagerConsentNotice(identity)).toContain("actualización asíncrona");
     expect(await consent.get(identity)).toBeUndefined();
 
@@ -57,7 +59,7 @@ describe("Task Manager root and consent", () => {
   });
 
   it("discloses consent, background enrichment, and the browser path before activation", () => {
-    const identity = resolveTaskManagerRoot({ cwd: "C:\\\\work\\\\scratch" });
+    const identity = resolveTaskManagerRoot({ cwd: "C:\\work\\scratch" });
 
     expect(buildTaskManagerConsentNotice(identity)).toContain("consentimiento");
     expect(buildTaskManagerConsentNotice(identity)).toContain("actualización asíncrona");
