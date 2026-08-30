@@ -17,8 +17,21 @@ export interface TaskManagerRootCandidates {
 
 export type TaskManagerPreference = { consent: boolean; enabled: boolean };
 
+export function canonicalizeTaskManagerPath(candidate: string, platform: NodeJS.Platform = process.platform): string {
+  if (!candidate) return "";
+  const normalized = platform === "win32"
+    ? path.win32.normalize(candidate).replaceAll("\\", "/")
+    : path.posix.normalize(candidate);
+  return normalized.replace(/\/$/, "");
+}
+
+export function buildTaskManagerProjectKey(candidate: string, platform: NodeJS.Platform = process.platform): string {
+  const canonical = canonicalizeTaskManagerPath(candidate, platform);
+  return platform === "win32" ? canonical.toLowerCase() : canonical;
+}
+
 function canonicalize(candidate: string): string {
-  return path.win32.normalize(candidate).replaceAll("\\", "/").replace(/\/$/, "");
+  return canonicalizeTaskManagerPath(candidate);
 }
 
 export function resolveTaskManagerRoot(candidates: TaskManagerRootCandidates): TaskManagerProjectIdentity {
@@ -27,7 +40,7 @@ export function resolveTaskManagerRoot(candidates: TaskManagerRootCandidates): T
   return {
     root: canonicalRoot,
     canonicalRoot,
-    key: canonicalRoot.toLowerCase(),
+    key: buildTaskManagerProjectKey(selected),
     confirmed: candidates.gitRoot !== undefined || candidates.manifestRoot !== undefined,
   };
 }

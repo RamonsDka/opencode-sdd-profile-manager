@@ -130,11 +130,19 @@ export function writeTaskManagerStateAtomically(file: string, html: string, port
   }
 }
 
+export function canonicalizeWriterKey(key: string, platform: NodeJS.Platform = process.platform): string {
+  const normalized = platform === "win32"
+    ? path.win32.normalize(key).replaceAll("\\", "/")
+    : path.posix.normalize(key);
+  const clean = normalized.replace(/\/$/, "");
+  return platform === "win32" ? clean.toLowerCase() : clean;
+}
+
 export class KeyedWriteQueue {
   private queues = new Map<string, Promise<unknown>>();
 
   public async runExclusive<T>(key: string, fn: () => Promise<T> | T): Promise<T> {
-    const canonicalKey = path.win32.normalize(key).replaceAll("\\", "/").toLowerCase();
+    const canonicalKey = canonicalizeWriterKey(key);
     const previous = this.queues.get(canonicalKey) ?? Promise.resolve();
     let resolveCurrent!: () => void;
     const current = new Promise<void>((r) => {

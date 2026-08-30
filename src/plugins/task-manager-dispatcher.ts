@@ -14,6 +14,7 @@ import {
 import { syncTaskManagerTokenTelemetry } from "./task-manager-telemetry";
 import { syncTaskManagerGitEvidence } from "./task-manager-git";
 import { withDashboardWriteLock } from "./task-manager-writer";
+import { withFileLock } from "../utils";
 
 const log = createLogger("task-manager-dispatcher");
 
@@ -49,50 +50,6 @@ export function sanitizeAndMigrateStateData(data: Record<string, TaskManagerProj
     }
   }
   return sanitized;
-}
-
-function withFileLock<T>(filePath: string, fn: () => T, maxRetries = 50): T {
-  const dir = path.dirname(filePath);
-  if (!fs.existsSync(dir)) {
-    fs.mkdirSync(dir, { recursive: true });
-  }
-  const lockFile = `${filePath}.lock`;
-  const staleAgeMs = 5000;
-
-  let acquired = false;
-  for (let attempt = 0; attempt < maxRetries; attempt++) {
-    try {
-      const fd = fs.openSync(lockFile, "wx");
-      try {
-        fs.writeFileSync(fd, `${process.pid}:${Date.now()}`, "utf8");
-      } finally {
-        fs.closeSync(fd);
-      }
-      acquired = true;
-      break;
-    } catch (err: any) {
-      if (err?.code === "EEXIST") {
-        try {
-          const stat = fs.statSync(lockFile);
-          if (Date.now() - stat.mtimeMs > staleAgeMs) {
-            try { fs.unlinkSync(lockFile); } catch {}
-          }
-        } catch {}
-      }
-      const start = Date.now();
-      while (Date.now() - start < 10) {}
-    }
-  }
-
-  try {
-    return fn();
-  } finally {
-    if (acquired) {
-      try {
-        fs.unlinkSync(lockFile);
-      } catch {}
-    }
-  }
 }
 
 export function createTaskManagerStore(storagePath?: string): TaskManagerStore {
@@ -554,7 +511,6 @@ export class TaskManagerDispatcher {
         }
       }
 
-      const preAgentFingerprint = captureTaskManagerIslandFingerprint(dashboardPath);
       const initialized = store.isInitialized(project.key);
       const mode: "init" | "refresh" = initialized ? "refresh" : "init";
       const prompt = mode === "init"
@@ -590,7 +546,7 @@ export class TaskManagerDispatcher {
               dashboardPath,
               initialFingerprint: prolongedBaselineFingerprint,
               store,
-              ...(params.monitorOptions ?? {}),
+              ...params.monitorOptions,
               onStatusChange: (status) => {
                 this.activeMonitors.delete(project.key);
                 params.monitorOptions?.onStatusChange?.(status);
