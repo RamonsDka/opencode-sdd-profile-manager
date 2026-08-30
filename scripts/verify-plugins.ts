@@ -19,6 +19,8 @@ if (fs.existsSync(path.join(suitePluginDir, "package.json"))) execSync("npm test
 const requiredAssets = [
   path.join(root, "dist", "plugins/task-manager/Task-Manager-Portable.html"),
   path.join(root, "dist", "plugins/suite-de-agentes/README.md"),
+  path.join(root, "dist", "plugins/suite-de-agentes/dist/server.js"),
+  path.join(root, "dist", "plugins/suite-de-agentes/dist/tui.js"),
 ];
 const missingAssets = requiredAssets.filter((asset) => !fs.existsSync(asset));
 if (missingAssets.length > 0) throw new Error(`Missing packaged assets:\n${missingAssets.join("\n")}`);
