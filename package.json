@@ -1,6 +1,6 @@
 {
 	"name": "opencode-sdd-profile-manager",
-	"version": "2.0.1",
+	"version": "2.0.3",
 	"description": "Keyboard-first SDD profile, model, reasoning, fallback, and Engram management for OpenCode",
 	"repository": {
 		"type": "git",
