@@ -4,7 +4,6 @@ import { classifyTaskManagerHtml, currentTaskManagerMeta, isLegacyManagedTaskMan
 import { collectTaskManagerGitEvidence } from "./task-manager-git";
 import {
   writeTaskManagerStateAtomically,
-  withDashboardWriteLock,
 } from "./task-manager-writer";
 
 export { writeTaskManagerStateAtomically };

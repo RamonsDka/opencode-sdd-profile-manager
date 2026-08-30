@@ -7,7 +7,6 @@ import {
   openTaskManagerResult,
   buildBrowserLaunchCommand,
   launchTaskManagerBrowser,
-  formatHeadlessFallbackPayload,
   validatePathWithinRoot,
 } from "./task-manager-coordinator";
 

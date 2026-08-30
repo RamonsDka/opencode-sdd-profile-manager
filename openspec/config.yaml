@@ -25,8 +25,8 @@ testing:
       tool: null
   quality:
     linter:
-      available: false
-      command: null
+      available: true
+      command: npm run lint
     typecheck:
       available: true
       command: npm run typecheck
@@ -53,7 +53,7 @@ rules:
     test_command: "npm test"
   verify:
     test_command: "npm test"
-    build_command: ""
-    coverage_threshold: 0
+    build_command: "npm run build"
+    coverage_threshold: 80
   archive:
     - Warn before merging destructive deltas

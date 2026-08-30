@@ -6,5 +6,15 @@ export const HOST_VITEST_EXCLUDE = ["plugins/**", "dist/**"];
 export default defineConfig({
 	test: {
 		exclude: [...configDefaults.exclude, ...HOST_VITEST_EXCLUDE],
+		coverage: {
+			provider: "v8",
+			exclude: [...HOST_VITEST_EXCLUDE, "scripts/**", "examples/**"],
+			thresholds: {
+				statements: 80,
+				lines: 80,
+				functions: 80,
+				branches: 70,
+			},
+		},
 	},
 });
