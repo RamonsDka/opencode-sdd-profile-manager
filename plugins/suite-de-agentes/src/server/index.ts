@@ -1,13 +1,13 @@
 import { ConsentLedger, registerMessageGrant } from "../core/grants.ts";
 import { messageText, parseCanonicalConsent } from "../core/grants.ts";
-import { decideTaskGate, SDD_ORCHESTRATOR, transformTaskPermission } from "../core/policy.ts";
+import { decideTaskGate, isAuthorizedInternalAgent, SDD_ORCHESTRATOR, transformTaskPermission } from "../core/policy.ts";
 import { defaultSuitePath, loadSuiteConfig } from "../core/persistence.ts";
 import type { Config as PluginConfig, Plugin, PluginInput, PluginModule } from "@opencode-ai/plugin";
 import type { Event } from "@opencode-ai/sdk";
 import type { Part } from "@opencode-ai/sdk";
 import { randomBytes } from "node:crypto";
 import { existsSync } from "node:fs";
-import { GITHUB_AGENT_ID, GITHUB_AGENT_LEGACY_ID, normalizeAgentId } from "../core/built-in-agents.ts";
+import { GITHUB_AGENT_ID, GITHUB_AGENT_LEGACY_ID, isCanonicalBuiltInAgent, normalizeAgentId } from "../core/built-in-agents.ts";
 
 type RuntimePermission = NonNullable<PluginConfig["permission"]> & {
   task?: Record<string, "allow" | "deny" | "ask">;
@@ -89,7 +89,7 @@ export interface AgentSuiteServerOptions {
   sessionAgent?: (sessionID: string) => string | undefined | Promise<string | undefined>;
   ledger?: ConsentLedger;
   disabledAgents?: () => readonly string[];
-  securityState?: () => { disabledAgents: readonly string[]; available: boolean };
+  securityState?: () => { disabledAgents: readonly string[]; customAgentIds?: readonly string[]; available: boolean };
   onMilestone?: (milestone: string, sessionID: string) => Promise<void> | void;
 }
 
@@ -112,7 +112,7 @@ export function createAgentSuiteServer(options: AgentSuiteServerOptions = {}) {
   const ledger = options.ledger ?? new ConsentLedger();
   const knownAgents = options.knownAgents ?? (() => []);
   const currentTurns = new Map<string, { messageID: string; agent?: string }>();
-  const readSecurityState = () => options.securityState?.() ?? { disabledAgents: options.disabledAgents?.() ?? [], available: true };
+  const readSecurityState = () => options.securityState?.() ?? { disabledAgents: options.disabledAgents?.() ?? [], customAgentIds: [], available: true };
   return {
     "chat.message": async (input: ChatMessageInput, output: ChatMessageOutput) => {
       const messageID = input.messageID ?? output.message?.id;
@@ -120,11 +120,18 @@ export function createAgentSuiteServer(options: AgentSuiteServerOptions = {}) {
         currentTurns.delete(input.sessionID);
         return;
       }
-       const sessionAgent = input.agent ?? output.message?.agent ?? await options.sessionAgent?.(input.sessionID);
-       currentTurns.set(input.sessionID, { messageID, agent: sessionAgent });
+      const sessionAgent = input.agent ?? output.message?.agent ?? await options.sessionAgent?.(input.sessionID);
+      currentTurns.set(input.sessionID, { messageID, agent: sessionAgent });
       const state = readSecurityState();
-       const disabled = new Set(state.disabledAgents);
-      const known = state.available ? knownAgents().filter((agent) => !disabled.has(agent)) : [];
+      const disabled = new Set(state.disabledAgents.map(normalizeAgentId));
+      const customSet = new Set((state.customAgentIds ?? []).map(normalizeAgentId));
+      const isDegraded = state.available === false;
+      const known = knownAgents().filter((agent) => {
+        const norm = normalizeAgentId(agent);
+        if (disabled.has(norm)) return false;
+        if (isDegraded && customSet.has(norm)) return false;
+        return true;
+      });
       registerMessageGrant(ledger, { sessionID: input.sessionID, messageID, parts: output.parts }, known, sessionAgent);
       if (sessionAgent === SDD_ORCHESTRATOR) {
         const text = messageText({ sessionID: input.sessionID, messageID, parts: output.parts });
@@ -150,7 +157,6 @@ export function createAgentSuiteServer(options: AgentSuiteServerOptions = {}) {
         await delay(retryDelay);
         state = readSecurityState();
       }
-      if (!state.available) throw new Error("Suite de Agentes: suite config unavailable");
       const disabledAgents = state.disabledAgents;
       const turn = currentTurns.get(input.sessionID);
       if (!turn) throw new Error("Suite de Agentes: cannot resolve the current turn for this task");
@@ -158,8 +164,45 @@ export function createAgentSuiteServer(options: AgentSuiteServerOptions = {}) {
       if (!sessionAgent) throw new Error("Suite de Agentes: cannot resolve the session agent for the current turn");
       const target = typeof output.args.subagent_type === "string" ? output.args.subagent_type : "";
       if (!target && sessionAgent === SDD_ORCHESTRATOR) throw new Error("Suite de Agentes: task target subagent_type is missing");
-       const decision = decideTaskGate({ sessionAgent, target, sessionID: input.sessionID, messageID: turn.messageID, ledger, disabledAgents, knownAgents: [SDD_ORCHESTRATOR, ...knownAgents().filter((agent) => !disabledAgents.includes(agent))] });
-       if (!decision.allowed) throw new Error(`Suite de Agentes: ${decision.reason}`);
+
+      const canonicalTarget = normalizeAgentId(target);
+      const isTargetDisabled = disabledAgents.map(normalizeAgentId).includes(canonicalTarget);
+      if (isTargetDisabled) {
+        throw new Error(`Suite de Agentes: Disabled agent '${target}' cannot be dispatched.`);
+      }
+
+      if (sessionAgent !== SDD_ORCHESTRATOR) {
+        return;
+      }
+
+      if (isAuthorizedInternalAgent(canonicalTarget)) {
+        return;
+      }
+
+      const allKnownAgents = knownAgents().map(normalizeAgentId);
+      const isKnown = allKnownAgents.includes(canonicalTarget);
+      if (!isKnown) {
+        throw new Error(`Suite de Agentes: Blocked agent '${target}': target is unknown or unregistered.`);
+      }
+
+      const isCanonicalNative = isCanonicalBuiltInAgent(canonicalTarget);
+      const customSet = new Set((state.customAgentIds ?? []).map(normalizeAgentId));
+      const isCustom = customSet.has(canonicalTarget) || !isCanonicalNative;
+
+      if (!state.available && isCustom) {
+        throw new Error(`Suite de Agentes: custom agent '${target}' is unavailable due to corrupt suite configuration`);
+      }
+
+      const decision = decideTaskGate({
+        sessionAgent,
+        target,
+        sessionID: input.sessionID,
+        messageID: turn.messageID,
+        ledger,
+        disabledAgents,
+        knownAgents: [SDD_ORCHESTRATOR, ...allKnownAgents.filter((agent) => !disabledAgents.map(normalizeAgentId).includes(agent))],
+      });
+      if (!decision.allowed) throw new Error(`Suite de Agentes: ${decision.reason}`);
     },
     "tool.execute.after": async () => undefined,
     "command.execute.before": async (input: { command: string; sessionID: string; arguments: string }, output: { parts: Part[] }) => {
@@ -204,39 +247,38 @@ async function resolveSessionAgent(input: PluginInput, sessionID: string): Promi
 export const serverPlugin: Plugin = async (input) => {
   const registeredAgents = new Set<string>();
   let disabledAgents: string[] = [];
+  let customAgentIds = new Set<string>();
   let suiteConfigLoaded = false;
   let suiteFileExisted = false;
-  const liveDisabledAgents = () => {
-    try {
-      const path = defaultSuitePath();
-      const exists = existsSync(path);
-      if (!exists) {
-        if (suiteFileExisted) throw new Error("Suite config is unavailable");
-        return disabledAgents;
+
+  const liveSecurityState = () => {
+    const path = defaultSuitePath();
+    const exists = existsSync(path);
+    if (!exists) {
+      if (suiteFileExisted) {
+        return { disabledAgents, customAgentIds: [...customAgentIds], available: false };
       }
-      disabledAgents = [...(loadSuiteConfig(path).disabledAgents ?? [])];
+      return { disabledAgents, customAgentIds: [...customAgentIds], available: true };
+    }
+    try {
+      const suite = loadSuiteConfig(path);
+      disabledAgents = [...(suite.disabledAgents ?? [])];
+      customAgentIds = new Set(Object.keys(suite.customAgents ?? {}).map(normalizeAgentId));
       suiteConfigLoaded = true;
       suiteFileExisted = true;
-      return disabledAgents;
-    } catch (error) {
-      if (error instanceof Error && /suite config unavailable/i.test(error.message)) throw error;
-      if (existsSync(defaultSuitePath())) throw new Error("Suite de Agentes: suite config unavailable");
-      return disabledAgents;
-    }
-  };
-  const securityState = () => {
-    try {
-      return { disabledAgents: liveDisabledAgents(), available: true };
+      return { disabledAgents, customAgentIds: [...customAgentIds], available: true };
     } catch {
-      return { disabledAgents, available: false };
+      return { disabledAgents, customAgentIds: [...customAgentIds], available: false };
     }
   };
+
   const hooks = createAgentSuiteServer({
     knownAgents: () => [...registeredAgents],
     sessionAgent: (sessionID) => resolveSessionAgent(input, sessionID),
-    disabledAgents: liveDisabledAgents,
-    securityState,
+    disabledAgents: () => liveSecurityState().disabledAgents,
+    securityState: liveSecurityState,
   });
+
   return {
     ...hooks,
     config: async (config: PluginConfig) => {
@@ -246,6 +288,7 @@ export const serverPlugin: Plugin = async (input) => {
         const suitePath = defaultSuitePath();
         const suite = loadSuiteConfig(suitePath);
         disabledAgents = [...(suite.disabledAgents ?? [])];
+        customAgentIds = new Set(Object.keys(suite.customAgents ?? {}).map(normalizeAgentId));
         suiteConfigLoaded = true;
         if (existsSync(suitePath)) suiteFileExisted = true;
         applyRuntimeDisabledAgents(config, disabledAgents);

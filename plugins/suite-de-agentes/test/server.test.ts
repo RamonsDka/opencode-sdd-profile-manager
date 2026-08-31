@@ -282,16 +282,129 @@ describe("server adapter", () => {
     await expect(hooks["tool.execute.before"]?.({ tool: "task", sessionID: "live", callID: "c3" }, { args: { subagent_type: "general" } })).resolves.toBeUndefined();
   });
 
-  it("fails closed on a corrupt live suite reload and recovers after repair", async () => {
-    saveSuiteConfig(defaultSuitePath(), { version: 1, customAgents: {}, modelAssignments: {}, variantAssignments: {} });
+  it("isolates faults on corrupt initial config: allows registered native agents (explore/general) and blocks unknown/custom", async () => {
+    const { mkdirSync } = await import("node:fs");
+    const { dirname } = await import("node:path");
+    mkdirSync(dirname(defaultSuitePath()), { recursive: true });
+    writeFileSync(defaultSuitePath(), "{\"broken_initial_json\":", "utf8");
     const hooks = await serverPlugin({} as never);
-    await hooks.config?.({ permission: {}, agent: { general: {} } } as never);
+    await hooks.config?.({
+      permission: {},
+      agent: {
+        general: {},
+        explore: {},
+        "custom-specialist": {},
+      },
+    } as never);
+
+    await hooks["chat.message"]?.({ sessionID: "initial-corrupt", agent: "gentle-orchestrator", messageID: "m1" }, {
+      message: { id: "m1", agent: "gentle-orchestrator" } as never,
+      parts: [] as never,
+    });
+
+    // Native registered agents must work despite corrupt initial config
+    await expect(hooks["tool.execute.before"]?.({ tool: "task", sessionID: "initial-corrupt", callID: "c1" }, { args: { subagent_type: "general" } })).resolves.toBeUndefined();
+    await expect(hooks["tool.execute.before"]?.({ tool: "task", sessionID: "initial-corrupt", callID: "c2" }, { args: { subagent_type: "explore" } })).resolves.toBeUndefined();
+
+    // Custom agent managed by suite must fail closed with specific error when suite config is corrupt
+    await expect(hooks["tool.execute.before"]?.({ tool: "task", sessionID: "initial-corrupt", callID: "c3" }, { args: { subagent_type: "custom-specialist" } })).rejects.toThrow(/custom agent|suite config/i);
+
+    // Unknown agent must be blocked
+    await expect(hooks["tool.execute.before"]?.({ tool: "task", sessionID: "initial-corrupt", callID: "c4" }, { args: { subagent_type: "completely-unknown" } })).rejects.toThrow(/Blocked agent|unknown|unregistered/i);
+  });
+
+  it("isolates faults on corrupt live reload: preserves last valid disabledAgents, allows native agents, blocks custom, and recovers after repair", async () => {
+    const customAgentDef = {
+      id: "custom-specialist",
+      description: "A custom specialist",
+      model: "openai/gpt-5.6-luna",
+      prompt: "Help specially",
+      permissions: { read: "allow" as const },
+      skills: [],
+    };
+    saveSuiteConfig(defaultSuitePath(), {
+      version: 1,
+      customAgents: { "custom-specialist": customAgentDef },
+      modelAssignments: {},
+      variantAssignments: {},
+      disabledAgents: ["general"],
+    });
+    const hooks = await serverPlugin({} as never);
+    await hooks.config?.({ permission: {}, agent: { general: {}, explore: {}, "custom-specialist": {} } } as never);
+
+    // Initial state: custom agent allowed, general disabled
+    await hooks["chat.message"]?.({ sessionID: "live", agent: "gentle-orchestrator", messageID: "m1" }, {
+      message: { id: "m1", agent: "gentle-orchestrator" } as never,
+      parts: [] as never,
+    });
+    await expect(hooks["tool.execute.before"]?.({ tool: "task", sessionID: "live", callID: "c1" }, { args: { subagent_type: "custom-specialist" } })).resolves.toBeUndefined();
+    await expect(hooks["tool.execute.before"]?.({ tool: "task", sessionID: "live", callID: "c2" }, { args: { subagent_type: "general" } })).rejects.toThrow(/disabled|desactiv/i);
+
+    // Corrupt the live configuration file
     writeFileSync(defaultSuitePath(), "{\"broken\":", "utf8");
 
-    const corrupt = { message: { id: "m1", agent: "gentle-orchestrator" }, parts: [{ type: "text", text: "usa también agente: general" }] } as never;
-    await hooks["chat.message"]?.({ sessionID: "corrupt", messageID: "m1" }, corrupt);
-    expect((corrupt as { parts: Array<Record<string, unknown>> }).parts).toEqual([{ type: "text", text: "usa también agente: general" }]);
-    await expect(hooks["tool.execute.before"]?.({ tool: "task", sessionID: "corrupt", callID: "c1" }, { args: { subagent_type: "general" } })).rejects.toThrow(/suite config/i);
+    // 1. Native registered agent explore STILL works
+    await expect(hooks["tool.execute.before"]?.({ tool: "task", sessionID: "live", callID: "c3" }, { args: { subagent_type: "explore" } })).resolves.toBeUndefined();
+
+    // 2. Disabled agent general is STILL disabled (corruption cannot re-enable a disabled agent!)
+    await expect(hooks["tool.execute.before"]?.({ tool: "task", sessionID: "live", callID: "c4" }, { args: { subagent_type: "general" } })).rejects.toThrow(/disabled|desactiv/i);
+
+    // 3. Custom agent is blocked due to corrupt suite config
+    await expect(hooks["tool.execute.before"]?.({ tool: "task", sessionID: "live", callID: "c5" }, { args: { subagent_type: "custom-specialist" } })).rejects.toThrow(/custom agent|suite config/i);
+
+    // 4. Unknown target is still blocked
+    await expect(hooks["tool.execute.before"]?.({ tool: "task", sessionID: "live", callID: "c6" }, { args: { subagent_type: "random-unknown" } })).rejects.toThrow(/Blocked agent|unknown|unregistered/i);
+
+    // Repair the file in live session without restart
+    saveSuiteConfig(defaultSuitePath(), {
+      version: 1,
+      customAgents: { "custom-specialist": customAgentDef },
+      modelAssignments: {},
+      variantAssignments: {},
+      disabledAgents: [],
+    });
+
+    // Custom agent and reactivated general recover immediately
+    await expect(hooks["tool.execute.before"]?.({ tool: "task", sessionID: "live", callID: "c7" }, { args: { subagent_type: "custom-specialist" } })).resolves.toBeUndefined();
+    await expect(hooks["tool.execute.before"]?.({ tool: "task", sessionID: "live", callID: "c8" }, { args: { subagent_type: "general" } })).resolves.toBeUndefined();
+  });
+
+  it("applies safe fault isolation when suite file is deleted after having loaded", async () => {
+    const customAgentDef = {
+      id: "custom-specialist",
+      description: "A custom specialist",
+      model: "openai/gpt-5.6-luna",
+      prompt: "Help specially",
+      permissions: { read: "allow" as const },
+      skills: [],
+    };
+    saveSuiteConfig(defaultSuitePath(), {
+      version: 1,
+      customAgents: { "custom-specialist": customAgentDef },
+      modelAssignments: {},
+      variantAssignments: {},
+      disabledAgents: ["general"],
+    });
+    const hooks = await serverPlugin({} as never);
+    await hooks.config?.({ permission: {}, agent: { general: {}, explore: {}, "custom-specialist": {} } } as never);
+
+    // Delete the file after it was loaded
+    const { unlinkSync } = await import("node:fs");
+    unlinkSync(defaultSuitePath());
+
+    await hooks["chat.message"]?.({ sessionID: "deleted-suite", agent: "gentle-orchestrator", messageID: "m1" }, {
+      message: { id: "m1", agent: "gentle-orchestrator" } as never,
+      parts: [] as never,
+    });
+
+    // Native registered agent explore still works
+    await expect(hooks["tool.execute.before"]?.({ tool: "task", sessionID: "deleted-suite", callID: "c1" }, { args: { subagent_type: "explore" } })).resolves.toBeUndefined();
+
+    // Disabled agent general is still disabled
+    await expect(hooks["tool.execute.before"]?.({ tool: "task", sessionID: "deleted-suite", callID: "c2" }, { args: { subagent_type: "general" } })).rejects.toThrow(/disabled|desactiv/i);
+
+    // Custom agent fails closed
+    await expect(hooks["tool.execute.before"]?.({ tool: "task", sessionID: "deleted-suite", callID: "c3" }, { args: { subagent_type: "custom-specialist" } })).rejects.toThrow(/custom agent|suite config/i);
   });
 
   it("retries transient suite-config unavailability before blocking task dispatch", async () => {

@@ -327,4 +327,56 @@ describe("suite config", () => {
       },
     })).toThrow(/duplicate|seed|canonical/i);
   });
+
+  it("parses legacy string permissions (allow, ask, deny) into canonical per-tool permissions and rejects unknown strings", () => {
+    const standardTools = ["read", "edit", "write", "bash", "task", "skill"] as const;
+    const expectedAllow = Object.fromEntries(standardTools.map((tool) => [tool, "allow"]));
+    const expectedAsk = Object.fromEntries(standardTools.map((tool) => [tool, "ask"]));
+    const expectedDeny = Object.fromEntries(standardTools.map((tool) => [tool, "deny"]));
+
+    const allowConfig = parseSuiteConfig({
+      version: 1,
+      customAgents: {
+        "helper-allow": { ...customAgent, id: "helper-allow", permissions: "allow" },
+      },
+    });
+    expect(allowConfig.customAgents["helper-allow"].permissions).toEqual(expectedAllow);
+
+    const askConfig = parseSuiteConfig({
+      version: 1,
+      customAgents: {
+        "helper-ask": { ...customAgent, id: "helper-ask", permissions: "ask" },
+      },
+    });
+    expect(askConfig.customAgents["helper-ask"].permissions).toEqual(expectedAsk);
+
+    const denyConfig = parseSuiteConfig({
+      version: 1,
+      customAgents: {
+        "helper-deny": { ...customAgent, id: "helper-deny", permissions: "deny" },
+      },
+    });
+    expect(denyConfig.customAgents["helper-deny"].permissions).toEqual(expectedDeny);
+
+    expect(() => parseSuiteConfig({
+      version: 1,
+      customAgents: {
+        "helper-invalid": { ...customAgent, id: "helper-invalid", permissions: "all" },
+      },
+    })).toThrow(/permission|permiso/i);
+
+    expect(() => parseSuiteConfig({
+      version: 1,
+      customAgents: {
+        "helper-invalid": { ...customAgent, id: "helper-invalid", permissions: "superuser" },
+      },
+    })).toThrow(/permission|permiso/i);
+
+    expect(() => parseSuiteConfig({
+      version: 1,
+      customAgents: {
+        "helper-invalid": { ...customAgent, id: "helper-invalid", permissions: "" },
+      },
+    })).toThrow(/permission|permiso/i);
+  });
 });
