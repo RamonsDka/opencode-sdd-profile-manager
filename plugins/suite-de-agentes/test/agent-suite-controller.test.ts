@@ -314,9 +314,9 @@ describe("Agent Suite controller adapter", () => {
     expect(content).toContain("mode: all");
     expect(content).toContain(TASK_MANAGER_TARGET_PATH);
     expect(content).toContain("task-tracker-manager");
-    expect(content).toContain("bash: ask");
+    expect(content).toContain("bash:\n");
     expect(content).toContain("task: deny");
-    expect(content).toContain("write: ask");
+    expect(content).not.toMatch(/^\s+write:/m);
     expect(content).toContain("model: opencode/default");
 
     await controller.setModelAndEffort(TASK_MANAGER_AGENT_ID, "anthropic/claude-3-5-sonnet", "high");

@@ -103,11 +103,26 @@ describe("built-in agent registry", () => {
     expect(agent.variant).toBe("high");
     expect(agent.permissions).toEqual({
       read: "allow",
-      edit: "allow",
+      glob: "allow",
+      grep: "allow",
+      list: "allow",
       skill: "allow",
-      bash: "ask",
       task: "deny",
-      write: "ask",
+      todowrite: "allow",
+      question: "allow",
+      external_directory: "ask",
+      bash: {
+        "git status*": "allow",
+        "git branch --show-current*": "allow",
+        "git log*": "allow",
+        "git rev-parse*": "allow",
+        "*": "ask",
+      },
+      edit: {
+        "*Task-Manager-Portable.html*": "allow",
+        "*drop-in-task-manager.html*": "allow",
+        "*": "ask",
+      },
     });
     expect(agent.skills).toEqual(["task-tracker-manager"]);
     expect(agent.prompt).toContain("Task-Manager-Portable.html");
