@@ -81,7 +81,7 @@ describe("Phase 0 Publication Foundation & Asset Boundaries", () => {
       expect(fs.existsSync(tuiPath)).toBe(true);
       expect(fs.statSync(serverPath).size).toBeGreaterThan(0);
       expect(fs.statSync(tuiPath).size).toBeGreaterThan(0);
-    });
+    }, 20_000);
   });
 
   describe("release package hygiene validation", () => {

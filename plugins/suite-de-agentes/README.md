@@ -90,11 +90,14 @@ The installer will:
 - Install required production runtime dependencies
 - Register server plugin in `~/.config/opencode/opencode.json`
 - Register TUI plugin in `~/.config/opencode/tui.json`
+- Configure functional agent permissions (`agent-task-manager` background sync)
 - Preserve and backup all existing OpenCode configurations
 
 **Installer Options:**
 - `--dry-run`: Preview planned file copies and configuration changes without mutating files.
-- `--uninstall`: Remove Suite de Agentes plugin entries from OpenCode configuration.
+- `--uninstall`: Remove Suite de Agentes plugin entries and installer-managed agent configurations from OpenCode (custom foreign agent files are never deleted).
+- `--agent-permissions <recommended|prompt|none>`: Set agent permission profile (defaults to `none` in non-interactive sessions, prompts in interactive TTY).
+- `--replace-agent-config`: Overwrite existing unmanaged custom `agent-task-manager.md` (original custom file backed up and restorable on uninstall).
 - `--target-dir <path>`: Specify a custom plugin installation directory.
 - `--config-dir <path>`: Specify a custom OpenCode configuration directory.
 

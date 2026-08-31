@@ -23,12 +23,27 @@ The installer will:
 2. Install production dependencies with `npm install --omit=dev`
 3. Back up and register the server plugin in `~/.config/opencode/opencode.json`
 4. Back up and register the TUI plugin in `~/.config/opencode/tui.json`
+5. Configure install-time agent permissions (e.g. background sync for `agent-task-manager`).
 
 **Options:**
 - `--dry-run`: Preview planned actions without writing any files.
-- `--uninstall`: Remove plugin registrations from OpenCode configuration files.
+- `--uninstall`: Remove plugin registrations and installer-managed agent configurations from OpenCode (custom foreign agent files are never deleted).
+- `--agent-permissions <recommended|prompt|none>`: Select agent permission profile. In interactive TTY sessions, prompts with `recommended` as default; in non-interactive sessions defaults to `none`.
+  - `recommended`: Grants scoped functional permissions for background agents (read/glob/grep/list/skills/todowrite/question allowed, edit restricted to task manager dashboard patterns, safe git read-only commands in bash, external directory prompted, task delegations denied).
+  - `prompt`: Prompts for interactive confirmation on every edit and bash execution.
+  - `none`: Does not configure or materialize agent permissions.
+- `--replace-agent-config`: Explicitly consent to overwrite an existing unmanaged custom `agent-task-manager.md` file. In non-interactive mode, existing unmanaged files will cause a conflict and be skipped unless this flag is passed.
 - `--target-dir <path>`: Custom destination for the plugin files.
 - `--config-dir <path>`: Custom directory for OpenCode configuration.
+
+---
+
+## Agent Configuration Ownership & Conflict Handling
+
+The installer uses explicit metadata markers (`<!-- opencode-agent-suite:managed:agent-task-manager:v1 -->`) to manage agent markdown files safely:
+- **Idempotent Updates**: Re-running the installer with the same profile performs zero unnecessary disk writes and produces zero duplicate backup files.
+- **Unmanaged Custom Files**: If an existing `agent-task-manager.md` was created manually (unmanaged), the installer will not overwrite it without explicit consent (`--replace-agent-config`).
+- **Safe Uninstall**: Uninstallation will only remove installer-managed agent files. Custom files are preserved, and any custom file previously replaced with `--replace-agent-config` is restored from its backup.
 
 ---
 
