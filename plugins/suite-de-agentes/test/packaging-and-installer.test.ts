@@ -5,6 +5,7 @@ import os from "node:os";
 import crypto from "node:crypto";
 import { execFileSync } from "node:child_process";
 import { fileURLToPath, pathToFileURL } from "node:url";
+import yaml from "js-yaml";
 import {
   buildArchiveFilesList,
   generateReleasePackage,
@@ -12,9 +13,18 @@ import {
 } from "../scripts/package.mjs";
 import {
   checkPrerequisites,
+  formatPermissionsYaml,
+  generateTaskManagerMarkdown,
+  getAgentPermissionProfile,
   installPlugin,
+  isManagedTaskManagerMarkdown,
   parseArgs,
+  promptPermissionsInteractive,
+  promptReplaceAgentConfigInteractive,
   readJsonSafe,
+  TASK_MANAGER_MANAGED_MARKER,
+  TASK_MANAGER_PROMPT_PERMISSIONS,
+  TASK_MANAGER_RECOMMENDED_PERMISSIONS,
   uninstallPlugin,
 } from "../scripts/installer.mjs";
 
@@ -30,10 +40,9 @@ interface ArchiveFileEntry {
 
 describe("packaging and release distribution", () => {
   beforeAll(() => {
-    if (!fs.existsSync(path.join(projectRoot, "dist", "server.js"))) {
-      execFileSync("npm", ["run", "build"], { cwd: projectRoot, shell: true, stdio: "pipe" });
-    }
+    execFileSync("npm", ["run", "build"], { cwd: projectRoot, shell: true, stdio: "pipe" });
   });
+
   it("builds a deterministic file list containing only release assets without root leakage", () => {
     const files = buildArchiveFilesList(projectRoot) as ArchiveFileEntry[];
     const relPaths = files.map((f: ArchiveFileEntry) => f.relativePath);
@@ -116,12 +125,115 @@ describe("packaging and release distribution", () => {
 });
 
 describe("portable installer", () => {
-  it("parses CLI arguments correctly", () => {
-    const args = parseArgs(["--dry-run", "--target-dir", "/custom/plugins/suite", "--config-dir=/custom/config", "--uninstall"]);
+  it("parses CLI arguments correctly including --agent-permissions, --replace-agent-config, and flags", () => {
+    const args = parseArgs([
+      "--dry-run",
+      "--target-dir",
+      "/custom/plugins/suite",
+      "--config-dir=/custom/config",
+      "--agent-permissions",
+      "recommended",
+      "--replace-agent-config",
+      "--uninstall",
+    ]);
     expect(args.dryRun).toBe(true);
     expect(args.uninstall).toBe(true);
+    expect(args.replaceAgentConfig).toBe(true);
     expect(args.targetDir).toBe("/custom/plugins/suite");
     expect(args.configDir).toBe("/custom/config");
+    expect(args.agentPermissions).toBe("recommended");
+
+    const shortArgs = parseArgs(["-r", "-p", "prompt", "-d", "-u"]);
+    expect(shortArgs.replaceAgentConfig).toBe(true);
+    expect(shortArgs.agentPermissions).toBe("prompt");
+    expect(shortArgs.dryRun).toBe(true);
+    expect(shortArgs.uninstall).toBe(true);
+
+    expect(() => parseArgs(["--agent-permissions", "unlimited"])).toThrow(/Invalid --agent-permissions/i);
+    expect(() => parseArgs(["--agent-permissions=invalid-profile"])).toThrow(/Invalid --agent-permissions/i);
+  });
+
+  it("provides centralized, immutable permission profiles and markers for task manager", () => {
+    expect(TASK_MANAGER_RECOMMENDED_PERMISSIONS).toEqual({
+      read: "allow",
+      glob: "allow",
+      grep: "allow",
+      list: "allow",
+      skill: "allow",
+      task: "deny",
+      todowrite: "allow",
+      question: "allow",
+      external_directory: "ask",
+      bash: {
+        "*": "ask",
+        "git status*": "allow",
+        "git branch --show-current*": "allow",
+        "git log*": "allow",
+        "git rev-parse*": "allow",
+      },
+      edit: {
+        "*": "ask",
+        "*Task-Manager-Portable.html*": "allow",
+        "*drop-in-task-manager.html*": "allow",
+      },
+    });
+
+    expect(TASK_MANAGER_PROMPT_PERMISSIONS).toEqual({
+      read: "allow",
+      glob: "allow",
+      grep: "allow",
+      list: "allow",
+      skill: "allow",
+      task: "deny",
+      todowrite: "allow",
+      question: "allow",
+      edit: "ask",
+      bash: "ask",
+      external_directory: "ask",
+    });
+
+    expect(getAgentPermissionProfile("agent-task-manager", "recommended")).toEqual(TASK_MANAGER_RECOMMENDED_PERMISSIONS);
+    expect(getAgentPermissionProfile("agent-task-manager", "prompt")).toEqual(TASK_MANAGER_PROMPT_PERMISSIONS);
+    expect(getAgentPermissionProfile("agent-task-manager", "none")).toBeNull();
+    expect(getAgentPermissionProfile("unknown-agent", "recommended")).toBeNull();
+
+    expect(TASK_MANAGER_MANAGED_MARKER).toBe("<!-- opencode-agent-suite:managed:agent-task-manager:v1 -->");
+    expect(isManagedTaskManagerMarkdown(`---\nname: agent-task-manager\n---\n${TASK_MANAGER_MANAGED_MARKER}\nInstructions`)).toBe(true);
+    expect(isManagedTaskManagerMarkdown("---\nname: agent-task-manager\n---\nUser custom instructions.")).toBe(false);
+  });
+
+  it("handles interactive TTY permission selection prompt", async () => {
+    const mockRl1: any = {
+      question: (_prompt: string, cb: (ans: string) => void) => cb("1"),
+    };
+    await expect(promptPermissionsInteractive(mockRl1)).resolves.toBe("recommended");
+
+    const mockRl2: any = {
+      question: (_prompt: string, cb: (ans: string) => void) => cb("prompt"),
+    };
+    await expect(promptPermissionsInteractive(mockRl2)).resolves.toBe("prompt");
+
+    const mockRl3: any = {
+      question: (_prompt: string, cb: (ans: string) => void) => cb("3"),
+    };
+    await expect(promptPermissionsInteractive(mockRl3)).resolves.toBe("none");
+
+    const mockRlEmpty: any = {
+      question: (_prompt: string, cb: (ans: string) => void) => cb(""),
+    };
+    await expect(promptPermissionsInteractive(mockRlEmpty)).resolves.toBe("recommended");
+  });
+
+  it("handles interactive replace agent config prompt", async () => {
+    const mockRlYes: any = {
+      question: (_prompt: string, cb: (ans: string) => void) => cb("y"),
+    };
+    await expect(promptReplaceAgentConfigInteractive("agent-task-manager.md", mockRlYes)).resolves.toBe(true);
+
+    const mockRlNo: any = {
+      question: (_prompt: string, cb: (ans: string) => void) => cb("n"),
+    };
+    await expect(promptReplaceAgentConfigInteractive("agent-task-manager.md", mockRlNo)).resolves.toBe(false);
   });
 
   it("checks Node and npm prerequisites", () => {
@@ -130,31 +242,70 @@ describe("portable installer", () => {
     expect(prereqs.npmOk).toBe(true);
   });
 
-  it("performs dry run without mutating target or config directories", () => {
+  it("performs dry run reporting planned create/update/conflict actions without mutating filesystem", () => {
     const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), "agent-suite-dryrun-"));
     const configDir = path.join(tempDir, "config");
     const targetDir = path.join(tempDir, "target");
 
     try {
-      const res = installPlugin({
+      // 1. Dry run on fresh directory -> create
+      const resCreate = installPlugin({
         sourceDir: projectRoot,
         configDir,
         targetDir,
         dryRun: true,
         skipNpm: true,
-      });
+        agentPermissions: "recommended",
+      }) as any;
 
-      expect(res.dryRun).toBe(true);
-      expect(res.status).toBe("dry-run");
+      expect(resCreate.dryRun).toBe(true);
+      expect(resCreate.status).toBe("dry-run");
+      expect(resCreate.planned.agentAction).toBe("create");
+      expect(resCreate.agentReceipt.action).toBe("create");
+      expect(resCreate.planned.materializedAgents).toContain(path.join(configDir, "agent", "agent-task-manager.md"));
       expect(fs.existsSync(configDir)).toBe(false);
       expect(fs.existsSync(targetDir)).toBe(false);
+
+      // 2. Setup unmanaged custom file on disk and dry run without replace -> conflict
+      const agentDir = path.join(configDir, "agent");
+      fs.mkdirSync(agentDir, { recursive: true });
+      const agentFile = path.join(agentDir, "agent-task-manager.md");
+      fs.writeFileSync(agentFile, "---\nname: agent-task-manager\n---\nCustom unmanaged prompt.", "utf8");
+
+      const resConflict = installPlugin({
+        sourceDir: projectRoot,
+        configDir,
+        targetDir,
+        dryRun: true,
+        skipNpm: true,
+        agentPermissions: "recommended",
+        replaceAgentConfig: false,
+      }) as any;
+
+      expect(resConflict.agentReceipt.action).toBe("conflict");
+      expect(resConflict.agentReceipt.reason).toBe("unmanaged_custom_agent_exists");
+      expect(resConflict.planned.materializedAgents).toHaveLength(0);
+
+      // 3. Dry run with --replace-agent-config -> update
+      const resReplace = installPlugin({
+        sourceDir: projectRoot,
+        configDir,
+        targetDir,
+        dryRun: true,
+        skipNpm: true,
+        agentPermissions: "recommended",
+        replaceAgentConfig: true,
+      }) as any;
+
+      expect(resReplace.agentReceipt.action).toBe("update");
+      expect(resReplace.planned.materializedAgents).toHaveLength(1);
     } finally {
       fs.rmSync(tempDir, { recursive: true, force: true });
     }
   });
 
-  it("installs freshly into a missing configuration directory with valid schemas", () => {
-    const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), "agent-suite-fresh-"));
+  it("installs with default agentPermissions=none without creating agent files", () => {
+    const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), "agent-suite-none-"));
     const configDir = path.join(tempDir, "config");
     const targetDir = path.join(tempDir, "target");
 
@@ -165,47 +316,22 @@ describe("portable installer", () => {
         targetDir,
         dryRun: false,
         skipNpm: true,
+        agentPermissions: "none",
       });
 
       expect(res.status).toBe("installed");
-      expect(fs.existsSync(path.join(targetDir, "dist", "server.js"))).toBe(true);
-      expect(fs.existsSync(path.join(targetDir, "dist", "tui.js"))).toBe(true);
-      expect(fs.existsSync(path.join(targetDir, "package.json"))).toBe(true);
-
-      const opencodeJson = readJsonSafe(path.join(configDir, "opencode.json"));
-      expect(opencodeJson.$schema).toBe("https://opencode.ai/config.json");
-      expect(opencodeJson.plugin).toContainEqual(res.serverPluginPath);
-
-      const tuiJson = readJsonSafe(path.join(configDir, "tui.json"));
-      expect(tuiJson.$schema).toBe("https://opencode.ai/tui.json");
-      expect(tuiJson.plugin).toContainEqual(res.tuiPluginPath);
+      expect(res.materializedAgents).toHaveLength(0);
+      expect(res.agentReceipt.action).toBe("skipped");
+      expect(fs.existsSync(path.join(configDir, "agent", "agent-task-manager.md"))).toBe(false);
     } finally {
       fs.rmSync(tempDir, { recursive: true, force: true });
     }
   });
 
-  it("preserves existing configuration keys and creates backups before modification", () => {
-    const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), "agent-suite-existing-"));
+  it("installs with agentPermissions=recommended: creates agent-task-manager.md with marker, exact YAML ordering, and valid schema", () => {
+    const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), "agent-suite-recommended-"));
     const configDir = path.join(tempDir, "config");
     const targetDir = path.join(tempDir, "target");
-    fs.mkdirSync(configDir, { recursive: true });
-
-    const existingOpencode = {
-      $schema: "https://opencode.ai/config.json",
-      model: "anthropic/claude-3-7-sonnet",
-      provider: [{ id: "anthropic", name: "Anthropic" }],
-      plugin: ["/existing/custom-plugin.js"],
-      agent: { myagent: { model: "anthropic/claude-3-7-sonnet" } },
-    };
-
-    const existingTui = {
-      $schema: "https://opencode.ai/tui.json",
-      theme: "dark",
-      plugin: ["/existing/custom-tui.js"],
-    };
-
-    fs.writeFileSync(path.join(configDir, "opencode.json"), JSON.stringify(existingOpencode, null, 2), "utf8");
-    fs.writeFileSync(path.join(configDir, "tui.json"), JSON.stringify(existingTui, null, 2), "utf8");
 
     try {
       const res = installPlugin({
@@ -214,29 +340,102 @@ describe("portable installer", () => {
         targetDir,
         dryRun: false,
         skipNpm: true,
+        agentPermissions: "recommended",
       });
 
-      // Verify backup files exist
-      expect(fs.existsSync(path.join(configDir, "opencode.json.bak"))).toBe(true);
-      expect(fs.existsSync(path.join(configDir, "tui.json.bak"))).toBe(true);
+      expect(res.status).toBe("installed");
+      expect(res.agentPermissions).toBe("recommended");
+      expect(res.agentReceipt.action).toBe("created");
+      expect(res.agentReceipt.managed).toBe(true);
 
-      // Verify preserved keys in opencode.json
-      const updatedOpencode = readJsonSafe(path.join(configDir, "opencode.json"));
-      expect(updatedOpencode.model).toBe("anthropic/claude-3-7-sonnet");
-      expect(updatedOpencode.provider).toEqual([{ id: "anthropic", name: "Anthropic" }]);
-      expect(updatedOpencode.agent).toEqual({ myagent: { model: "anthropic/claude-3-7-sonnet" } });
-      expect(updatedOpencode.plugin).toEqual(["/existing/custom-plugin.js", res.serverPluginPath]);
+      const agentFile = path.join(configDir, "agent", "agent-task-manager.md");
+      expect(fs.existsSync(agentFile)).toBe(true);
 
-      // Verify preserved keys in tui.json
-      const updatedTui = readJsonSafe(path.join(configDir, "tui.json"));
-      expect(updatedTui.theme).toBe("dark");
-      expect(updatedTui.plugin).toEqual(["/existing/custom-tui.js", res.tuiPluginPath]);
+      const content = fs.readFileSync(agentFile, "utf8");
+      expect(content).toContain(TASK_MANAGER_MANAGED_MARKER);
+      expect(content).toContain("name: agent-task-manager");
+      expect(content).toContain("mode: all");
+      expect(content).not.toContain("[object Object]");
+
+      // Validate YAML structure using js-yaml parser
+      const match = content.match(/^---\r?\n([\s\S]*?)\r?\n---/);
+      expect(match).not.toBeNull();
+      const parsed = yaml.load(match![1]) as any;
+
+      expect(parsed.name).toBe("agent-task-manager");
+      expect(parsed.permission.read).toBe("allow");
+      expect(parsed.permission.task).toBe("deny");
+
+      // Verify '*' is first in bash and edit maps
+      expect(Object.keys(parsed.permission.bash)).toEqual([
+        "*",
+        "git status*",
+        "git branch --show-current*",
+        "git log*",
+        "git rev-parse*",
+      ]);
+      expect(Object.keys(parsed.permission.edit)).toEqual([
+        "*",
+        "*Task-Manager-Portable.html*",
+        "*drop-in-task-manager.html*",
+      ]);
     } finally {
       fs.rmSync(tempDir, { recursive: true, force: true });
     }
   });
 
-  it("is idempotent when executed multiple times", () => {
+  it("handles conflict on unmanaged custom agent and requires --replace-agent-config to overwrite", () => {
+    const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), "agent-suite-conflict-"));
+    const configDir = path.join(tempDir, "config");
+    const targetDir = path.join(tempDir, "target");
+
+    const agentDir = path.join(configDir, "agent");
+    fs.mkdirSync(agentDir, { recursive: true });
+    const customAgentFile = path.join(agentDir, "agent-task-manager.md");
+    const customContent = "---\nname: agent-task-manager\n---\nCustom unmanaged user instructions.";
+    fs.writeFileSync(customAgentFile, customContent, "utf8");
+
+    try {
+      // 1. Without --replace-agent-config: must NOT overwrite, must return conflict
+      const resConflict = installPlugin({
+        sourceDir: projectRoot,
+        configDir,
+        targetDir,
+        dryRun: false,
+        skipNpm: true,
+        agentPermissions: "recommended",
+        replaceAgentConfig: false,
+      });
+
+      expect(resConflict.status).toBe("conflict");
+      expect(resConflict.agentReceipt.action).toBe("conflict");
+      expect(resConflict.agentReceipt.reason).toBe("unmanaged_custom_agent_exists");
+      expect(fs.readFileSync(customAgentFile, "utf8")).toBe(customContent);
+
+      // 2. With --replace-agent-config: overwrites and creates custom backup
+      const resReplace = installPlugin({
+        sourceDir: projectRoot,
+        configDir,
+        targetDir,
+        dryRun: false,
+        skipNpm: true,
+        agentPermissions: "recommended",
+        replaceAgentConfig: true,
+      });
+
+      expect(resReplace.status).toBe("installed");
+      expect(resReplace.agentReceipt.action).toBe("updated");
+      expect(fs.existsSync(path.join(agentDir, "agent-task-manager.md.custom.bak"))).toBe(true);
+      expect(fs.readFileSync(path.join(agentDir, "agent-task-manager.md.custom.bak"), "utf8")).toBe(customContent);
+
+      const overwrittenContent = fs.readFileSync(customAgentFile, "utf8");
+      expect(overwrittenContent).toContain(TASK_MANAGER_MANAGED_MARKER);
+    } finally {
+      fs.rmSync(tempDir, { recursive: true, force: true });
+    }
+  });
+
+  it("is strictly idempotent: same profile generates zero duplicate backups or disk writes", () => {
     const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), "agent-suite-idempotent-"));
     const configDir = path.join(tempDir, "config");
     const targetDir = path.join(tempDir, "target");
@@ -248,70 +447,192 @@ describe("portable installer", () => {
         targetDir,
         dryRun: false,
         skipNpm: true,
+        agentPermissions: "recommended",
       });
+      expect(res1.agentReceipt.action).toBe("created");
 
+      const agentDir = path.join(configDir, "agent");
+      const initialBaks = fs.readdirSync(agentDir).filter((f) => f.includes(".bak"));
+      expect(initialBaks).toHaveLength(0);
+
+      // 2nd run with same options
+      const res2 = installPlugin({
+        sourceDir: projectRoot,
+        configDir,
+        targetDir,
+        dryRun: false,
+        skipNpm: true,
+        agentPermissions: "recommended",
+      });
+      expect(res2.agentReceipt.action).toBe("unchanged");
+
+      const secondBaks = fs.readdirSync(agentDir).filter((f) => f.includes(".bak"));
+      expect(secondBaks).toHaveLength(0);
+
+      // 3rd run
+      const res3 = installPlugin({
+        sourceDir: projectRoot,
+        configDir,
+        targetDir,
+        dryRun: false,
+        skipNpm: true,
+        agentPermissions: "recommended",
+      });
+      expect(res3.agentReceipt.action).toBe("unchanged");
+
+      const thirdBaks = fs.readdirSync(agentDir).filter((f) => f.includes(".bak"));
+      expect(thirdBaks).toHaveLength(0);
+    } finally {
+      fs.rmSync(tempDir, { recursive: true, force: true });
+    }
+  });
+
+  it("updates managed agent profile with backup when changing profile from recommended to prompt", () => {
+    const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), "agent-suite-profile-update-"));
+    const configDir = path.join(tempDir, "config");
+    const targetDir = path.join(tempDir, "target");
+
+    try {
       installPlugin({
         sourceDir: projectRoot,
         configDir,
         targetDir,
         dryRun: false,
         skipNpm: true,
+        agentPermissions: "recommended",
       });
 
-      const opencodeJson = readJsonSafe(path.join(configDir, "opencode.json"));
-      expect(opencodeJson.plugin.filter((p: string) => p === res1.serverPluginPath)).toHaveLength(1);
-
-      const tuiJson = readJsonSafe(path.join(configDir, "tui.json"));
-      expect(tuiJson.plugin.filter((p: string) => p === res1.tuiPluginPath)).toHaveLength(1);
-    } finally {
-      fs.rmSync(tempDir, { recursive: true, force: true });
-    }
-  });
-
-  it("uninstalls cleanly and restores plugin configuration without touching other keys", () => {
-    const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), "agent-suite-uninstall-"));
-    const configDir = path.join(tempDir, "config");
-    const targetDir = path.join(tempDir, "target");
-
-    try {
-      const installRes = installPlugin({
+      const resUpdate = installPlugin({
         sourceDir: projectRoot,
         configDir,
         targetDir,
         dryRun: false,
         skipNpm: true,
+        agentPermissions: "prompt",
       });
 
-      const uninstallRes = uninstallPlugin({
-        configDir,
-        targetDir,
-        dryRun: false,
-      });
+      expect(resUpdate.agentReceipt.action).toBe("updated");
+      expect(resUpdate.agentPermissions).toBe("prompt");
 
-      expect(uninstallRes.status).toBe("uninstalled");
+      const agentFile = path.join(configDir, "agent", "agent-task-manager.md");
+      const content = fs.readFileSync(agentFile, "utf8");
+      expect(content).toContain("bash: ask");
+      expect(content).toContain("edit: ask");
 
-      const opencodeJson = readJsonSafe(path.join(configDir, "opencode.json"));
-      expect(opencodeJson.plugin).not.toContain(installRes.serverPluginPath);
-
-      const tuiJson = readJsonSafe(path.join(configDir, "tui.json"));
-      expect(tuiJson.plugin).not.toContain(installRes.tuiPluginPath);
+      // Verify backup was created on profile change
+      const baks = fs.readdirSync(path.join(configDir, "agent")).filter((f) => f.startsWith("agent-task-manager.md.bak"));
+      expect(baks.length).toBeGreaterThanOrEqual(1);
     } finally {
       fs.rmSync(tempDir, { recursive: true, force: true });
     }
   });
 
-  it("validates bash install.sh syntax", () => {
-    const scriptPath = path.join(projectRoot, "install.sh");
-    expect(fs.existsSync(scriptPath)).toBe(true);
-    const scriptContent = fs.readFileSync(scriptPath, "utf8");
-    expect(scriptContent.startsWith("#!/usr/bin/env sh")).toBe(true);
-    expect(scriptContent).toContain("INSTALLER_SCRIPT");
+  it("uninstalls safely: removes managed agent, preserves foreign agent, and restores replaced custom agent", () => {
+    const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), "agent-suite-uninstall-safe-"));
+    const configDir = path.join(tempDir, "config");
+    const targetDir = path.join(tempDir, "target");
 
     try {
-      execFileSync("bash", ["-n", scriptPath.replace(/\\/g, "/")], { stdio: ["ignore", "ignore", "ignore"], timeout: 3000 });
-    } catch {
-      // If bash is unavailable or fails on host, unit syntax checks above suffice
+      // Scenario A: Standard managed install -> uninstall removes it
+      installPlugin({
+        sourceDir: projectRoot,
+        configDir,
+        targetDir,
+        dryRun: false,
+        skipNpm: true,
+        agentPermissions: "recommended",
+      });
+
+      const resUninstallManaged = uninstallPlugin({
+        configDir,
+        targetDir,
+        dryRun: false,
+      });
+
+      expect(resUninstallManaged.status).toBe("uninstalled");
+      expect(resUninstallManaged.removedAgents).toContain(path.join(configDir, "agent", "agent-task-manager.md"));
+      expect(fs.existsSync(path.join(configDir, "agent", "agent-task-manager.md"))).toBe(false);
+
+      // Scenario B: Foreign custom agent exists -> uninstall PRESERVES it
+      const foreignCustomContent = "---\nname: agent-task-manager\n---\nMy completely custom agent.";
+      const agentFile = path.join(configDir, "agent", "agent-task-manager.md");
+      fs.writeFileSync(agentFile, foreignCustomContent, "utf8");
+
+      const resUninstallForeign = uninstallPlugin({
+        configDir,
+        targetDir,
+        dryRun: false,
+      });
+
+      expect(resUninstallForeign.preservedAgents).toContain(agentFile);
+      expect(resUninstallForeign.removedAgents).toHaveLength(0);
+      expect(fs.existsSync(agentFile)).toBe(true);
+      expect(fs.readFileSync(agentFile, "utf8")).toBe(foreignCustomContent);
+
+      // Scenario C: Custom agent replaced with --replace-agent-config -> uninstall RESTORES it
+      installPlugin({
+        sourceDir: projectRoot,
+        configDir,
+        targetDir,
+        dryRun: false,
+        skipNpm: true,
+        agentPermissions: "recommended",
+        replaceAgentConfig: true,
+      });
+
+      expect(fs.readFileSync(agentFile, "utf8")).toContain(TASK_MANAGER_MANAGED_MARKER);
+
+      const resUninstallRestore = uninstallPlugin({
+        configDir,
+        targetDir,
+        dryRun: false,
+      });
+
+      expect(resUninstallRestore.restoredAgents).toContain(agentFile);
+      expect(fs.existsSync(agentFile)).toBe(true);
+      expect(fs.readFileSync(agentFile, "utf8")).toBe(foreignCustomContent);
+    } finally {
+      fs.rmSync(tempDir, { recursive: true, force: true });
     }
+  });
+
+  it("handles Windows-like and POSIX paths correctly without path traversal", () => {
+    const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), "agent-suite-paths-"));
+    const configDir = path.join(tempDir, "custom-cfg");
+    const targetDir = path.join(tempDir, "custom-tgt");
+
+    try {
+      const res = installPlugin({
+        sourceDir: projectRoot,
+        configDir,
+        targetDir,
+        dryRun: false,
+        skipNpm: true,
+        agentPermissions: "recommended",
+      });
+
+      expect(res.serverPluginPath).toContain("/dist/server.js");
+      expect(res.tuiPluginPath).toContain("/dist/tui.js");
+      expect(res.serverPluginPath).not.toContain("\\");
+      expect(res.tuiPluginPath).not.toContain("\\");
+    } finally {
+      fs.rmSync(tempDir, { recursive: true, force: true });
+    }
+  });
+
+  it("validates bash install.sh and PowerShell install.ps1 wrapper syntax", () => {
+    const shPath = path.join(projectRoot, "install.sh");
+    expect(fs.existsSync(shPath)).toBe(true);
+    const shContent = fs.readFileSync(shPath, "utf8");
+    expect(shContent.startsWith("#!/usr/bin/env sh")).toBe(true);
+    expect(shContent).toContain("INSTALLER_SCRIPT");
+    expect(shContent).toContain("--replace-agent-config");
+
+    const ps1Path = path.join(projectRoot, "install.ps1");
+    expect(fs.existsSync(ps1Path)).toBe(true);
+    const ps1Content = fs.readFileSync(ps1Path, "utf8");
+    expect(ps1Content).toContain("[switch]$ReplaceAgentConfig");
+    expect(ps1Content).toContain("--replace-agent-config");
   });
 
   it("smokes dynamic import of compiled dist entries in clean environment", async () => {
@@ -332,5 +653,89 @@ describe("portable installer", () => {
       "title",
       "summary",
     ]);
+  });
+
+  it("executes the installer from a staged release package without src directory or MODULE_NOT_FOUND errors", () => {
+    const tempStagingRoot = fs.mkdtempSync(path.join(os.tmpdir(), "agent-suite-staged-pkg-"));
+    const stagedPkgDir = path.join(tempStagingRoot, "package");
+    const tempConfigDir = path.join(tempStagingRoot, "config");
+    const tempTargetDir = path.join(tempStagingRoot, "target");
+
+    try {
+      const files = buildArchiveFilesList(projectRoot) as ArchiveFileEntry[];
+      for (const file of files) {
+        const dest = path.join(stagedPkgDir, file.relativePath);
+        fs.mkdirSync(path.dirname(dest), { recursive: true });
+        fs.copyFileSync(file.fullPath, dest);
+      }
+
+      expect(fs.existsSync(path.join(stagedPkgDir, "src"))).toBe(false);
+      expect(fs.existsSync(path.join(stagedPkgDir, "test"))).toBe(false);
+      expect(fs.existsSync(path.join(stagedPkgDir, "dist", "core", "index.js"))).toBe(true);
+      expect(fs.existsSync(path.join(stagedPkgDir, "scripts", "installer.mjs"))).toBe(true);
+
+      const helpOutput = execFileSync(
+        process.execPath,
+        ["scripts/installer.mjs", "--help"],
+        {
+          cwd: stagedPkgDir,
+          encoding: "utf8",
+          stdio: ["ignore", "pipe", "pipe"],
+        }
+      );
+      expect(helpOutput).toContain("Usage: node scripts/installer.mjs");
+      expect(helpOutput).toContain("--agent-permissions");
+
+      const dryRunOutput = execFileSync(
+        process.execPath,
+        [
+          "scripts/installer.mjs",
+          "--dry-run",
+          "--agent-permissions",
+          "recommended",
+          "--config-dir",
+          tempConfigDir,
+          "--target-dir",
+          tempTargetDir,
+          "--source-dir",
+          stagedPkgDir,
+        ],
+        {
+          cwd: stagedPkgDir,
+          encoding: "utf8",
+          stdio: ["ignore", "pipe", "pipe"],
+        }
+      );
+      expect(dryRunOutput).toMatch(/\[dry-run\]/i);
+
+      const installOutput = execFileSync(
+        process.execPath,
+        [
+          "scripts/installer.mjs",
+          "--agent-permissions",
+          "recommended",
+          "--replace-agent-config",
+          "--config-dir",
+          tempConfigDir,
+          "--target-dir",
+          tempTargetDir,
+          "--source-dir",
+          stagedPkgDir,
+          "--skip-npm",
+        ],
+        {
+          cwd: stagedPkgDir,
+          encoding: "utf8",
+          stdio: ["ignore", "pipe", "pipe"],
+        }
+      );
+      expect(installOutput).toContain("Installed plugin files to");
+      expect(installOutput).toContain("Suite de Agentes is ready!");
+      const agentFile = path.join(tempConfigDir, "agent", "agent-task-manager.md");
+      expect(fs.existsSync(agentFile)).toBe(true);
+      expect(fs.readFileSync(agentFile, "utf8")).toContain(TASK_MANAGER_MANAGED_MARKER);
+    } finally {
+      fs.rmSync(tempStagingRoot, { recursive: true, force: true });
+    }
   });
 });

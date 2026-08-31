@@ -1,5 +1,6 @@
 import { join } from "node:path";
-import type { AgentMode, BuiltInDefinition, BuiltInOverride, BuiltInRuntimeAgent, CustomAgent } from "./types.ts";
+import type { AgentMode, AgentPermissions, BuiltInDefinition, BuiltInOverride, BuiltInRuntimeAgent, CustomAgent } from "./types.ts";
+import { TASK_MANAGER_RECOMMENDED_PERMISSIONS } from "./permission-profiles.ts";
 
 const PUBLIC_IDS = ["general", "build", "plan", "explore"] as const;
 const INTERNAL_IDS = ["compaction", "title", "summary"] as const;
@@ -151,6 +152,7 @@ export function createTaskManagerAgent(
   model = "opencode/default",
   variant?: string,
   targetPath = TASK_MANAGER_TARGET_PATH,
+  permissions?: AgentPermissions,
 ): CustomAgent {
   return {
     id: TASK_MANAGER_AGENT_ID,
@@ -184,14 +186,7 @@ export function createTaskManagerAgent(
 - Do not store state in localStorage (only 'tm-filter' UI preference is allowed).
 - All user-facing text rendered must be HTML-escaped.
 - Deny unvetted task delegations. Use bash with explicit prompt confirmation ('ask') for safe read-only queries and verification.`,
-    permissions: {
-      read: "allow",
-      edit: "allow",
-      skill: "allow",
-      bash: "ask",
-      task: "deny",
-      write: "ask",
-    },
+    permissions: permissions ? { ...permissions } : { ...TASK_MANAGER_RECOMMENDED_PERMISSIONS },
     skills: ["task-tracker-manager"],
   };
 }
