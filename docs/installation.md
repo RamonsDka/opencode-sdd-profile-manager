@@ -113,8 +113,8 @@ The build process generates `dist/tui.js` and populates `dist/plugins/`. Registe
 If you wish to install Suite de Agentes independently of the principal pack:
 1. Navigate to `plugins/suite-de-agentes/`.
 2. Run the platform installer:
-   - **POSIX**: `./install.sh`
-   - **Windows**: `.\install.ps1`
+   - **POSIX**: `./install.sh [--agent-permissions recommended|prompt|none] [--replace-agent-config]`
+   - **Windows**: `.\install.ps1 [-AgentPermissions recommended|prompt|none] [-ReplaceAgentConfig]`
 3. See [`plugins/suite-de-agentes/docs/local-install.md`](../plugins/suite-de-agentes/docs/local-install.md) for full options.
 
 ### Task Manager Portable Standalone Deployment
