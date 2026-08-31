@@ -1,5 +1,6 @@
 export type PermissionValue = "allow" | "deny" | "ask";
-export type AgentPermissions = Record<string, PermissionValue>;
+export type PermissionRule = PermissionValue | Record<string, PermissionValue>;
+export type AgentPermissions = Record<string, PermissionRule>;
 export type AgentMode = "all" | "primary" | "subagent";
 
 export interface CustomAgent {

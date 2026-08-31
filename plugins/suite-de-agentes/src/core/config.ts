@@ -1,10 +1,11 @@
-import type { AgentMode, BaseAgentOverride, BuiltInOverride, CustomAgent, SuiteConfig } from "./types.ts";
+import type { AgentMode, AgentPermissions, BaseAgentOverride, BuiltInOverride, CustomAgent, PermissionRule, PermissionValue, SuiteConfig } from "./types.ts";
 import { isCanonicalBuiltInAgent, mergeCanonicalAgent, normalizeAgentId } from "./built-in-agents.ts";
 import { SUITE_DE_AGENTES_SEED } from "./suites.ts";
 
 const ID = /^[a-z][a-z0-9]*(?:-[a-z0-9]+)*$/;
 const VARIANT = /^[A-Za-z0-9][A-Za-z0-9._-]{0,63}$/;
 const VALID_AGENT_MODES = new Set<AgentMode>(["all", "primary", "subagent"]);
+export const STANDARD_AGENT_TOOLS = ["read", "edit", "write", "bash", "task", "skill"] as const;
 
 export interface AgentPatch {
   newId?: string;
@@ -160,8 +161,33 @@ export function parseSuiteConfig(value: unknown): SuiteConfig {
     let model: string;
     try { model = validateModelId(agent.model); } catch { throw new Error(`Invalid custom agent ${id}`); }
     const skills = Array.isArray(agent.skills) && agent.skills.every((skill) => typeof skill === "string" && ID.test(skill)) ? agent.skills as string[] : [];
-    const permissions = safeRecord(agent.permissions, `permissions for ${id}`) as Record<string, "allow" | "deny" | "ask">;
-    for (const permission of Object.values(permissions)) if (!["allow", "deny", "ask"].includes(permission)) throw new Error(`Invalid permission for ${id}`);
+    let permissions: AgentPermissions;
+    if (typeof agent.permissions === "string") {
+      if (!["allow", "deny", "ask"].includes(agent.permissions)) throw new Error(`Invalid permission for ${id}`);
+      const permValue = agent.permissions as PermissionValue;
+      permissions = Object.fromEntries(STANDARD_AGENT_TOOLS.map((tool) => [tool, permValue]));
+    } else {
+      const rawPerms = safeRecord(agent.permissions, `permissions for ${id}`);
+      permissions = {};
+      for (const [tool, perm] of Object.entries(rawPerms)) {
+        if (typeof perm === "string") {
+          if (!["allow", "deny", "ask"].includes(perm)) throw new Error(`Invalid permission for ${id}`);
+          permissions[tool] = perm as PermissionValue;
+        } else if (perm && typeof perm === "object" && !Array.isArray(perm)) {
+          const subRecord = safeRecord(perm, `permission pattern map for ${tool} in ${id}`);
+          const subMap: Record<string, PermissionValue> = {};
+          for (const [pattern, action] of Object.entries(subRecord)) {
+            if (typeof action !== "string" || !["allow", "deny", "ask"].includes(action)) {
+              throw new Error(`Invalid permission action '${String(action)}' for pattern '${pattern}' in ${tool} in ${id}`);
+            }
+            subMap[pattern] = action as PermissionValue;
+          }
+          permissions[tool] = subMap;
+        } else {
+          throw new Error(`Invalid permission value for tool '${tool}' in ${id}`);
+        }
+      }
+    }
     const parsedAgent: CustomAgent = { id: normalizedID, description: agent.description, model, prompt: agent.prompt, permissions, skills };
     if (agent.mode !== undefined) parsedAgent.mode = validateAgentMode(agent.mode);
     if (typeof agent.variant === "string") parsedAgent.variant = agent.variant;

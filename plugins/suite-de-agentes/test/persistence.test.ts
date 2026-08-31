@@ -136,4 +136,42 @@ describe("namespace persistence", () => {
     });
     expect(readFileSync(path, "utf8")).toBe(firstBytes);
   });
+
+  it("migrates legacy string permissions to canonical object form on save roundtrip", () => {
+    const path = suitePath();
+    const rawLegacy = JSON.stringify({
+      version: 1,
+      customAgents: {
+        "helper-migrated": {
+          ...customAgent,
+          id: "helper-migrated",
+          permissions: "allow",
+        },
+      },
+      modelAssignments: {},
+      variantAssignments: {},
+    }, null, 2) + "\n";
+    writeFileSync(path, rawLegacy);
+
+    const loaded = loadSuiteConfig(path);
+    expect(loaded.customAgents["helper-migrated"].permissions).toEqual({
+      read: "allow",
+      edit: "allow",
+      write: "allow",
+      bash: "allow",
+      task: "allow",
+      skill: "allow",
+    });
+
+    saveSuiteConfig(path, loaded);
+    const saved = JSON.parse(readFileSync(path, "utf8"));
+    expect(saved.customAgents["helper-migrated"].permissions).toEqual({
+      read: "allow",
+      edit: "allow",
+      write: "allow",
+      bash: "allow",
+      task: "allow",
+      skill: "allow",
+    });
+  });
 });
