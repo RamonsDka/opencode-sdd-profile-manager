@@ -61,6 +61,14 @@
     "typescript": "6.0.3",
     "vitest": "4.1.6"
   },
+  "overrides": {
+    "@opentui/keymap": {
+      "solid-js": "$solid-js"
+    },
+    "@opentui/solid": {
+      "solid-js": "$solid-js"
+    }
+  },
   "engines": {
     "node": ">=24.15.0 <25",
     "opencode": ">=1.18.5"

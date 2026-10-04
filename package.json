@@ -84,7 +84,13 @@
     "js-yaml": "4.3.0",
     "npm": "11.18.0",
     "undici": "7.28.0",
-    "vite": "8.1.0"
+    "vite": "8.1.0",
+    "@opentui/keymap": {
+      "solid-js": "$solid-js"
+    },
+    "@opentui/solid": {
+      "solid-js": "$solid-js"
+    }
   },
   "peerDependencies": {
     "@opencode/plugin": "2.0.21",
