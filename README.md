@@ -6,7 +6,7 @@
 
 ![Node.js 24](https://img.shields.io/badge/Node.js-24-339933?logo=nodedotjs&logoColor=white)
 ![OpenCode](https://img.shields.io/badge/OpenCode-%3E%3D%201.17.11-111827)
-![Tests](https://img.shields.io/badge/tests-519%20passing-22c55e)
+[![CI](https://github.com/RamonsDka/opencode-sdd-profile-manager/actions/workflows/ci.yml/badge.svg)](https://github.com/RamonsDka/opencode-sdd-profile-manager/actions/workflows/ci.yml)
 ![License](https://img.shields.io/badge/license-MIT-blue)
 
 A keyboard-first OpenCode TUI plugin pack for creating, editing, versioning, and activating AI model profiles across Organic-Driven Development (ODD) agents, orchestrating multi-agent suites, and maintaining offline project visibility.
@@ -43,7 +43,7 @@ The **OpenCode ODD Profile Manager** unifies these capabilities into an integrat
 
 | Component | Identifier / Package | Version | Distribution Location | Role & Purpose |
 |---|---|---|---|---|
-| **ODD Profile Manager** | `opencode-sdd-profile-manager` (legacy package ID, unchanged) | `2.0.1` | Root / `dist/tui.js` | Principal plugin pack, OpenTUI host, profile versioning, Engram browser |
+| **ODD Profile Manager** | `opencode-sdd-profile-manager` (legacy package ID, unchanged) | `2.1.0` | Root / `dist/tui.js` | Principal plugin pack, OpenTUI host, profile versioning, Engram browser |
 | **Suite de Agentes** | `opencode-agent-suite` | `1.1.0` | `plugins/suite-de-agentes` | Agent catalog, custom agent authoring, per-turn consent enforcement |
 | **Task Manager Portable** | `task-manager-portable` | `1.1.0` | `plugins/task-manager` | Single-file offline project cockpit, Kanban, Git history, CodeGraph maps |
 | **Session Vault** | `opencode-session-vault` | `0.1.0` | `plugins/opencode-session-vault` | Retention management with pin locks, quota profiles, local backups, and Alt+V shortcut |
@@ -78,14 +78,10 @@ Create new profiles, clone existing templates, edit agent assignments, inspect v
 </p>
 
 #### Model Navigation & Roster Inspection
-View all 25 ordered agents categorized into Orchestrator, ODD Core (legacy `sdd-*` IDs), Judgment Day, Reviewers, and Auxiliaries with their active model assignments.
-
-*Screenshot pending: replacement capture not yet available (previous asset removed by authorization).*
+View all 25 ordered agents categorized into Orchestrator, ODD Core (legacy `sdd-*` IDs), Judgment Day, Reviewers, and Auxiliaries with their active model assignments. The roster renders as a text list grouped by category; no screenshot asset is bundled.
 
 #### Agent Configuration & Details
-Inspect per-agent fallback models, reasoning effort levels, and runtime eligibility status.
-
-*Screenshot pending: replacement capture not yet available (previous asset removed by authorization).*
+Inspect per-agent fallback models, reasoning effort levels, and runtime eligibility status. Details render inline as text fields in the dialog; no screenshot asset is bundled.
 
 #### Profile Actions & Version History
 Review automatic snapshot histories before applying bulk changes or restoring a prior stable configuration.
@@ -217,11 +213,11 @@ Access offline documentation, keyboard shortcuts, legend descriptions, and state
 
 The ODD Profile Manager plugin pack (legacy package ID `opencode-sdd-profile-manager`, unchanged) can be deployed via release archives, npm packages, or built directly from source.
 
-> **Release availability**: npm/release claims refer only to published artifacts on GitHub Releases or npm. The V2 local source in this working tree is uncommitted and is not implied to be published.
+> **Release availability**: npm/release artifacts below refer only to published GitHub Releases or npm packages. The V2 source is committed on `main` (PR #34); the archived `sdd-profile-manager-v2.0.1` bundle predates V2 and does not include the V2 host bridge. Use the [latest release](https://github.com/RamonsDka/opencode-sdd-profile-manager/releases/latest) for current archives.
 
 ### Option A — Versioned Release Archive (Recommended)
 
-Download the latest versioned release archive (`sdd-profile-manager-v2.0.1.zip` or `.tar.gz`) from [GitHub Releases](https://github.com/RamonsDka/opencode-sdd-profile-manager/releases).
+Download the latest versioned release archive from [GitHub Releases](https://github.com/RamonsDka/opencode-sdd-profile-manager/releases/latest) (the archived `sdd-profile-manager-v2.0.1.zip`/`.tar.gz` predates V2 and does not include the V2 host bridge).
 
 1. Extract the release archive into your OpenCode plugins directory:
    - **Linux / macOS**: `~/.config/opencode/plugins/sdd-profile-manager`
@@ -251,9 +247,9 @@ Download the latest versioned release archive (`sdd-profile-manager-v2.0.1.zip` 
 
 3. Restart OpenCode.
 
-### Option B — Canonical npm Package
+### Option B — Canonical npm Package (unavailable until published)
 
-Configure OpenCode to load the published npm package directly:
+> The `opencode-sdd-profile-manager` package is not published to the npm registry. Do not expect `npm install` or automatic host resolution to find it. The `tui.json` snippet below is the intended entry once published; until then use the `main`-branch source directory installer in Option C.
 
 ```json
 {
@@ -280,7 +276,7 @@ The build compiles the main TUI bundle into `dist/tui.js` and synchronizes vendo
 
 Add the absolute path to `dist/tui.js` in your `tui.json` and restart OpenCode.
 
-> **V2 local source install (current working-tree path only)**: `scripts/install-v2-local.mjs` runs a dry-run by default and prints the planned `tui.json`/`opencode.json(c)` entry for the current checkout path. Pass `--apply` explicitly to write the change (verified against repo evidence; it preserves unrelated entries). This describes the local checkout only, not a published release.
+> **V2 local source install (this `main` checkout path only)**: `node scripts/install-v2-local.mjs` is a dry-run by default and prints the planned `cli.json`/`opencode.json(c)` directory entry for this checkout. Pass `--apply` explicitly to write the change; unrelated entries are preserved and no build step runs. This describes the local `main` source only, not a published release.
 
 For detailed deployment guidance, see [`docs/installation.md`](docs/installation.md).
 
@@ -380,7 +376,7 @@ npm ci
 # Run strict TypeScript type checking
 npm run typecheck
 
-# Run full Vitest test suite (519 tests across 33 suites)
+# Run full Vitest test suite
 npm test
 
 # Run plugin pack integration and smoke verification
