@@ -62,4 +62,27 @@ describe("Task Manager template classifier", () => {
     expect(isLegacyManagedTaskManagerHtml(plainHtml)).toBe(false);
     expect(isLegacyManagedTaskManagerHtml(undefined)).toBe(false);
   });
+
+  it("accepts numeric stateVersion >= 1 (e.g. 65) for synced dashboards and rejects invalid versions", () => {
+    const syncedState65 = `<div data-tm-capability="${TASK_MANAGER_CAPABILITY_TOKEN_INSIGHTS}"></div><script id="tm-state">${JSON.stringify({ ...currentTaskManagerMeta(), stateVersion: 65 })}</script>`;
+    expect(classifyTaskManagerHtml(syncedState65)).toBe("current");
+
+    const syncedState10 = `<div data-tm-capability="${TASK_MANAGER_CAPABILITY_TOKEN_INSIGHTS}"></div><script id="tm-state">${JSON.stringify({ ...currentTaskManagerMeta(), stateVersion: 10 })}</script>`;
+    expect(classifyTaskManagerHtml(syncedState10)).toBe("current");
+
+    const invalidState0 = `<div data-tm-capability="${TASK_MANAGER_CAPABILITY_TOKEN_INSIGHTS}"></div><script id="tm-state">${JSON.stringify({ ...currentTaskManagerMeta(), stateVersion: 0 })}</script>`;
+    expect(classifyTaskManagerHtml(invalidState0)).toBe("unrecognized");
+
+    const invalidStateNegative = `<div data-tm-capability="${TASK_MANAGER_CAPABILITY_TOKEN_INSIGHTS}"></div><script id="tm-state">${JSON.stringify({ ...currentTaskManagerMeta(), stateVersion: -1 })}</script>`;
+    expect(classifyTaskManagerHtml(invalidStateNegative)).toBe("unrecognized");
+
+    const invalidStateFloat = `<div data-tm-capability="${TASK_MANAGER_CAPABILITY_TOKEN_INSIGHTS}"></div><script id="tm-state">${JSON.stringify({ ...currentTaskManagerMeta(), stateVersion: 1.5 })}</script>`;
+    expect(classifyTaskManagerHtml(invalidStateFloat)).toBe("unrecognized");
+  });
+
+  it("recognizes the token insights capability with either HTML quote style", () => {
+    const state = JSON.stringify(currentTaskManagerMeta());
+    const singleQuotedCapability = `<div data-tm-capability='${TASK_MANAGER_CAPABILITY_TOKEN_INSIGHTS}'></div><script id="tm-state">${state}</script>`;
+    expect(classifyTaskManagerHtml(singleQuotedCapability)).toBe("current");
+  });
 });

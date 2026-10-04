@@ -37,7 +37,7 @@ Peer dependencies are not bundled as independent runtime copies; OpenCode suppli
 
 ## Overrides
 
-`package.json` pins selected transitive packages for security and reproducibility. Review overrides when updating npm, Vite, esbuild, YAML parsing, HTTP clients, or Babel.
+`package.json` pins selected transitive packages for security and reproducibility. Review overrides when updating npm, Vite, esbuild, YAML parsing, HTTP clients, or Babel. Two nested overrides additionally pin the `solid-js` peer of `@opentui/keymap` and `@opentui/solid` to the root `solid-js` (`$solid-js`, currently 1.9.15): both packages publish an exact `1.9.12` peer that otherwise breaks `npm ci` with ERESOLVE. Keep the root Solid version as the single identity; do not downgrade it to satisfy the upstream pin and do not replace these entries with `--force`/`--legacy-peer-deps`. The standalone manifests `plugins/suite-de-agentes/package.json` and `plugins/opencode-session-vault/package.json` carry the same two nested `solid-js` overrides against their own `1.9.15` dev dependency so isolated `npm install --package-lock-only --ignore-scripts --dry-run` resolves GREEN in all three manifests; `src/host-v2.test.ts` imports `plugins/suite-de-agentes/node_modules/solid-js/dist/dev.js`, so the suite install must succeed for the V2 bridge test. Node 24 reports an unsupported-engine warning for `@opentui/core@0.5.14` (requires `node >=26.4.0`); it does not block install or tests and is left unresolved.
 
 ## Known install audit state
 

@@ -11,8 +11,11 @@ const requiredAssets = [
 	"plugins/suite-de-agentes/skills/task-tracker-manager/SKILL.md",
 	"plugins/suite-de-agentes/dist/server.js",
 	"plugins/suite-de-agentes/dist/tui.js",
+	"plugins/opencode-session-vault/README.md",
+	"plugins/opencode-session-vault/dist/tui.js",
+	"plugins/opencode-session-vault/dist/maintenance-monitor.ps1",
 ];
-const requiredProvenance = ["suite-de-agentes", "task-manager"];
+const requiredProvenance = ["suite-de-agentes", "task-manager", "opencode-session-vault"];
 
 function requireReadable(filePath: string): void {
 	if (!fs.statSync(filePath).isFile() || fs.readFileSync(filePath).length === 0) {
@@ -31,7 +34,7 @@ function verifyProvenance(): void {
 }
 
 function ensureDistributedPluginAssets(): void {
-	for (const plugin of ["suite-de-agentes", "task-manager"]) {
+	for (const plugin of ["suite-de-agentes", "task-manager", "opencode-session-vault"]) {
 		const src = path.join(packageRoot, "plugins", plugin);
 		const dest = path.join(distributionRoot, "plugins", plugin);
 		if (!fs.existsSync(dest)) {

@@ -47,8 +47,9 @@
         + '</div>';
     }
 
+    var byAgent = Array.isArray(tokenUsage.byAgent) ? tokenUsage.byAgent : [];
     var isActivityEstimation = tokenUsage.source === 'activity-estimation';
-    var byAgent = tokenUsage.byAgent;
+    var isPreview = tokenUsage.source === 'preview' || !!tokenUsage.isPreview || byAgent.some(function (a) { return a && a.evidence === 'preview'; });
     var maxTotal = byAgent.reduce(function (max, item) { return Math.max(max, item.total); }, 1);
     var anyEstimated = false;
 
@@ -64,9 +65,9 @@
 
       var evidenceLabel = isActivityEstimation
         ? 'Estimación por actividad'
-        : (item.evidence === 'measured' ? 'Medido' : (item.evidence === 'derived' ? 'Derivado' : 'Estimado'));
+        : (item.evidence === 'preview' ? 'Preview / Demo' : (item.evidence === 'measured' ? 'Medido' : (item.evidence === 'derived' ? 'Derivado' : 'Estimado')));
       var evidenceClass = isActivityEstimation ? 'token-evidence-estimated' : ('token-evidence-' + item.evidence);
-      var costText = (!isActivityEstimation && item.cost !== undefined) ? ' · $' + item.cost.toFixed(3) : '';
+      var costText = (!isActivityEstimation && item.cost !== undefined && !isPreview) ? ' · $' + item.cost.toFixed(3) : '';
       var unitLabel = isActivityEstimation ? ' u. activ.' : ' tokens';
 
       var barInnerHtml = isActivityEstimation
@@ -101,14 +102,22 @@
         + '<span class="legend-item"><span class="legend-swatch" style="background:linear-gradient(90deg,#38bdf8,#818cf8);"></span> Unidades relativas de actividad</span>'
         + '<span class="token-estimate-note">* Estimación por actividad basada en asignación y avance de tareas (sin telemetría directa de tokens)</span>'
         + '</div>')
-      : ('<div class="token-chart-legend">'
-        + '<span class="legend-item"><span class="legend-swatch legend-input"></span> Entrada</span>'
-        + '<span class="legend-item"><span class="legend-swatch legend-output"></span> Salida</span>'
-        + '<span class="legend-item"><span class="legend-swatch legend-cache-read"></span> Lectura Caché</span>'
-        + '<span class="legend-item"><span class="legend-swatch legend-reasoning"></span> Razonamiento</span>'
-        + (anyCacheWrite ? '<span class="legend-item"><span class="legend-swatch legend-cache-write"></span> Escritura Caché</span>' : '')
-        + (anyEstimated ? '<span class="token-estimate-note">* Estimación determinista (caracteres / 4)</span>' : '')
-        + '</div>');
+      : (isPreview
+        ? ('<div class="token-chart-legend">'
+          + '<span class="legend-item"><span class="legend-swatch legend-input"></span> Entrada</span>'
+          + '<span class="legend-item"><span class="legend-swatch legend-output"></span> Salida</span>'
+          + '<span class="legend-item"><span class="legend-swatch legend-cache-read"></span> Lectura Caché</span>'
+          + '<span class="legend-item"><span class="legend-swatch legend-reasoning"></span> Razonamiento</span>'
+          + '<span class="token-estimate-note" style="color:#bc8cff;font-weight:600;">🔮 Vista previa demostrativa — el host OpenCode inyectará telemetría real al sincronizar</span>'
+          + '</div>')
+        : ('<div class="token-chart-legend">'
+          + '<span class="legend-item"><span class="legend-swatch legend-input"></span> Entrada</span>'
+          + '<span class="legend-item"><span class="legend-swatch legend-output"></span> Salida</span>'
+          + '<span class="legend-item"><span class="legend-swatch legend-cache-read"></span> Lectura Caché</span>'
+          + '<span class="legend-item"><span class="legend-swatch legend-reasoning"></span> Razonamiento</span>'
+          + (anyCacheWrite ? '<span class="legend-item"><span class="legend-swatch legend-cache-write"></span> Escritura Caché</span>' : '')
+          + (anyEstimated ? '<span class="token-estimate-note">* Estimación determinista (caracteres / 4)</span>' : '')
+          + '</div>'));
 
     return '<div class="token-chart-container">' + rows + '</div>' + legendHtml;
   }
@@ -118,18 +127,19 @@
       return '<p class="overview-section-copy">No hay telemetría de tokens registrada para este proyecto.</p>';
     }
 
+    var byAgent = Array.isArray(tokenUsage.byAgent) ? tokenUsage.byAgent : [];
     var isActivityEstimation = tokenUsage.source === 'activity-estimation';
-    var byAgent = tokenUsage.byAgent;
+    var isPreview = tokenUsage.source === 'preview' || !!tokenUsage.isPreview || byAgent.some(function (a) { return a && a.evidence === 'preview'; });
     var totals = tokenUsage.totals;
     var anyEstimated = false;
 
     var rows = byAgent.map(function (item) {
       if (item.evidence === 'estimated') anyEstimated = true;
       var cats = item.categories || {};
-      var costStr = (!isActivityEstimation && item.cost !== undefined) ? '$' + item.cost.toFixed(4) : '—';
+      var costStr = (!isActivityEstimation && !isPreview && item.cost !== undefined) ? '$' + item.cost.toFixed(4) : '—';
       var evidenceLabel = isActivityEstimation
         ? 'Estimación por actividad'
-        : (item.evidence === 'measured' ? 'Medido' : (item.evidence === 'derived' ? 'Derivado' : 'Estimado'));
+        : (item.evidence === 'preview' ? 'Preview / Demo' : (item.evidence === 'measured' ? 'Medido' : (item.evidence === 'derived' ? 'Derivado' : 'Estimado')));
       var modelsStr = (item.models && item.models.length) ? item.models.join(', ') : (item.model || '—');
 
       return '<tr>'
@@ -193,7 +203,9 @@
       + '</div>'
       + (isActivityEstimation
         ? '<p class="token-table-note">* Estimación determinista por volumen de tareas y subtareas asignadas.</p>'
-        : (anyEstimated ? '<p class="token-table-note">* Estimación determinista basada en longitud de caracteres (chars / 4).</p>' : ''));
+        : (isPreview
+          ? '<p class="token-table-note" style="color:#bc8cff;font-weight:600;">* Valores simulados como preview en la plantilla. Serán reemplazados automáticamente por telemetría real del host OpenCode al sincronizar el proyecto.</p>'
+          : (anyEstimated ? '<p class="token-table-note">* Estimación determinista basada en longitud de caracteres (chars / 4).</p>' : '')));
 
     return tableHtml;
   }
@@ -225,8 +237,21 @@
   }
   function renderDimensionLines(map) {
     var keys = Object.keys(map || {});
-    var lines = keys.length ? keys.map(function (key) { var bucket = map[key] || {}; return '<span class="insight-dimension-line"><strong>' + esc(key) + '</strong> ' + Math.round(finiteNumber(bucket.completed, 0)) + '/' + Math.round(Math.max(0, finiteNumber(bucket.total, 0))) + '</span>'; }).join('') : '<span class="insight-empty">No task data</span>';
-    return '<div class="insight-dimension-list">' + lines + '</div>';
+    if (!keys.length) return '<div class="insight-dimension-list"><span class="insight-empty">No task data</span></div>';
+    var visibleKeys = keys;
+    var maxInitial = 12;
+    var lines = visibleKeys.map(function (key, idx) {
+      var bucket = map[key] || {};
+      var hiddenAttr = idx >= maxInitial ? ' style="display:none;" data-overflow-dim="1"' : '';
+      return '<span class="insight-dimension-line"' + hiddenAttr + '><strong>' + esc(key) + '</strong> ' + Math.round(finiteNumber(bucket.completed, 0)) + '/' + Math.round(Math.max(0, finiteNumber(bucket.total, 0))) + '</span>';
+    }).join('');
+
+    var toggleBtn = '';
+    if (keys.length > maxInitial) {
+      toggleBtn = '<button type="button" class="btn btn-secondary btn-sm dim-toggle-btn" data-dim-toggle="1" data-more-count="' + (keys.length - maxInitial) + '" aria-expanded="false" style="padding:2px 8px;font-size:10px;height:24px;border-radius:12px;">+' + (keys.length - maxInitial) + ' más</button>';
+    }
+
+    return '<div class="insight-dimension-list">' + lines + toggleBtn + '</div>';
   }
   function riskCount(insights, level) {
     return (insights && Array.isArray(insights.tasks) ? insights.tasks : []).filter(function (task) { return task && task.risk === level; }).length;
@@ -412,8 +437,39 @@
     }
     if (hud.getAttribute('data-metric-details-bound') !== '1') {
       hud.setAttribute('data-metric-details-bound', '1');
-      hud.addEventListener('click', function (event) { var card = event.target.closest && event.target.closest('[data-metric-detail]'); if (card && hud.contains(card)) open(card); });
-      hud.addEventListener('keydown', function (event) { var card = event.target.closest && event.target.closest('[data-metric-detail]'); if (card && (event.key === 'Enter' || event.key === ' ')) { event.preventDefault(); open(card); } });
+      hud.addEventListener('click', function (event) {
+        var dimBtn = event.target.closest && event.target.closest('[data-dim-toggle]');
+        if (dimBtn && hud.contains(dimBtn)) {
+          event.stopPropagation();
+          var parent = dimBtn.parentElement;
+          if (!parent) return;
+          var hiddenItems = parent.querySelectorAll('[data-overflow-dim]');
+          var isExpanded = dimBtn.getAttribute('data-exp') === '1';
+          hiddenItems.forEach(function (el) {
+            el.style.display = isExpanded ? 'none' : 'inline-flex';
+          });
+          dimBtn.setAttribute('data-exp', isExpanded ? '0' : '1');
+          dimBtn.setAttribute('aria-expanded', isExpanded ? 'false' : 'true');
+          var moreCount = dimBtn.getAttribute('data-more-count') || '';
+          dimBtn.textContent = isExpanded ? ('+' + moreCount + ' más') : 'Ver menos';
+          return;
+        }
+        var card = event.target.closest && event.target.closest('[data-metric-detail]');
+        if (card && hud.contains(card)) open(card);
+      });
+      hud.addEventListener('keydown', function (event) {
+        var dimBtn = event.target.closest && event.target.closest('[data-dim-toggle]');
+        if (dimBtn && (event.key === 'Enter' || event.key === ' ')) {
+          event.preventDefault();
+          dimBtn.click();
+          return;
+        }
+        var card = event.target.closest && event.target.closest('[data-metric-detail]');
+        if (card && (event.key === 'Enter' || event.key === ' ')) {
+          event.preventDefault();
+          open(card);
+        }
+      });
     }
     if (dialog.getAttribute('data-overview-dialog-bound') !== '1') {
       dialog.setAttribute('data-overview-dialog-bound', '1');
@@ -910,19 +966,20 @@
       + '<div class="insight-band-stack">'
       + '<div class="insight-band-region insight-tokens-main">'
       + '<div class="insight-tokens-header">'
-      + '<span class="insight-region-label">' + (insights.tokenUsage && insights.tokenUsage.source === 'activity-estimation' ? 'Estimación de Actividad por Agente' : 'Telemetría de Tokens por Agente') + '</span>'
+      + '<span class="insight-region-label">' + (insights.tokenUsage && insights.tokenUsage.source === 'activity-estimation' ? 'Estimación de Actividad por Agente' : (insights.tokenUsage && (insights.tokenUsage.source === 'preview' || insights.tokenUsage.isPreview) ? 'Telemetría de Tokens (Preview / Demo)' : 'Telemetría de Tokens por Agente (Real)')) + '</span>'
       + (function () {
         var tokenUsage = insights.tokenUsage || { hasData: false, totals: { total: 0 } };
         if (tokenUsage.hasData) {
           var isAct = tokenUsage.source === 'activity-estimation';
+          var isPrev = tokenUsage.source === 'preview' || !!tokenUsage.isPreview;
           var totals = tokenUsage.totals;
           var cacheShare = (!isAct && totals.total > 0 && totals.cacheRead > 0) ? Math.round(totals.cacheRead / totals.total * 100) : 0;
           return '<div class="insight-tokens-summary-chips">'
             + '<span class="token-chip token-chip-total">' + formatCompactTokens(totals.total) + (isAct ? ' u. activ.' : ' tokens') + '</span>'
             + '<span class="token-chip">' + tokenUsage.byAgent.length + ' agentes</span>'
             + (cacheShare > 0 ? '<span class="token-chip">' + cacheShare + '% caché</span>' : '')
-            + (totals.cost !== undefined ? '<span class="token-chip">$' + totals.cost.toFixed(3) + '</span>' : '')
-            + (isAct ? '<span class="token-chip token-chip-estimate">Estimación por actividad</span>' : '')
+            + (!isPrev && totals.cost !== undefined ? '<span class="token-chip">$' + totals.cost.toFixed(3) + '</span>' : '')
+            + (isPrev ? '<span class="token-chip token-chip-preview">🔮 Preview / Demo</span>' : (isAct ? '<span class="token-chip token-chip-estimate" style="color:var(--accent-amber);border-color:rgba(245,158,11,0.4);">⚡ Estimación</span>' : '<span class="token-chip token-chip-measured">✓ Medida Real</span>'))
             + (tokenUsage.isStale ? '<span class="token-chip token-chip-stale">⚠️ Desactualizado (&gt;24h)</span>' : '')
             + '</div>';
         }
@@ -994,6 +1051,28 @@
       });
     });
 
+    // Internal view jump buttons (e.g. credits teaser CTA)
+    if (doc.documentElement.getAttribute('data-tm-jump-bound') !== '1') {
+      doc.documentElement.setAttribute('data-tm-jump-bound', '1');
+      doc.addEventListener('click', function (e) {
+        var jumpBtn = e.target && e.target.closest ? e.target.closest('[data-jump-view]') : null;
+        if (jumpBtn) {
+          var target = jumpBtn.getAttribute('data-jump-view');
+          if (target) activateView(target);
+        }
+      });
+      doc.addEventListener('keydown', function (e) {
+        if (e.key === 'Enter' || e.key === ' ') {
+          var jumpBtn = e.target && e.target.closest ? e.target.closest('[data-jump-view]') : null;
+          if (jumpBtn) {
+            e.preventDefault();
+            var target = jumpBtn.getAttribute('data-jump-view');
+            if (target) activateView(target);
+          }
+        }
+      });
+    }
+
     // Global search input
     var searchInput = doc.getElementById('global-search-input');
     if (searchInput && searchInput.getAttribute('data-search-bound') !== '1') {
@@ -1008,13 +1087,13 @@
       });
     }
 
-    // Keyboard shortcuts: 1-7 for tabs
+    // Keyboard shortcuts: 1-8 for tabs
     if (doc.documentElement.getAttribute('data-tm-keyboard-bound') !== '1') {
       doc.documentElement.setAttribute('data-tm-keyboard-bound', '1');
       doc.addEventListener('keydown', function (e) {
         if (isEditable(e.target)) return;
         var num = parseInt(e.key, 10);
-        if (num >= 1 && num <= 7) {
+        if (num >= 1 && num <= 8) {
           var btns = doc.querySelectorAll('.tab-btn[data-target-view]');
           var targetBtn = btns[num - 1];
           if (targetBtn) activateView(targetBtn.getAttribute('data-target-view'));

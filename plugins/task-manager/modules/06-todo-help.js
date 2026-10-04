@@ -253,6 +253,7 @@
     }
 
     var html = '';
+    var maxVisible = 5;
     for (var i = 0; i < todos.length; i++) {
       var td = todos[i] || {};
       var id = esc(td.id || ('td-' + (i+1)));
@@ -261,8 +262,10 @@
       var done = !!td.done;
       var badgeCls = priorityBadgeClass(priority);
       var pLabel = esc(priorityLabel(priority));
+      var isOverflow = i >= maxVisible;
+      var overflowAttr = isOverflow ? ' data-todo-overflow="1" style="display:none;"' : '';
 
-      html += '<div class=\"todo-item' + (done ? ' done' : '') + '\" role=\"button\" tabindex=\"0\" aria-haspopup=\"dialog\" data-id=\"' + id + '\" data-priority=\"' + priority + '\" data-done=\"' + (done ? '1' : '0') + '\" title=\"Clic para ver detalles y recomendaciones de esta señal\">'
+      html += '<div class=\"todo-item' + (done ? ' done' : '') + '\"' + overflowAttr + ' role=\"button\" tabindex=\"0\" aria-haspopup=\"dialog\" data-id=\"' + id + '\" data-priority=\"' + priority + '\" data-done=\"' + (done ? '1' : '0') + '\" title=\"Clic para ver detalles y recomendaciones de esta señal\">'
         + '<div class=\"todo-left\">'
         + '<span class=\"todo-text\">' + text + '</span>'
         + '</div>'
@@ -272,7 +275,31 @@
         + '</div>'
         + '</div>';
     }
+
+    if (todos.length > maxVisible) {
+      html += '<div class="todo-expand-bar" style="margin-top:8px;text-align:center;">'
+        + '<button type="button" class="btn btn-secondary btn-sm" id="btn-toggle-todos" data-expanded="0" style="width:100%;padding:8px 12px;font-weight:600;display:flex;align-items:center;justify-content:center;gap:6px;">'
+        + '<span>Mostrar todas las señales (' + todos.length + ')</span><span class="todo-toggle-arrow" aria-hidden="true">▾</span>'
+        + '</button>'
+        + '</div>';
+    }
+
     container.innerHTML = html;
+
+    var toggleBtn = container.querySelector('#btn-toggle-todos');
+    if (toggleBtn) {
+      toggleBtn.addEventListener('click', function () {
+        var isExp = this.getAttribute('data-expanded') === '1';
+        var overflowItems = container.querySelectorAll('[data-todo-overflow]');
+        overflowItems.forEach(function (el) {
+          el.style.display = isExp ? 'none' : 'flex';
+        });
+        this.setAttribute('data-expanded', isExp ? '0' : '1');
+        this.querySelector('span').textContent = isExp ? ('Mostrar todas las señales (' + todos.length + ')') : 'Contraer a las 5 principales';
+        var arrow = this.querySelector('.todo-toggle-arrow');
+        if (arrow) arrow.textContent = isExp ? '▾' : '▴';
+      });
+    }
 
     if (container.getAttribute('data-todo-bound') !== '1') {
       container.setAttribute('data-todo-bound', '1');
@@ -311,7 +338,7 @@
       + '6. Preserva IDs existentes, notas personalizadas del usuario, etiquetas y propietarios. Todas las actualizaciones deben ser aditivas y orientadas al estado.\\\\n'
       + '7. Compatibilidad pura offline sobre file://: sin fetch, XMLHttpRequest, importaciones ESM ni dependencias externas en runtime.\\\\n'
       + '8. No hardcodees métricas derivadas (como overallPct o conteos de estado), ya que se calculan dinámicamente en el renderizador.\\\\n'
-      + '9. La propiedad \\"tokenUsage\\" es telemetría gestionada por el host. PRESERVA el objeto tokenUsage intacto; NUNCA inventes, estimes ni sobrescribas tokenUsage.\\\\n\\\\n'
+      + '9. La propiedad \\"tokenUsage\\" es telemetría gestionada por el host. PRESERVA el objeto tokenUsage intacto; NUNCA inventes, estimes ni sobrescribas tokenUsage. El preview de la plantilla es sustituido automáticamente por telemetría del host al sincronizar el proyecto.\\\\n\\\\n'
       + 'Al finalizar, guarda el archivo con el JSON island actualizado de forma atómica y reporta un resumen conciso del estado de fases y tareas.';
   }
 
@@ -427,9 +454,36 @@
     })();
   }
 
+  function setupExternalLinks(doc) {
+    doc = doc || (typeof document !== 'undefined' ? document : null);
+    if (!doc || doc._externalLinksBound) return;
+    doc._externalLinksBound = true;
+
+    doc.addEventListener('click', function (event) {
+      var target = event.target && event.target.closest ? event.target.closest('[data-external-link]') : null;
+      if (!target) return;
+      var url = target.getAttribute('data-external-link');
+      if (url && typeof window !== 'undefined' && window.open) {
+        window.open(url, '_blank', 'noopener,noreferrer');
+      }
+    });
+
+    doc.addEventListener('keydown', function (event) {
+      if (event.key !== 'Enter' && event.key !== ' ') return;
+      var target = event.target && event.target.closest ? event.target.closest('[data-external-link]') : null;
+      if (!target) return;
+      event.preventDefault();
+      var url = target.getAttribute('data-external-link');
+      if (url && typeof window !== 'undefined' && window.open) {
+        window.open(url, '_blank', 'noopener,noreferrer');
+      }
+    });
+  }
+
   function renderAllTodoHelp(state, doc, validation) {
     renderTodo(state, doc);
     renderHelp(state, doc, validation);
+    setupExternalLinks(doc);
   }
 
   var TMTodoHelp = {

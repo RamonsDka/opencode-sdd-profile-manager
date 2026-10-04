@@ -1,4 +1,5 @@
 import * as crypto from "node:crypto";
+import type { SessionCreateInput, SessionPromptInput } from "@opencode/client";
 import * as fs from "node:fs";
 import * as path from "node:path";
 import { resolvePaths } from "../config";
@@ -164,7 +165,7 @@ export function buildTaskManagerInitPrompt(project: TaskManagerProjectIdentity, 
     `   - Edit ONLY the JSON inside <script type="application/json" id="tm-state">. Never modify HTML markup, CSS styling, or JavaScript logic outside the island.`,
     `   - Never delegate tasks to subagents or workers; execute all state updates directly.`,
     `   - Ensure all occurrences of "</script>" inside JSON strings are escaped as "\\u003c/script\\u003e".`,
-    `   - The "tokenUsage" property is host-managed telemetry. PRESERVE the tokenUsage object intact if present; NEVER fabricate, estimate, or overwrite tokenUsage.`,
+    `   - The "tokenUsage" property is host-managed telemetry. PRESERVE the tokenUsage object intact if present; NEVER fabricate, estimate, or overwrite tokenUsage. Any template preview tokenUsage is replaced exclusively by host telemetry upon provisioning and synchronization.`,
     `   - Valid task/phase statuses: "pending", "in-progress", "completed", "blocked".`,
     `   - Final state contract: Upon successfully writing the updated state island, set meta.syncStatus to "synced", and set meta.lastSyncCompletedAt, meta.lastSyncAt, and meta.lastUpdated to the current ISO timestamp (new Date().toISOString()).`,
     `   - Dashboard must remain fully functional offline over file:// without external dependencies.`,
@@ -193,7 +194,7 @@ export function buildTaskManagerRefreshPrompt(project: TaskManagerProjectIdentit
     `   - Edit ONLY the JSON inside <script type="application/json" id="tm-state">. Never modify HTML markup, CSS styling, or JavaScript logic outside the island.`,
     `   - Never delegate tasks to subagents or workers; execute all state updates directly.`,
     `   - Escape all "</script>" occurrences inside JSON strings as "\\u003c/script\\u003e".`,
-    `   - The "tokenUsage" property is host-managed telemetry. PRESERVE the tokenUsage object intact if present; NEVER fabricate, estimate, or overwrite tokenUsage.`,
+    `   - The "tokenUsage" property is host-managed telemetry. PRESERVE the tokenUsage object intact if present; NEVER fabricate, estimate, or overwrite tokenUsage. Any template preview tokenUsage is replaced exclusively by host telemetry upon provisioning and synchronization.`,
     `   - Valid task/phase statuses: "pending", "in-progress", "completed", "blocked".`,
     `   - Final state contract: Upon successfully writing the updated state island, set meta.syncStatus to "synced", and set meta.lastSyncCompletedAt, meta.lastSyncAt, and meta.lastUpdated to the current ISO timestamp (new Date().toISOString()).`,
     `   - Dashboard must remain fully functional offline over file:// without external dependencies.`,
@@ -271,7 +272,9 @@ export const defaultTaskManagerAgentRunner: TaskManagerAgentRunner = async ({
 }) => {
   if (client?.session?.create && (client?.session?.promptAsync || client?.session?.prompt)) {
     try {
-      const session = await client.session.create({ title: `[Task Manager] ${project.root}` });
+      const nativeV2 = client.nativeV2 === true || typeof client.message?.list === "function";
+      const createInput: SessionCreateInput = { title: `[Task Manager] ${project.root}`, agent: "agent-task-manager", location: { directory: project.canonicalRoot } };
+      const session = await client.session.create(nativeV2 ? createInput : { title: createInput.title });
       const sessionID = session?.data?.id ?? session?.id;
       if (!sessionID) {
         throw new Error("Failed to create background session for Task Manager");
@@ -286,7 +289,10 @@ export const defaultTaskManagerAgentRunner: TaskManagerAgentRunner = async ({
         parts: [{ type: "text" as const, text: prompt }],
       };
 
-      if (typeof client.session.promptAsync === "function") {
+      if (nativeV2) {
+        const input: SessionPromptInput = { sessionID, text: prompt };
+        await client.session.prompt(input);
+      } else if (typeof client.session.promptAsync === "function") {
         await client.session.promptAsync(promptPayload);
       } else {
         await client.session.prompt(promptPayload);

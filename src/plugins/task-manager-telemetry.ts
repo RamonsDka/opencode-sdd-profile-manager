@@ -1,4 +1,5 @@
 import * as fs from "node:fs";
+import type { OpenCodeClient, SessionInfo, SessionMessageInfo } from "@opencode/client";
 import * as path from "node:path";
 import { createLogger } from "../logger";
 import type { TaskManagerProjectIdentity } from "./task-manager-root";
@@ -10,7 +11,7 @@ import {
 
 const log = createLogger("task-manager-telemetry");
 
-export type TokenEvidence = "measured" | "derived" | "estimated" | "unavailable";
+export type TokenEvidence = "measured" | "derived" | "estimated" | "preview" | "unavailable";
 
 export interface AgentTokenCategories {
   input: number;
@@ -690,6 +691,39 @@ export function deriveActivityTelemetryFromState(
   };
 }
 
+async function collectNativeTelemetry(client: Pick<OpenCodeClient, "session" | "message">, project: TaskManagerProjectIdentity): Promise<TaskManagerTokenUsage> {
+  const sessions: SessionInfo[] = [];
+  const sessionCursors = new Set<string>();
+  let cursor: string | undefined;
+  do {
+    const page = await client.session.list({ directory: project.canonicalRoot, ...(cursor ? { cursor } : {}) });
+    sessions.push(...page.data);
+    cursor = page.cursor.next ?? undefined;
+    if (cursor && sessionCursors.has(cursor)) throw new Error("Repeated V2 session cursor");
+    if (cursor) sessionCursors.add(cursor);
+  } while (cursor);
+  const collected: Array<{ session: RawSession; messages: RawMessage[] }> = [];
+  for (const session of sessions) {
+    if (canonicalizePath(session.location.directory) !== canonicalizePath(project.canonicalRoot)) continue;
+    const messages: SessionMessageInfo[] = [];
+    const messageCursors = new Set<string>();
+    cursor = undefined;
+    do {
+      const page = await client.message.list({ sessionID: session.id, limit: 100, order: "asc", ...(cursor ? { cursor } : {}) });
+      messages.push(...page.data);
+      cursor = page.cursor.next ?? undefined;
+      if (cursor && messageCursors.has(cursor)) throw new Error("Repeated V2 message cursor");
+      if (cursor) messageCursors.add(cursor);
+    } while (cursor);
+    collected.push({ session: { ...session, directory: session.location.directory }, messages: messages.flatMap((message) => {
+      if (message.type !== "assistant") return [];
+      return [{ id: message.id, role: "assistant", agent: message.agent, model: `${message.model.providerID}/${message.model.id}`,
+        tokens: message.tokens, cost: message.cost, parts: message.content.flatMap((part) => part.type === "text" ? [{ type: "text", text: part.text }] : []) }];
+    }) });
+  }
+  return aggregateSessionMessages(collected, { projectDirectory: project.canonicalRoot });
+}
+
 export async function collectTaskManagerTokenTelemetry(options: {
   client?: any;
   project: TaskManagerProjectIdentity;
@@ -698,6 +732,12 @@ export async function collectTaskManagerTokenTelemetry(options: {
   const { client, project, sqlitePath } = options;
 
   let sdkTelemetry: TaskManagerTokenUsage | null = null;
+
+  if (typeof client?.message?.list === "function") {
+    // Never query the legacy SQLite schema when a native V2 client is present.
+    return collectNativeTelemetry(client, project);
+  }
+  if (client?.nativeV2 === true) return null;
 
   if (client && typeof client.session?.list === "function") {
     try {

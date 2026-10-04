@@ -1,6 +1,8 @@
 # Installation & Distribution Guide
 
-This guide covers installing and deploying the **OpenCode SDD Profile Manager** principal plugin pack and its integrated companion plugins via versioned release archives, npm packages, or local source checkouts.
+This guide covers installing and deploying the **OpenCode ODD Profile Manager** principal plugin pack (legacy package ID `opencode-sdd-profile-manager`, unchanged) and its integrated companion plugins via versioned release archives, npm packages, or local source checkouts.
+
+> **Release availability**: npm/release artifacts below refer only to published GitHub Releases or npm packages. The V2 local source in this working tree is uncommitted; docs do not imply it is published.
 
 ---
 
@@ -104,6 +106,8 @@ npm run build
 ```
 
 The build process generates `dist/tui.js` and populates `dist/plugins/`. Register the absolute path to `dist/tui.js` in `tui.json` and restart OpenCode.
+
+> **V2 local source install (current working-tree path only)**: `scripts/install-v2-local.mjs` performs a dry-run by default and prints the planned configuration entry for this checkout. Pass `--apply` explicitly to write it. This describes the local checkout only, not a published release.
 
 ---
 

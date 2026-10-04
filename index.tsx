@@ -7,8 +7,8 @@
  */
 
 import * as fs from "node:fs";
-import type { TuiPlugin, TuiPluginModule } from "@opencode-ai/plugin/tui";
-import { registerExCommands } from "@opentui/keymap/addons";
+import { Plugin } from "@opencode/plugin/tui";
+import { createV2Host } from "./src/host-v2";
 import { Show, createEffect, createRoot, untrack } from "solid-js";
 import { ActiveModelBadge } from "./components";
 import { readPluginShortcutBindings, resolvePaths } from "./src/config";
@@ -45,6 +45,12 @@ import {
 	parseActiveProfileFromRaw,
 	resolveSessionActiveModel,
 } from "./src/utils";
+import { createSuiteAdapter, openVendoredSuite } from "./src/plugins/suite-adapter";
+import {
+	createVaultAdapter,
+	openVendoredSessionVault,
+	initVendoredSessionVault,
+} from "./src/plugins/vault-adapter";
 
 // -- Plugin Initialization ---------------------------------------------------
 
@@ -123,15 +129,12 @@ function registerProfilesCommand(api: any, bindings: string[]) {
 	createRoot((disposeRoot) => {
 		api.lifecycle.onDispose(disposeRoot);
 
-		const disposeEx = registerExCommands(api.keymap);
-		api.lifecycle.onDispose(disposeEx);
-
 		const disposeLayer = api.keymap.registerLayer({
 			priority: 100,
 			commands: [
 				{
 					name: ":sdd-model",
-					title: "󰓅 SDD Profiles",
+					title: "󰓅 Gestión de perfiles ODD",
 					desc: "Manage SDD profiles",
 					category: "SDD",
 					nargs: "0",
@@ -148,7 +151,7 @@ function registerProfilesCommand(api: any, bindings: string[]) {
 		if (api.command?.register) {
 			const disposeLegacy = api.command.register(() => [
 				{
-					title: "󰓅 SDD Profiles",
+					title: "󰓅 Gestión de perfiles ODD",
 					value: "sdd-model",
 					description: "Manage SDD profiles",
 					category: "SDD",
@@ -208,7 +211,7 @@ const id = "sdd-model-select";
  * Main TUI plugin entry function
  * Registers commands and UI slots for the plugin
  */
-const tui: TuiPlugin = async (api) => {
+const tui = async (api: ReturnType<typeof createV2Host>) => {
 	safeHostAction("log host version", () => {
 		log.info(`host opencode v${getHostVersion(api)}`);
 	}, undefined);
@@ -280,9 +283,34 @@ const tui: TuiPlugin = async (api) => {
 	// Register the main command using the current OpenCode TUI keymap API.
 	safeHostAction("register profiles command", () => registerProfilesCommand(api, shortcutBindings), undefined);
 
+	// Register companion plugin adapters
+	safeHostAction(
+		"register suite adapter",
+		() => createSuiteAdapter(() => openVendoredSuite(api)).register(api),
+		false,
+	);
+
+	safeHostAction(
+		"register vault adapter",
+		() => createVaultAdapter(() => void openVendoredSessionVault(api)).register(api),
+		false,
+	);
+
+	void safeHostAsyncAction(
+		"init vault runtime",
+		() => initVendoredSessionVault(api),
+		undefined,
+	);
+
 	// Register UI slots inside a Solid root because the host slot plugin creates cleanups.
 	safeHostAction("register slots", () => registerSlots(api), undefined);
 };
 
-const plugin: TuiPluginModule & { id: string } = { id, tui };
-export default plugin;
+export default Plugin.define({
+  id,
+  setup(context) {
+    let api!: ReturnType<typeof createV2Host>;
+    createRoot(dispose => { api = createV2Host(context, dispose); });
+    return api.initialize().then(() => tui(api)).then(() => () => api.dispose(), error => { api.dispose(); throw error; });
+  },
+});

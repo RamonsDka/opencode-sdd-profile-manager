@@ -1,0 +1,16 @@
+{
+  "source": "local-vendor",
+  "origin": "plugins/opencode-session-vault",
+  "canonicalLocation": "plugins/opencode-session-vault",
+  "commit": "local-vendor",
+  "version": "0.1.0",
+  "description": "Locally adapted vendored snapshot for OpenCode Session Vault retention and backup system. Independent project snapshot; integrity is local-only per SHA256SUMS.txt and not verified against any upstream.",
+  "exclusions": [
+    ".git/**",
+    ".codegraph/**",
+    "node_modules/**",
+    "dist/**",
+    "coverage/**",
+    "assets/integration-result.json"
+  ]
+}

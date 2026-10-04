@@ -42,6 +42,32 @@ function registrationHost() {
 }
 
 describe("Agent Suite WU1 registration", () => {
+  it("sets up native command, slot, configuration, and lifecycle contracts", async () => {
+    const layer = vi.fn(), slotDispose = vi.fn(), stop = vi.fn();
+    const slot = vi.fn((_claim: { append: string }) => slotDispose);
+    const context: any = {
+      storage: { store: () => [{}, vi.fn()] }, keymap: { layer },
+      client: { config: { get: vi.fn().mockResolvedValue([]) } },
+      data: { listen: vi.fn(() => stop), location: { agent: { list: () => [] } } },
+      ui: { slot, dialog: {}, toast: { show: vi.fn() } },
+    };
+    const cleanup = await plugin.setup(context);
+    // V2 host defers keymap registration into the "app" slot render.
+    const appSlot = slot.mock.calls.map((call) => call[0]).find((claim) => claim?.append === "app");
+    expect(appSlot).toBeTruthy();
+    appSlot.render();
+    const registration = layer.mock.calls[0][0]();
+    expect(registration.commands[0]).toMatchObject({ id: "agent-suite", bind: "alt+s", slash: { name: "agent-suite" } });
+    expect(registration.commands[1].run()).toBe(false);
+    expect(slot.mock.calls.map((call) => call[0]?.append).sort()).toEqual(["app", "sidebar.content"]);
+    expect(context.client.config.get).toHaveBeenCalledOnce();
+    await cleanup?.();
+    // Two slots acquired ("app" keymap layer + "sidebar.content"); the app-slot
+    // release is lifecycle-managed by both native-host auto-manage and the tui()
+    // registrar, so dispose runs it twice plus the sidebar release once.
+    expect(slotDispose).toHaveBeenCalledTimes(3);
+    expect(stop).toHaveBeenCalledOnce();
+  });
   it("keeps fallback catalog options name-only while detail retains metadata", () => {
     const row = {
       id: "  Agente de catálogo  ", membership: "custom" as const, enabled: false,
@@ -56,7 +82,9 @@ describe("Agent Suite WU1 registration", () => {
 
   it("exports the host-loadable plugin and versioned labels", () => {
     expect(plugin).toMatchObject({ id: "agent-suite" });
-    expect(plugin.tui).toBe(tui);
+    expect(plugin.setup).toBeTypeOf("function");
+    const pkg = JSON.parse(readFileSync(join(process.cwd(), "package.json"), "utf8"));
+    expect(pkg.exports["./tui"].import).toBe("./src/tui/index.tsx");
     expect(PLUGIN_VERSION).toBe("1.0.1");
     expect(suiteTitle()).toBe("Suite de Agentes · v1.0.1");
     expect(suiteSidebarLabel()).toBe("Suite de Agentes · Alt+S · v1.0.1");

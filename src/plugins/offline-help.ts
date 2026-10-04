@@ -2,9 +2,9 @@ import * as fs from "node:fs";
 import * as path from "node:path";
 import { fileURLToPath } from "node:url";
 
-export type HelpTopic = "suite" | "task-manager" | "hub";
+export type HelpTopic = "suite" | "task-manager" | "session-vault" | "hub";
 
-const KNOWN_TOPICS = new Set<HelpTopic>(["suite", "task-manager", "hub"]);
+const KNOWN_TOPICS = new Set<HelpTopic>(["suite", "task-manager", "session-vault", "hub"]);
 
 function parseHelpArgs(
   targetOrModuleUrl?: HelpTopic | string,
@@ -41,6 +41,13 @@ export function resolveOfflineHelpPath(
       path.resolve(baseDir, "../plugins/task-manager/README.md"),
     ];
     unavailableMessage = "Bundled Task Manager help is unavailable";
+  } else if (topic === "session-vault") {
+    candidates = [
+      path.resolve(baseDir, "../../plugins/opencode-session-vault/README.md"),
+      path.resolve(baseDir, "../../../plugins/opencode-session-vault/README.md"),
+      path.resolve(baseDir, "../plugins/opencode-session-vault/README.md"),
+    ];
+    unavailableMessage = "Bundled Session Vault help is unavailable";
   } else if (topic === "hub") {
     candidates = [
       path.resolve(baseDir, "../../README.md"),

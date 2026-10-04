@@ -27,7 +27,7 @@ Load this skill when the user, orchestrator, or background event triggers: `task
 - **Evidence-based sync**: Sync `git`, `tree`, or `codegraph` properties only from verified command execution output; never invent commit hashes or symbols.
 - **Preserve custom data**: On refresh or synchronization, never overwrite or wipe custom task IDs, user notes, custom fields, or manual modifications. All updates must be additive and status-oriented.
 - **Final state contract**: On successful write, set `meta.syncStatus` to `"synced"`, `meta.lastSyncCompletedAt`, `meta.lastSyncAt`, and `meta.lastUpdated` to current ISO timestamp (`new Date().toISOString()`).
-- **Host-managed telemetry**: The `tokenUsage` state property is collected and managed exclusively by host telemetry. Agent Task Manager must preserve `tokenUsage` intact and must never fabricate, estimate, or overwrite it.
+- **Host-managed telemetry**: The `tokenUsage` state property is collected and managed exclusively by host telemetry. Agent Task Manager must preserve `tokenUsage` intact and must never fabricate, estimate, or overwrite it. Any template preview `tokenUsage` is replaced exclusively by host telemetry upon provisioning and synchronization.
 
 ## Execution Steps
 

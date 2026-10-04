@@ -181,7 +181,7 @@ export function createTaskManagerAgent(
 
 ## Safety & Offline Rules
 - Pure offline file:// compatibility: zero external dependencies, no fetch/XHR, no external scripts.
-- Preserve host-managed 'tokenUsage' property intact; never fabricate, estimate, or overwrite tokenUsage.
+- Preserve host-managed 'tokenUsage' property intact; never fabricate, estimate, or overwrite tokenUsage. Template preview tokenUsage is replaced exclusively by host telemetry upon provisioning and sync.
 - Final state contract: Upon successfully writing the state island, set meta.syncStatus to "synced", and set meta.lastSyncCompletedAt, meta.lastSyncAt, and meta.lastUpdated to the current ISO timestamp (new Date().toISOString()).
 - Do not store state in localStorage (only 'tm-filter' UI preference is allowed).
 - All user-facing text rendered must be HTML-escaped.

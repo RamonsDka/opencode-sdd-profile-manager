@@ -23,6 +23,10 @@ export type AssignmentField = "model" | "fallback";
 export type RuntimeAgentClass = "reserved" | "primary" | "fallback";
 
 export type PersistibleAgentKey =
+  | "gentle-orchestrator"
+  | "gentle-ai-verify"
+  | "gentle-ai-worker"
+  | "gentle-ai-explore"
   | "sdd-ORCHETATOR"
   | "sdd-propose"
   | "sdd-design"
@@ -97,6 +101,8 @@ export type ProfileFallbackModels = Record<string, string>;
 
 export type ProfileAgentConfig = {
   reasoningEffort?: string;
+  /** Exact catalog variant identity; independent of the legacy effort value. */
+  nativeVariant?: string;
 };
 
 /**

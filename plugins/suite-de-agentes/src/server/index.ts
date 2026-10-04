@@ -1,12 +1,14 @@
 import { ConsentLedger, registerMessageGrant } from "../core/grants.ts";
+import { Plugin as V2Plugin, Model } from "@opencode/plugin";
 import { messageText, parseCanonicalConsent } from "../core/grants.ts";
 import { decideTaskGate, isAuthorizedInternalAgent, SDD_ORCHESTRATOR, transformTaskPermission } from "../core/policy.ts";
 import { defaultSuitePath, loadSuiteConfig } from "../core/persistence.ts";
-import type { Config as PluginConfig, Plugin, PluginInput, PluginModule } from "@opencode-ai/plugin";
+import type { Config as PluginConfig, Plugin, PluginInput } from "@opencode-ai/plugin";
 import type { Event } from "@opencode-ai/sdk";
 import type { Part } from "@opencode-ai/sdk";
 import { randomBytes } from "node:crypto";
 import { existsSync } from "node:fs";
+import { handleTaskManagerMilestoneEvent } from "../../../../src/plugins/task-manager-routing";
 import { GITHUB_AGENT_ID, GITHUB_AGENT_LEGACY_ID, isCanonicalBuiltInAgent, normalizeAgentId } from "../core/built-in-agents.ts";
 
 type RuntimePermission = NonNullable<PluginConfig["permission"]> & {
@@ -304,6 +306,97 @@ export const serverPlugin: Plugin = async (input) => {
     },
   };
 };
-const plugin: PluginModule = { id: "agent-suite", server: serverPlugin };
+export async function setupAgentSuiteServer(ctx: V2Plugin.Context, options: Pick<AgentSuiteServerOptions, "onMilestone"> = {}): Promise<() => Promise<void>> {
+  const hooks = await serverPlugin({
+    client: { session: { messages: async ({ path }: { path: { id: string } }) => ({
+      data: [{ info: { role: "user", agent: (await ctx.session.get({ sessionID: path.id })).agent } }],
+    }) } },
+  } as unknown as PluginInput);
+  const registrations: Array<{ dispose(): Promise<void> }> = [];
+  const abort = new AbortController();
+  const pendingMilestones = new Map<string, string>();
+  const notifyMilestone = async (milestone: string, sessionID: string) => {
+    try {
+      if (options.onMilestone) await options.onMilestone(milestone, sessionID);
+      else await handleTaskManagerMilestoneEvent(milestone, sessionID, { projectDirectory: ctx.location.directory, client: { session: ctx.session, nativeV2: true } });
+    } catch (error) { console.error("Agent suite milestone dispatch failed", error); }
+  };
+  try {
+    registrations.push(await ctx.agent.transform((editor) => {
+      const agents = editor.list();
+      const config = { permission: {}, agent: Object.fromEntries(agents.map((agent) => [agent.id, {
+        model: agent.model ? `${agent.model.providerID}/${agent.model.id}` : undefined,
+        variant: agent.model?.variant, description: agent.description, prompt: agent.system,
+      }])) };
+      // Reuse the synchronous policy configuration without the V1 host lifecycle.
+      void hooks.config?.(config as PluginConfig);
+      for (const agent of agents) {
+        const id = String(agent.id);
+        const entry = config.agent[normalizeAgentId(id)];
+        if (!entry) { editor.remove(id); continue; }
+        editor.update(id, (draft) => {
+          if (entry.model) draft.model = { ...Model.Ref.parse(entry.model), ...(entry.variant === undefined ? {} : { variant: entry.variant as NonNullable<typeof draft.model>["variant"] }) };
+          draft.description = entry.description;
+          draft.system = entry.prompt;
+          const rules = transformTaskPermission([], Object.keys(config.agent));
+          const taskRules = (config.permission as RuntimePermission).task ?? rules;
+          draft.permissions = [...draft.permissions.filter((rule) => rule.action !== "task"),
+            ...Object.entries(taskRules).map(([resource, effect]) => ({ action: "task", resource, effect }))];
+        });
+      }
+    }));
+    registrations.push(await ctx.session.hook("prompt", async (input) => {
+      const milestone = /^\/(sdd-tasks|sdd-verify|sdd-archive|verified-significant)(?:\s|$)/.exec(input.prompt.text)?.[1];
+      if (milestone) pendingMilestones.set(input.sessionID, milestone);
+      else pendingMilestones.delete(input.sessionID);
+      const agent = (await ctx.session.get({ sessionID: input.sessionID })).agent;
+      const existing = input.prompt.agents ?? [];
+      const parts = [{ type: "text", text: input.prompt.text }, ...existing.map((item) => ({ type: "agent", name: item.name }))];
+      await hooks["chat.message"]?.({ sessionID: input.sessionID, messageID: input.messageID, agent }, { message: { id: input.messageID, agent }, parts } as never);
+      input.prompt.agents = parts.flatMap((part) => "name" in part ? [existing.find((item) => item.name === part.name) ?? { name: part.name }] : []);
+    }));
+    registrations.push(await ctx.tool.hook("execute.before", async (input) => {
+      if (!input.input || typeof input.input !== "object" || Array.isArray(input.input)) {
+        if (input.tool === "task") throw new Error("Suite de Agentes: task input must be an object");
+        return;
+      }
+      await hooks["tool.execute.before"]?.({ tool: input.tool, sessionID: input.sessionID, callID: input.id }, { args: input.input as Record<string, unknown> });
+    }));
+    registrations.push(await ctx.command.transform((editor) => {
+      for (const command of ["agent-suite-grants", "agent-suite-revoke"]) editor.add({
+        name: command,
+        execute: async ({ sessionID, prompt }) => {
+          const output = { parts: [] as Part[] };
+          await hooks["command.execute.before"]?.({ command, sessionID, arguments: prompt.text }, output);
+          if (output.parts.length) await ctx.session.synthetic({ sessionID, text: messageText({ sessionID, messageID: "grants", parts: output.parts }) });
+        },
+      });
+    }));
+    registrations.push(await ctx.tool.hook("execute.after", async (input) => {
+      if (input.tool !== "task" || input.status !== "completed" || input.agent === "agent-task-manager") return;
+      const target = input.input && typeof input.input === "object" && "subagent_type" in input.input ? input.input.subagent_type : undefined;
+      if (typeof target === "string" && shouldEnqueueMilestoneEvent(target)) await notifyMilestone(target, input.sessionID);
+    }));
+    const events = (async () => {
+      for await (const event of ctx.event.subscribe({ signal: abort.signal })) {
+        if (event.type === "session.deleted") {
+          pendingMilestones.delete(event.data.sessionID);
+          await hooks.event?.({ event: { type: "session.deleted", properties: { info: { id: event.data.sessionID } } } } as never);
+        } else if (event.type === "session.execution.succeeded") {
+          const milestone = pendingMilestones.get(event.data.sessionID);
+          pendingMilestones.delete(event.data.sessionID);
+          if (milestone) await notifyMilestone(milestone, event.data.sessionID);
+        } else if (event.type === "session.execution.failed" || event.type === "session.execution.interrupted") pendingMilestones.delete(event.data.sessionID);
+      }
+    })();
+    void events.catch((error) => { if (!abort.signal.aborted) console.error("Agent suite event subscription failed", error); });
+    return async () => { abort.abort(); await Promise.all(registrations.map((registration) => registration.dispose())); };
+  } catch (error) {
+    abort.abort();
+    await Promise.all(registrations.map((registration) => registration.dispose()));
+    throw error;
+  }
+}
+const plugin = V2Plugin.define({ id: "agent-suite", setup: setupAgentSuiteServer });
 export default plugin;
 export { ConsentLedger };

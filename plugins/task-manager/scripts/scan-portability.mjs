@@ -9,7 +9,7 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const projectRoot = path.resolve(__dirname, '..');
 const artifactPath = path.join(projectRoot, 'Task-Manager-Portable.html');
 const BASELINE_BYTES = Number.parseInt('151978', 10);
-const ACCEPTED_CAPABILITY_JUSTIFICATION = 'Accessible seven-view UI, offline browser verification, and native dialog coverage are accepted portability capabilities.';
+const ACCEPTED_CAPABILITY_JUSTIFICATION = 'Accessible eight-view UI, offline browser verification, and native dialog coverage are accepted portability capabilities.';
 
 let failed = false;
 function fail(msg) {

@@ -1,15 +1,17 @@
 import { configDefaults, defineConfig } from "vitest/config";
 
-/** Immutable vendor snapshots use their upstream-owned runners. */
-export const HOST_VITEST_EXCLUDE = ["plugins/**", "dist/**"];
+/** Immutable vendor snapshots use their upstream-owned runners. Bun-owned script tests run under bun. */
+export const HOST_VITEST_EXCLUDE = ["plugins/**", "dist/**", "**/*.bun.test.mts"];
 
 export default defineConfig({
 	resolve: {
 		conditions: ["browser", "module", "import"],
+		...({ dedupe: ["solid-js"] } as object),
 	},
 	ssr: {
 		resolve: {
 			conditions: ["browser", "module", "import"],
+			...({ dedupe: ["solid-js"] } as object),
 		},
 	},
 	test: {

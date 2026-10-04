@@ -1,6 +1,6 @@
 # Troubleshooting & Diagnostic Guide
 
-This document provides diagnostic steps and resolutions for common issues encountered when using the **OpenCode SDD Profile Manager** principal plugin pack and its integrated components.
+This document provides diagnostic steps and resolutions for common issues encountered when using the **OpenCode ODD Profile Manager** principal plugin pack and its integrated components.
 
 ---
 

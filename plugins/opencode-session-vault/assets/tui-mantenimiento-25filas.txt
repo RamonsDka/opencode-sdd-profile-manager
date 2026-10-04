@@ -1,0 +1,25 @@
+╭──────────────────────────────────────────────────────────────────────────────╮
+│                                                                              │
+│ SESSION VAULT                                           [g] ⚙ Configuración  │
+│ BASE DE DATOS DE OPENCODE · Mantenimiento y disco                            │
+│ Familias 50 · Candados 0 · Cupo 30 · Candidatas 20                           │
+│                                                                              │
+│ ┌─────────────────────────────────────────────────────────────────────────┐▀ │
+│ │                                                                         │  │
+│ │ BaseSde datos SQLite: /mock/opencode.db                                 │  │
+│                                                                              │
+│ ┌──────────────────────────────────────────────────────────────────────────┐ │
+│ │  [p] Mod · personalizado   [m] Mantenimiento       AUTO PAUSADO · v0.1.0 │ │
+│ │  ↑↓  Sel   ←→  Pág   [a]  Armar   [r]  Act   Esc  Volver                 │ │
+│ │                                                                          │ │
+│ │  Mantenimiento suspendido: operación interrumpida / exclusión no         │ │
+│ │                                                                          │ │
+│ │  [←/h] Ant   [→/l] Sig   [r] Actualizar   ← Volver a sesiones            │ │
+│ └──────────────────────────────────────────────────────────────────────────┘ │
+│ Mantenimiento suspendido: operación interrumpida / exclusión no garantizada  │
+│                                                                              │
+╰──────────────────────────────────────────────────────────────────────────────╯
+                                                                                
+                                                                                
+                                                                                
+                                                                                

@@ -41,28 +41,15 @@ const EXPECTED_FALLBACK_ORDER: readonly string[] = [
 ] as const;
 
 const EXPECTED_CATALOG_GROUPS: readonly (readonly string[])[] = [
-  ["sdd-ORCHETATOR"],
+  ["gentle-orchestrator", "gentle-ai-verify", "gentle-ai-worker", "gentle-ai-explore"],
+  ["jd-fix-agent", "jd-judge-b", "jd-judge-a"],
   [
-    "sdd-propose",
-    "sdd-design",
-    "sdd-apply",
-    "sdd-verify",
-    "sdd-spec",
-    "sdd-onboard",
-    "sdd-explore",
-    "sdd-init",
-    "sdd-tasks",
-    "sdd-archive",
-  ],
-  ["jd-judge-a", "jd-judge-b", "jd-fix-agent"],
-  [
+    "review-risk",
+    "review-refuter",
     "review-readability",
     "review-reliability",
     "review-resilience",
     "review-validator",
-    "review-refuter",
-    "review-risk",
-    "model-audit",
   ],
   ["gentle-ai-windows-validator", "compaction", "summary", "title"],
 ] as const;
@@ -73,16 +60,18 @@ const EXPECTED_RUNTIME_SYNC_KEYS = EXPECTED_CATALOG_GROUPS.flat().filter(
 
 describe("catalog SSOT & validation", () => {
   describe("grouped catalog views (Unit 1)", () => {
-    it("defines five ordered groups with every approved agent in exact sequence", () => {
-      expect(CATALOG_GROUPS).toHaveLength(5);
+    it("defines four ordered groups with every approved agent in exact sequence", () => {
+      expect(CATALOG_GROUPS).toHaveLength(4);
+      expect(CATALOG_GROUPS.map((group) => group.labelEs)).toEqual(["GENERAL", "JUECES", "4R REVIEW", "Auxiliares"]);
       expect(CATALOG_GROUPS.map((group) => [...group.agents])).toEqual(EXPECTED_CATALOG_GROUPS);
-      expect(PERSISTIBLE_AGENT_KEYS).toHaveLength(25);
+      expect(PERSISTIBLE_AGENT_KEYS).toHaveLength(17);
       expect(PERSISTIBLE_AGENT_KEYS).toEqual(EXPECTED_CATALOG_GROUPS.flat());
     });
 
     it("emits only real agent rows without synthetic separator tokens", () => {
       expect(VISIBLE_CATALOG_ROWS).toEqual(PERSISTIBLE_AGENT_KEYS.map((key) => ({ kind: "agent", key })));
-      expect(VISIBLE_CATALOG_ROWS).toHaveLength(25);
+      expect(VISIBLE_CATALOG_ROWS).toHaveLength(17);
+      expect(PERSISTIBLE_AGENT_KEYS.some((key) => key.startsWith("sdd-"))).toBe(false);
       expect(VISIBLE_CATALOG_ROWS.every((row) => row.kind === "agent")).toBe(true);
       expect(PERSISTIBLE_AGENT_KEYS).not.toContain("judgment-day");
       expect(PERSISTIBLE_AGENT_KEYS).not.toContain("readability");

@@ -43,7 +43,8 @@ export function resolvePaths(): Paths {
 		configRoot,
 		profilesDir: path.join(configRoot, "profiles"),
 		profileVersionsDir: path.join(configRoot, "profile-versions"),
-		configPath: path.join(configRoot, "opencode.json"),
+		configPath: fs.existsSync(path.join(configRoot, "opencode.jsonc"))
+			? path.join(configRoot, "opencode.jsonc") : path.join(configRoot, "opencode.json"),
 		backupPath: path.join(configRoot, "opencode.json.bak"),
 		pluginConfigPath: path.join(configRoot, "sdd-model-select.json"),
 	};

@@ -5,6 +5,7 @@ export function requiredPluginAssets(packageRoot: string): string[] {
   return [
     path.join(packageRoot, "plugins/task-manager/Task-Manager-Portable.html"),
     path.join(packageRoot, "plugins/suite-de-agentes/README.md"),
+    path.join(packageRoot, "plugins/opencode-session-vault/README.md"),
   ];
 }
 

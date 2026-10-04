@@ -35,14 +35,21 @@ describe("offline Suite and multi-plugin help", () => {
     const tmDoc = loadOfflineHelp("task-manager");
     expect(tmDoc).toContain("Task Manager Portable");
 
+    const vaultDoc = loadOfflineHelp("session-vault");
+    expect(vaultDoc).toContain("Session Vault");
+
     const hubDoc = loadOfflineHelp("hub");
-    expect(hubDoc).toContain("SDD Profile Manager");
+    expect(hubDoc).toContain("ODD Profile Manager");
   });
 
   it("resolves exact file paths for task-manager and hub topics", () => {
     const tmPath = resolveOfflineHelpPath("task-manager");
     expect(tmPath.endsWith(path.join("plugins", "task-manager", "README.md"))).toBe(true);
     expect(fs.existsSync(tmPath)).toBe(true);
+
+    const vaultPath = resolveOfflineHelpPath("session-vault");
+    expect(vaultPath.endsWith(path.join("plugins", "opencode-session-vault", "README.md"))).toBe(true);
+    expect(fs.existsSync(vaultPath)).toBe(true);
 
     const hubPath = resolveOfflineHelpPath("hub");
     expect(hubPath.endsWith("README.md")).toBe(true);
@@ -53,6 +60,7 @@ describe("offline Suite and multi-plugin help", () => {
     const missingModuleUrl = new URL("file:///C:/missing-package/dist/tui.js").href;
 
     expect(() => resolveOfflineHelpPath("task-manager", missingModuleUrl)).toThrow("Bundled Task Manager help is unavailable");
+    expect(() => resolveOfflineHelpPath("session-vault", missingModuleUrl)).toThrow("Bundled Session Vault help is unavailable");
     expect(() => resolveOfflineHelpPath("hub", missingModuleUrl)).toThrow("Bundled Hub help is unavailable");
   });
 });

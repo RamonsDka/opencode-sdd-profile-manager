@@ -42,6 +42,6 @@ export function createSuiteAdapter(openSuite: () => void): { register(api: Suite
   };
 }
 
-export function openVendoredSuite(api: Parameters<typeof openAgentSuite>[0]): void {
+export function openVendoredSuite(api: any): void {
   safeHostAction("open vendored Suite de Agentes", () => openAgentSuite(api), undefined);
 }

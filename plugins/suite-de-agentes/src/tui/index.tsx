@@ -10,6 +10,9 @@ import { safeHostAction, safeSlotRender } from "./host-compat.ts";
 import { createAgentSuiteController, type AgentSuiteController } from "./agent-suite-controller.ts";
 import { handleAgentSuiteEscape, mountAgentSuite } from "./agent-suite-mount.tsx";
 import { formatCatalogName } from "./visual-tokens.ts";
+import { Plugin } from "@opencode/plugin/tui";
+import { createRoot } from "solid-js";
+import { createV2Host } from "./native-host.ts";
 
 export const AGENT_SUITE_COMMAND = ":agent-suite";
 export const AGENT_SUITE_ESCAPE_COMMAND = "agent-suite.escape";
@@ -202,5 +205,19 @@ export const tui: TuiPlugin = async (api) => {
   }, false);
 };
 
-const plugin = { id: "agent-suite", tui };
+const plugin = Plugin.define({
+  id: "agent-suite",
+  async setup(context) {
+    let api!: ReturnType<typeof createV2Host>;
+    createRoot(dispose => { api = createV2Host(context, dispose); });
+    try {
+      await api.initialize();
+      await (tui as (api: TuiPluginApi) => Promise<void>)(api as unknown as TuiPluginApi);
+      return () => api.dispose();
+    } catch (error) {
+      api.dispose();
+      throw error;
+    }
+  },
+});
 export default plugin;

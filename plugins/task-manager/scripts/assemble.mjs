@@ -19,17 +19,25 @@ const portablePath = path.join(projectRoot, 'Task-Manager-Portable.html');
 // Example state — full dashboard as user requested "Todo como tu dashboard" (v1 completa)
 // Spanish labels, all panels enabled, sample phases/tasks to showcase full UI.
 const exampleState = {
+  signature: 'opencode-task-manager',
+  pluginVersion: '1.8.0',
+  templateVersion: '1.4.0',
   schemaVersion: '1.0',
+  stateVersion: 1,
   meta: {
     projectName: 'Task Manager Portable',
-    version: '1.1.0',
+    version: '1.4.0-preview',
     branch: 'main',
-    commit: '2faddaa',
-    syncStatus: 'Sincronizado',
+    commit: 'preview',
+    syncStatus: 'synced',
     harness: 'OpenCode',
     harnessRole: 'Autonomous Multi-Agent Runtime',
-    description: 'Single-file offline project dashboard with zero runtime dependencies',
-    lastUpdated: '2026-08-26T15:00:00Z',
+    description: 'Panel de control técnico portable para orquestación de tareas y ciclo de vida SDD',
+    lastSyncSource: 'host-provision',
+    lastSyncStartAt: '2026-09-04T12:00:00.000Z',
+    lastSyncCompletedAt: '2026-09-04T12:00:00.000Z',
+    lastSyncAt: '2026-09-04T12:00:00.000Z',
+    lastUpdated: '2026-09-04T12:00:00.000Z',
     labels: {
       es: {
         overallProgress: 'Progreso Global',
@@ -40,12 +48,13 @@ const exampleState = {
         headerSubtitle: 'Dashboard técnico drop-in — gestionado por orquestador IA',
       }
     },
-    features: { git: true, tree: true, codegraph: true, help: true },
+    features: { git: true, tree: true, codegraph: true, help: true, todo: true },
     history: [
-      { timestamp: '2026-08-18T09:00:00Z', completed: 4, total: 16 },
-      { timestamp: '2026-08-20T09:00:00Z', completed: 8, total: 16 },
-      { timestamp: '2026-08-24T09:00:00Z', completed: 12, total: 16 },
-      { timestamp: '2026-08-26T15:00:00Z', completed: 16, total: 16 }
+      { timestamp: '2026-08-20T09:00:00Z', completed: 4, total: 16 },
+      { timestamp: '2026-08-24T09:00:00Z', completed: 8, total: 16 },
+      { timestamp: '2026-08-28T09:00:00Z', completed: 11, total: 16 },
+      { timestamp: '2026-09-01T15:00:00Z', completed: 13, total: 16 },
+      { timestamp: '2026-09-04T12:00:00Z', completed: 14, total: 16 }
     ]
   },
   phases: [
@@ -278,18 +287,20 @@ const exampleState = {
     { id: 'td-1', text: 'Verificar compatibilidad offline file:// sin servidor', priority: 'P0', done: true },
     { id: 'td-2', text: 'Comprobar alternancia de formato de reloj 12H/24H', priority: 'P1', done: true },
     { id: 'td-3', text: 'Validar pulso y cálculo de última actualización', priority: 'P1', done: true },
-    { id: 'td-4', text: 'Garantizar persistencia estricta en bloque tm-state', priority: 'P2', done: true }
+    { id: 'td-4', text: 'Garantizar persistencia estricta en bloque tm-state', priority: 'P0', done: true },
+    { id: 'td-5', text: 'Revisar sincronización atómica sin mutaciones fuera de la isla', priority: 'P1', done: false },
+    { id: 'td-6', text: 'Comprobar diferenciación visual de telemetría preview vs host real', priority: 'P2', done: false }
   ],
   git: {
     branch: 'main',
     commits: [
-      { hash: '2faddaa', message: 'chore(release): 1.0.1' },
-      { hash: 'd193e1e', message: 'Merge pull request #2 from RamonsDka/fix/issue-1-portable-filename' },
-      { hash: '375dac5', message: 'fix: clarify portable filename in help prompt and docs' },
-      { hash: '4172efd', message: 'ci: update official GitHub actions' },
-      { hash: '1306233', message: 'ci: verify with Node.js 24' }
+      { hash: 'a1b2c3d', message: 'feat: add project dashboard foundation' },
+      { hash: 'b2c3d4e', message: 'feat: add task filtering and phase views' },
+      { hash: 'c3d4e5f', message: 'feat: add host token telemetry support' },
+      { hash: 'd4e5f6a', message: 'fix: preserve state during template upgrades' },
+      { hash: 'e5f6a7b', message: 'docs: document portable dashboard workflow' }
     ],
-    syncStatus: 'Sincronizado'
+    syncStatus: 'synced'
   },
   tree: [
     { name: 'Task-Manager-Portable.html', depth: 0, type: 'file' },
@@ -324,6 +335,72 @@ const exampleState = {
       { from: 'core', to: 'help' },
       { from: 'phases', to: 'panels' }
     ]
+  },
+  tokenUsage: {
+    schemaVersion: '1.0',
+    updatedAt: '2026-09-04T12:00:00.000Z',
+    source: 'preview',
+    scope: 'preview-demo',
+    root: '.',
+    totals: {
+      input: 68500,
+      output: 42200,
+      reasoning: 18400,
+      cacheRead: 10400,
+      cacheWrite: 3000,
+      total: 142500,
+      cost: undefined
+    },
+    byAgent: [
+      {
+        agent: 'Orquestador',
+        model: 'LLM Orchestrator',
+        models: ['LLM Orchestrator'],
+        categories: { input: 30000, output: 20000, reasoning: 10200, cacheRead: 3000, cacheWrite: 1000, total: 64200 },
+        total: 64200,
+        cost: undefined,
+        sessions: 2,
+        messages: 18,
+        evidence: 'preview',
+        confidence: 0.9
+      },
+      {
+        agent: 'sdd-apply',
+        model: 'Code Generator',
+        models: ['Code Generator'],
+        categories: { input: 20000, output: 14000, reasoning: 5100, cacheRead: 2000, cacheWrite: 1000, total: 42100 },
+        total: 42100,
+        cost: undefined,
+        sessions: 1,
+        messages: 12,
+        evidence: 'preview',
+        confidence: 0.85
+      },
+      {
+        agent: 'sdd-spec',
+        model: 'Spec Architect',
+        models: ['Spec Architect'],
+        categories: { input: 11000, output: 5200, reasoning: 3100, cacheRead: 2000, cacheWrite: 500, total: 21800 },
+        total: 21800,
+        cost: undefined,
+        sessions: 1,
+        messages: 8,
+        evidence: 'preview',
+        confidence: 0.85
+      },
+      {
+        agent: 'sdd-verify',
+        model: 'Test Suite Runner',
+        models: ['Test Suite Runner'],
+        categories: { input: 7500, output: 3000, reasoning: 0, cacheRead: 3400, cacheWrite: 500, total: 14400 },
+        total: 14400,
+        cost: undefined,
+        sessions: 1,
+        messages: 6,
+        evidence: 'preview',
+        confidence: 0.8
+      }
+    ]
   }
 };
 
@@ -352,7 +429,7 @@ function build() {
   // Replace island content in skeleton (keep script tag, replace inner JSON)
   const islandRegex = /<script[^>]*id="tm-state"[^>]*>[\s\S]*?<\/script>/;
   const newIsland = `<script type="application/json" id="tm-state">${islandJson}</script>`;
-  let html = skeleton.replace(islandRegex, newIsland);
+  let html = skeleton.replace(islandRegex, () => newIsland);
 
   // Inject modules as classic scripts before </body>
   // Ensure we have exactly one </body>
@@ -424,6 +501,7 @@ document.addEventListener('DOMContentLoaded', function() {
     // Expose for debugging
     window.__TM_STATE__ = state;
     window.__TM_METRICS__ = metrics;
+
   } catch (e) {
     console.error('Bootstrap failed', e);
     var b = document.getElementById('tm-error-banner');
@@ -434,7 +512,7 @@ document.addEventListener('DOMContentLoaded', function() {
 </body>`;
 
   if (html.includes('</body>')) {
-    html = html.replace('</body>', scriptsBlock);
+    html = html.replace('</body>', () => scriptsBlock);
   } else {
     html += scriptsBlock + '\n</html>';
   }
@@ -448,7 +526,7 @@ document.addEventListener('DOMContentLoaded', function() {
   Tokens: verbatim dark theme
 -->
 `;
-  html = html.replace('<!DOCTYPE html>', '<!DOCTYPE html>\n' + headerComment);
+  html = html.replace('<!DOCTYPE html>', () => '<!DOCTYPE html>\n' + headerComment);
 
   writeFileSync(portablePath, html, 'utf-8');
 

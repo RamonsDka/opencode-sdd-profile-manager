@@ -429,6 +429,7 @@ describe('core — UI-only preference boundary', () => {
     });
     assert.deepEqual(preferences, { version: 1, activeView: 'git', filters: { text: 'x'.repeat(256), status: 'all', owner: '', tag: 'tag', phase: 'phase' }, expandedPhaseIds: ['p1'], expandedPreviewKeys: ['k1'] });
     assert.deepEqual(TMCore.sanitizeUiPreferences({ version: 2, activeView: 'help' }), TMCore.defaultUiPreferences());
+    assert.equal(TMCore.sanitizeUiPreferences({ version: 1, activeView: 'acknowledgements' }).activeView, 'acknowledgements');
   });
 
   it('uses one UI-only key and retains sanitized preferences when storage throws', () => {
@@ -527,5 +528,32 @@ describe('core — token telemetry normalization', () => {
     assert.equal(emptyInsights.tokenUsage.hasData, false);
     assert.equal(emptyInsights.tokenUsage.byAgent.length, 0);
     assert.equal(emptyInsights.tokenUsage.totals.total, 0);
+  });
+
+  it('marks template telemetry preview explicitly without treating it as host measurement', () => {
+    const state = createState({
+      tokenUsage: {
+        schemaVersion: '1.0',
+        updatedAt: '2026-09-04T12:00:00Z',
+        source: 'preview',
+        scope: 'preview-demo',
+        root: '.',
+        totals: { input: 100, output: 50, reasoning: 25, cacheRead: 0, cacheWrite: 0, total: 175 },
+        byAgent: [{
+          agent: 'orchestrator',
+          model: 'Preview Runtime',
+          categories: { input: 100, output: 50, reasoning: 25, cacheRead: 0, cacheWrite: 0, total: 175 },
+          total: 175,
+          evidence: 'preview',
+          confidence: 0.2,
+        }],
+      },
+    });
+
+    const insights = TMCore.deriveInsights(state);
+    assert.equal(insights.tokenUsage.hasData, true);
+    assert.equal(insights.tokenUsage.isPreview, true);
+    assert.equal(insights.tokenUsage.source, 'preview');
+    assert.equal(insights.tokenUsage.byAgent[0].evidence, 'preview');
   });
 });

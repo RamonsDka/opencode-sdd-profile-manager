@@ -73,7 +73,7 @@ describe("Task Manager lifecycle filesystem harness", () => {
       pluginVersion: "1.7.0",
       templateVersion: "1.1.0",
       schemaVersion: "1.0",
-      stateVersion: 1,
+      stateVersion: 65,
       meta: { projectName: "Prior 1.1.0 Project", customField: 456, syncStatus: "synced" },
       phases: [{ id: "phase-1", number: 1, title: "Core Phase", status: "completed", tasks: [{ id: "T1", title: "Task 1", status: "completed" }] }],
       todos: [{ id: "td-1", text: "Todo 1", priority: "P0", done: true }],
@@ -99,6 +99,8 @@ describe("Task Manager lifecycle filesystem harness", () => {
     expect(state.meta.templateVersion).toBe("1.4.0");
     expect(state.meta.projectName).toBe("Prior 1.1.0 Project");
     expect(state.meta.customField).toBe(456);
+    expect(state.stateVersion).toBe(65);
+    expect(state.meta.stateVersion).toBe(65);
     expect(state.tokenUsage.totals.total).toBe(50000);
     expect(state.tokenUsage.byAgent[0].agent).toBe("sdd-apply");
     expect(state.codegraph.nodes[0].id).toBe("n1");

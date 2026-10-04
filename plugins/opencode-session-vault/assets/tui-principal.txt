@@ -1,0 +1,42 @@
+╭──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────╮
+│                                                                                                                      │
+│ SESSION VAULT                                                                                   [g] ⚙ Configuración  │
+│ BASE DE DATOS DE OPENCODE · Tus sesiones, bajo control                                                               │
+│                                                                                                                      │
+│ ┌───────────────────────────┐ ┌───────────────────────────┐ ┌──────────────────────┐ ┌─────────────────────────────┐ │
+│ │ 15                        │ │ 2                         │ │ 10                   │ │ 0                           │ │
+│ │ Familias                  │ │ Candados                  │ │ Cupo                 │ │ Candidatas                  │ │
+│ └───────────────────────────┘ └───────────────────────────┘ └──────────────────────┘ └─────────────────────────────┘ │
+│                                                                                                                      │
+│  Base de datos: 25.45 GiB (+5.4 MiB WAL) · Reutilizable: Calculando…                           Respaldos Vault: 0 B  │
+│                                                                                                                      │
+│ ┌──────────────────────────────────────────────────────────────────────────────────────────────────────────────────┐ │
+│ │[/] Buscar título, ID o proyecto…                                                                                 │ │
+│ └──────────────────────────────────────────────────────────────────────────────────────────────────────────────────┘ │
+│  LOCK   ID          SESIÓN / PROYECTO                                                  ÚLTIMA ACTIVIDAD  JSON ≈      │
+│  ○      ses_demo0   Nexus Brain · interfaz principal                                   11/09/26, 01:12   —           │
+│  ○      ses_demo1   API Gateway · autenticación                                        10/09/26, 01:12   —           │
+│  ● LOCK ses_demo2   Session Vault · motor de reglas                                    09/09/26, 01:12   —           │
+│  ○      ses_demo3   Portfolio creativo · Astro                                         08/09/26, 01:12   —           │
+│  ○      ses_demo4   Discord tools · comunidad RDK                                      07/09/26, 01:12   —           │
+│  ○      ses_demo5   Proyecto Atlas · métricas                                          06/09/26, 01:12   —           │
+│  ○      ses_demo6   Agentes SDD · documentación                                        05/09/26, 01:12   —           │
+│  ○      ses_demo7   Control de gastos · dashboard                                      04/09/26, 01:12   —           │
+│  ○      ses_demo8   Memoria persistente · nodos                                        03/09/26, 01:12   —           │
+│  ○      ses_demo9   Migración PostgreSQL                                               02/09/26, 01:12   —           │
+│  ○      ses_demo10  Landing experimental                                               01/09/26, 01:12   —           │
+│  ○      ses_demo11  Sesión archivada de pruebas                                        31/08/26, 01:12   —           │
+│  ● LOCK ses_demo12  Prototipo anterior · UI                                            30/08/26, 01:12   —           │
+│ 1–13 de 15                                                       Abierta · Dentro del cupo · Actividad no verificada │
+│ C:/Users/RDK/Proyectos/opencode-tools                                                                                │
+│                                                                                                                      │
+│ ┌──────────────────────────────────────────────────────────────────────────────────────────────────────────────────┐ │
+│ │  [p] Últimas 10   [m] Mantenimiento                                                        AUTO PAUSADO · v0.1.0 │ │
+│ │  ↑↓  Mover   Espacio  Candado   [i]  Detalle   [v]  Previa   [b]  Respaldos   Esc  Cerrar                        │ │
+│ └──────────────────────────────────────────────────────────────────────────────────────────────────────────────────┘ │
+│ 0 familias candidatas · 15 sin verificar protegidas. El candado siempre tiene prioridad.                             │
+╰──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────╯
+                                                                                                                        
+                                                                                                                        
+                                                                                                                        
+                                                                                                                        

@@ -1,6 +1,6 @@
 # Testing & Verification Guide
 
-This guide details the test suites, verification pipelines, and smoke testing procedures for the **OpenCode SDD Profile Manager** principal plugin pack and its integrated companion plugins.
+This guide details the test suites, verification pipelines, and smoke testing procedures for the **OpenCode ODD Profile Manager** principal plugin pack and its integrated companion plugins.
 
 ---
 

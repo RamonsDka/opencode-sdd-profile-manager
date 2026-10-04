@@ -38,6 +38,9 @@ export function migrateLegacyTaskManagerHtml(
     const existingState = JSON.parse(match[2]) as Record<string, unknown>;
     const meta = currentTaskManagerMeta();
     const existingMeta = (existingState.meta && typeof existingState.meta === "object") ? (existingState.meta as Record<string, unknown>) : {};
+    const existingStateVersion = typeof existingState.stateVersion === "number" && Number.isInteger(existingState.stateVersion) && existingState.stateVersion >= 1
+      ? existingState.stateVersion
+      : meta.stateVersion;
 
     // Preserve all existing custom metadata while normalizing managed version markers
     const mergedMeta = {
@@ -46,13 +49,14 @@ export function migrateLegacyTaskManagerHtml(
       pluginVersion: meta.pluginVersion,
       templateVersion: meta.templateVersion,
       schemaVersion: meta.schemaVersion,
-      stateVersion: meta.stateVersion,
+      stateVersion: existingStateVersion,
     };
 
     // Preserve the complete data payload: phases, tasks, todos, git, tree, codegraph, history, custom fields
     const mergedState: Record<string, unknown> = {
       ...existingState,
       ...meta,
+      stateVersion: existingStateVersion,
       meta: mergedMeta,
     };
 

@@ -4,7 +4,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { INTERNAL_AGENT_ALLOWLIST, transformTaskPermission } from "../src/core/policy.ts";
 import { defaultSuitePath, saveSuiteConfig } from "../src/core/persistence.ts";
-import defaultPlugin, { createAgentSuiteServer, serverPlugin } from "../src/server/index.ts";
+import defaultPlugin, { createAgentSuiteServer, serverPlugin, setupAgentSuiteServer } from "../src/server/index.ts";
 
 describe("server adapter", () => {
   let testHome: string;
@@ -55,7 +55,88 @@ describe("server adapter", () => {
   });
 
   it("exports the server entry as the real OpenCode server module", () => {
-    expect(defaultPlugin).toMatchObject({ id: "agent-suite", server: expect.any(Function) });
+    expect(defaultPlugin).toMatchObject({ id: "agent-suite", setup: expect.any(Function) });
+  });
+
+  it("executes V2 registrations, preserves attachments, denies disabled dispatch, and disposes hooks", async () => {
+    saveSuiteConfig(defaultSuitePath(), {
+      version: 1, customAgents: {}, modelAssignments: { explore: "openai/assigned" },
+      variantAssignments: { explore: "high" }, disabledAgents: ["general"],
+    });
+    const agents = ["gentle-orchestrator", "general", "explore"].map((id) => ({
+      id, model: { providerID: "openai", id: "old" }, permissions: [{ action: "read", resource: "*", effect: "allow" }],
+    }));
+    const callbacks: Record<string, (input: any) => Promise<void>> = {};
+    const dispose = vi.fn(async () => {});
+    const registration = { dispose };
+    const commands: Record<string, any> = {};
+    const synthetic = vi.fn(async () => {});
+    let signal: AbortSignal | undefined;
+    const cleanup = await defaultPlugin.setup({
+      agent: { transform: async (callback: any) => {
+        callback({ list: () => [...agents], remove: (id: string) => agents.splice(agents.findIndex((agent) => agent.id === id), 1),
+          update: (id: string, update: any) => update(agents.find((agent) => agent.id === id)) });
+        return registration;
+      } },
+      session: { get: async () => ({ agent: "gentle-orchestrator" }), synthetic,
+        hook: async (name: string, callback: any) => { callbacks[name] = callback; return registration; } },
+      tool: { hook: async (name: string, callback: any) => { callbacks[name] = callback; return registration; } },
+      command: { transform: async (callback: any) => { callback({ add: (command: any) => { commands[command.name] = command; } }); return registration; } },
+      event: { subscribe: (options: any) => { signal = options.signal; return (async function* () {})(); } },
+    } as never);
+    expect(agents.map((agent) => agent.id)).not.toContain("general");
+    expect(agents.find((agent) => agent.id === "explore")?.model).toEqual({ providerID: "openai", id: "assigned", variant: "high" });
+    expect(agents[0].permissions).toContainEqual({ action: "task", resource: "general", effect: "deny" });
+    const prompt = { text: "hello", files: [{ uri: "file:///fixture" }], agents: [{ name: "explore", mention: { start: 0, end: 7, text: "explore" } }] };
+    await callbacks.prompt({ sessionID: "v2", messageID: "m1", prompt });
+    expect(prompt.agents[0].mention).toEqual({ start: 0, end: 7, text: "explore" });
+    expect(prompt.files).toEqual([{ uri: "file:///fixture" }]);
+    await expect(callbacks["execute.before"]({ tool: "task", sessionID: "v2", id: "c1", input: { subagent_type: "general" } })).rejects.toThrow(/disabled/i);
+    await expect(callbacks["execute.before"]({ tool: "task", sessionID: "v2", id: "c2", input: { subagent_type: "explore" } })).resolves.toBeUndefined();
+    await expect(callbacks["execute.before"]({ tool: "task", sessionID: "v2", id: "c3", input: { subagent_type: "unknown" } })).rejects.toThrow(/unknown/i);
+    await commands["agent-suite-grants"].execute({ sessionID: "v2", prompt: { text: "" } });
+    expect(synthetic).toHaveBeenCalledWith(expect.objectContaining({ sessionID: "v2", text: expect.stringContaining("explore") }));
+    await commands["agent-suite-revoke"].execute({ sessionID: "v2", prompt: { text: "explore" } });
+    await cleanup?.();
+    expect(signal?.aborted).toBe(true);
+    expect(dispose).toHaveBeenCalledTimes(5);
+  });
+
+  it("routes only successful native task milestone completions and preserves tool failure isolation", async () => {
+    const callbacks: Record<string, (input: any) => Promise<void>> = {};
+    const onMilestone = vi.fn(async () => {});
+    const registration = { dispose: vi.fn(async () => {}) };
+    let release!: () => void;
+    const ready = new Promise<void>((resolve) => { release = resolve; });
+    let finish!: () => void;
+    const forwarded = new Promise<void>((resolve) => { finish = resolve; });
+    const cleanup = await setupAgentSuiteServer({
+      agent: { transform: async () => registration },
+      session: { get: async () => ({ agent: "gentle-orchestrator" }), hook: async (name: string, callback: any) => { callbacks[name] = callback; return registration; } },
+      tool: { hook: async (name: string, callback: any) => { callbacks[name] = callback; return registration; } },
+      command: { transform: async () => registration },
+      event: { subscribe: () => (async function* () {
+        await ready;
+        yield { id: "e", created: 1, type: "session.execution.succeeded", durable: { aggregateID: "s", seq: 1, version: 1 }, data: { sessionID: "s" } } satisfies import("@opencode/client").SessionExecutionSucceeded;
+        finish();
+      })() },
+    } as never, { onMilestone });
+    const event = { tool: "task", sessionID: "s", agent: "gentle-orchestrator", messageID: "m", id: "call", input: { subagent_type: "sdd-verify" }, status: "completed", result: { output: "verified" } };
+    expect(callbacks["execute.after"]).toBeTypeOf("function");
+    await callbacks["execute.after"](event);
+    await callbacks["execute.after"]({ ...event, status: "error" });
+    await callbacks["execute.after"]({ ...event, input: { subagent_type: "agent-task-manager" } });
+    expect(onMilestone).toHaveBeenCalledExactlyOnceWith("sdd-verify", "s");
+    onMilestone.mockRejectedValueOnce(new Error("dispatch unavailable"));
+    const log = vi.spyOn(console, "error").mockImplementation(() => {});
+    await expect(callbacks["execute.after"](event)).resolves.toBeUndefined();
+    await callbacks.prompt({ sessionID: "s", messageID: "m2", prompt: { text: "/sdd-archive" } });
+    release();
+    await forwarded;
+    expect(onMilestone).toHaveBeenLastCalledWith("sdd-archive", "s");
+    expect(onMilestone).toHaveBeenCalledTimes(3);
+    log.mockRestore();
+    await cleanup();
   });
 
   it("fails closed when the registered-agent inventory is unavailable or target is unregistered", async () => {

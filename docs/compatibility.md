@@ -40,7 +40,7 @@ Non-mutating verification record for constrained terminal environments:
 To visually confirm `xlarge` dialog behavior on narrow terminals after interactive installation:
 1. Launch OpenCode in a terminal window or pane resized to 70 columns (`stty cols 70` or window resize).
 2. Trigger the plugin using `Alt + K` (or `/sdd-model`).
-3. Select **Manage SDD Profiles** (`showProfileList`, `medium`) and navigate into any profile detail screen (`showProfileDetail`, `xlarge`).
+3. Select **Manage SDD Profiles** (literal on-screen label) (`showProfileList`, `medium`) and navigate into any profile detail screen (`showProfileDetail`, `xlarge`).
 4. Verify that:
    - The host clamps the dialog container within the 70-column viewport without visual overflow.
    - Long agent identifiers and descriptions are readable or scrollable.

@@ -1,0 +1,30 @@
+╭──────────────────────────────────────────────────────────────────────────────╮
+│                                                                              │
+│ SESSION VAULT                                           [g] ⚙ Configuración  │
+│ BASE DE DATOS DE OPENCODE · Tus sesiones, bajo control                       │
+│ Familias 10 · Candados 2 · Cupo 5 · Candidatas 3                             │
+│                                                                              │
+│  Base de datos: 25.45 GiB (+5.4 MiB WAL) · Reutilizable: 314.0 MiB           │
+│                                                                              │
+│ ┌──────────────────────────────────────────────────────────────────────────┐ │
+│ │ ÚLTIMA OPERACIÓN POR API · ✔ ÉXITO            [u] Detalle   [x] Ocultar  │ │
+│ │ 5 familias (5 sesiones) · 13/09/26, 01:12Respaldos verificados (SHA-256) │ │
+│ │ Variación observada: 0 B                                                 │ │
+│ └──────────────────────────────────────────────────────────────────────────┘ │
+│                                                                              │
+│ ┌──────────────────────────────────────────────────────────────────────────┐ │
+│ │[/] Buscar título, ID o proyecto…                                         │ │
+│ └──────────────────────────────────────────────────────────────────────────┘ │
+│  LOCK   SESIÓN / PROYECTO                                ÚLTIMA ACTIVIDAD    │
+│  ○      Nexus Brain · interfaz principal                 11/09/26, 01:12     │
+│  ○      API Gateway · autenticación                      10/09/26, 01:12     │
+│ 1–2 de 10                                          Abierta · Dentro del cupo │
+│ C:/Users/RDK/Proyectos/opencode-tools                                        │
+│                                                                              │
+│ ┌──────────────────────────────────────────────────────────────────────────┐ │
+│ │  [p] Mod · personalizado   [m] Mantenimiento       AUTO PAUSADO · v0.1.0 │ │
+╰─│  ↑↓  Mover   Espacio  Candado   [i]  Detalle   [v]  Previa   Esc  Salir  │─╯
+  └──────────────────────────────────────────────────────────────────────────┘  
+  3 familias candidatas. El candado siempre tiene prioridad.                    
+                                                                                
+                                                                                

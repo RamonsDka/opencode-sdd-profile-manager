@@ -1,77 +1,106 @@
 {
-	"name": "opencode-sdd-profile-manager",
-	"version": "2.1.0",
-	"description": "Keyboard-first SDD profile, model, reasoning, fallback, and Engram management for OpenCode",
-	"repository": {
-		"type": "git",
-		"url": "git+https://github.com/RamonsDka/opencode-sdd-profile-manager.git"
-	},
-	"bugs": {
-		"url": "https://github.com/RamonsDka/opencode-sdd-profile-manager/issues"
-	},
-	"homepage": "https://github.com/RamonsDka/opencode-sdd-profile-manager#readme",
-	"license": "MIT",
-	"type": "module",
-	"main": "./dist/tui.js",
-	"exports": {
-		"./tui": {
-			"import": "./dist/tui.js"
-		}
-	},
-	"files": [
-		"dist"
-	],
-	"scripts": {
-		"build": "tsup",
-		"postbuild": "node ./scripts/copy-plugin-assets.ts",
-		"typecheck": "tsc --noEmit",
-		"lint": "oxlint --deny-warnings src index.tsx components.tsx",
-		"prepack": "npm run build",
-		"test": "vitest run",
-		"test:coverage": "vitest run --coverage",
-		"test:watch": "vitest",
-		"test:fallback": "node ./scripts/test-fallback.ts",
-		"verify:plugins": "node ./scripts/verify-plugins.ts",
-		"examples": "node ./scripts/run-examples.ts",
-		"orchestrator:fallback:check": "node ./scripts/ensure-orchestrator-fallback-policy.ts --check",
-		"orchestrator:fallback:apply": "node ./scripts/ensure-orchestrator-fallback-policy.ts",
-		"package:release": "node ./scripts/package-release.mjs",
-		"semantic-release": "semantic-release"
-	},
-	"devDependencies": {
-		"@semantic-release/changelog": "6.0.3",
-		"@semantic-release/commit-analyzer": "13.0.1",
-		"@semantic-release/git": "10.0.1",
-		"@semantic-release/github": "12.0.8",
-		"@semantic-release/npm": "13.1.5",
-		"@semantic-release/release-notes-generator": "14.1.1",
-		"@types/node": "25.7.0",
-		"@vitest/coverage-v8": "4.1.6",
-		"esbuild-plugin-solid": "0.6.0",
-		"happy-dom": "^20.11.6",
-		"oxlint": "^1.80.0",
-		"semantic-release": "25.0.3",
-		"tsup": "8.5.1",
-		"typescript": "6.0.3",
-		"vitest": "4.1.6"
-	},
-	"overrides": {
-		"@babel/core": "7.29.7",
-		"esbuild": "0.28.1",
-		"js-yaml": "4.3.0",
-		"npm": "11.18.0",
-		"undici": "7.28.0",
-		"vite": "8.1.0"
-	},
-	"peerDependencies": {
-		"@opencode-ai/plugin": ">=1.17.11",
-		"@opentui/core": ">=0.4.2 <1",
-		"@opentui/keymap": ">=0.4.2 <1",
-		"@opentui/solid": ">=0.4.2 <1",
-		"solid-js": "1.9.12"
-	},
-	"engines": {
-		"node": ">=24 <25",
-		"opencode": ">=1.17.11"
-	}
+  "name": "opencode-sdd-profile-manager",
+  "version": "2.1.0",
+  "description": "Keyboard-first ODD profile, model, reasoning, fallback, and Engram management for OpenCode",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/RamonsDka/opencode-sdd-profile-manager.git"
+  },
+  "bugs": {
+    "url": "https://github.com/RamonsDka/opencode-sdd-profile-manager/issues"
+  },
+  "homepage": "https://github.com/RamonsDka/opencode-sdd-profile-manager#readme",
+  "license": "MIT",
+  "type": "module",
+  "main": "./index.tsx",
+  "exports": {
+    "./server": {
+      "types": "./plugins/suite-de-agentes/src/server/index.ts",
+      "import": "./plugins/suite-de-agentes/src/server/index.ts"
+    },
+    ".": {
+      "types": "./index.tsx",
+      "import": "./index.tsx"
+    },
+    "./tui": {
+      "types": "./index.tsx",
+      "import": "./index.tsx"
+    }
+  },
+  "files": [
+    "server.ts",
+    "tui.ts",
+    "index.tsx",
+    "components.tsx",
+    "src",
+    "plugins"
+  ],
+  "scripts": {
+    "build": "tsup",
+    "postbuild": "node ./scripts/copy-plugin-assets.ts",
+    "typecheck": "tsc --noEmit",
+    "lint": "oxlint --deny-warnings src index.tsx components.tsx",
+    "test": "vitest run",
+    "test:coverage": "vitest run --coverage",
+    "test:watch": "vitest",
+    "test:fallback": "node ./scripts/test-fallback.ts",
+    "verify:plugins": "node ./scripts/verify-plugins.ts",
+    "examples": "node ./scripts/run-examples.ts",
+    "orchestrator:fallback:check": "node ./scripts/ensure-orchestrator-fallback-policy.ts --check",
+    "orchestrator:fallback:apply": "node ./scripts/ensure-orchestrator-fallback-policy.ts",
+    "package:release": "node ./scripts/package-release.mjs",
+    "semantic-release": "semantic-release"
+  },
+  "devDependencies": {
+    "@opencode-ai/plugin": "1.17.11",
+    "@opencode/plugin": "2.0.21",
+    "@opencode/theme": "2.0.21",
+    "@opentui/core": "0.5.14",
+    "@opentui/keymap": "0.5.14",
+    "@opentui/solid": "0.5.14",
+    "@semantic-release/changelog": "6.0.3",
+    "@semantic-release/commit-analyzer": "13.0.1",
+    "@semantic-release/git": "10.0.1",
+    "@semantic-release/github": "12.0.8",
+    "@semantic-release/npm": "13.1.5",
+    "@semantic-release/release-notes-generator": "14.1.1",
+    "@types/node": "25.7.0",
+    "@vitest/coverage-v8": "4.1.6",
+    "esbuild-plugin-solid": "0.6.0",
+    "happy-dom": "^20.11.6",
+    "oxlint": "^1.80.0",
+    "semantic-release": "25.0.3",
+    "solid-js": "1.9.15",
+    "tsup": "8.5.1",
+    "typescript": "6.0.3",
+    "vitest": "4.1.6"
+  },
+  "dependencies": {
+    "jsonc-parser": "3.3.1"
+  },
+  "overrides": {
+    "@babel/core": "7.29.7",
+    "esbuild": "0.28.1",
+    "js-yaml": "4.3.0",
+    "npm": "11.18.0",
+    "undici": "7.28.0",
+    "vite": "8.1.0",
+    "@opentui/keymap": {
+      "solid-js": "$solid-js"
+    },
+    "@opentui/solid": {
+      "solid-js": "$solid-js"
+    }
+  },
+  "peerDependencies": {
+    "@opencode/plugin": "2.0.21",
+    "@opentui/core": ">=0.5.14 <1",
+    "@opentui/keymap": ">=0.5.14 <1",
+    "@opentui/solid": ">=0.5.14 <1",
+    "solid-js": ">=1.9.15 <2"
+  },
+  "engines": {
+    "node": ">=24 <25",
+    "opencode": ">=2.0.21 <3"
+  }
 }

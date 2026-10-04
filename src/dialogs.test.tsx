@@ -33,13 +33,14 @@ describe("Plugins Help flow (Unit 1)", () => {
     };
   };
 
-  it("builds help options with 3 plugin entries and back navigation", () => {
+  it("builds help options with 4 plugin entries and back navigation", () => {
     const options = buildPluginHelpOptions();
 
-    expect(options).toHaveLength(4);
-    expect(options.map((opt: any) => opt.value)).toEqual(["suite", "task-manager", "hub", "__back__"]);
+    expect(options).toHaveLength(5);
+    expect(options.map((opt: any) => opt.value)).toEqual(["suite", "task-manager", "session-vault", "hub", "__back__"]);
     expect(options.find((opt: any) => opt.value === "suite")?.title).toBe("Suite de Agentes");
     expect(options.find((opt: any) => opt.value === "task-manager")?.title).toBe("Task Manager");
+    expect(options.find((opt: any) => opt.value === "session-vault")?.title).toBe("Session Vault");
     expect(options.find((opt: any) => opt.value === "hub")?.title).toContain("Hub");
     expect(options.find((opt: any) => opt.value === "__back__")?.title).toBe("← Volver");
   });
@@ -47,6 +48,7 @@ describe("Plugins Help flow (Unit 1)", () => {
   it.each([
     ["suite" as HelpTopic, "Suite de Agentes"],
     ["task-manager" as HelpTopic, "Task Manager"],
+    ["session-vault" as HelpTopic, "Session Vault"],
     ["hub" as HelpTopic, "opencode-sdd-profile-manager"],
   ])("showPluginHelpDetail renders DialogAlert with offline documentation for topic '%s'", (topic, expectedContent) => {
     const api = createMockApi();
