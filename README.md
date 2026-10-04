@@ -73,7 +73,9 @@ Quickly switch the active ODD profile from anywhere within OpenCode. The active 
 #### Profile Management Hub
 Create new profiles, clone existing templates, edit agent assignments, inspect version history, or delete deprecated profiles.
 
-*Screenshot pending: replacement capture not yet available (previous asset removed by authorization).*
+<p align="center">
+  <img src="docs/images/odd-profile-manager.png" alt="ODD profile editor showing the GENERAL Gentle-AI agent assignments" width="720" />
+</p>
 
 #### Model Navigation & Roster Inspection
 View all 25 ordered agents categorized into Orchestrator, ODD Core (legacy `sdd-*` IDs), Judgment Day, Reviewers, and Auxiliaries with their active model assignments.
