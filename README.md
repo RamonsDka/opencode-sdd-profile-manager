@@ -100,16 +100,10 @@ Assign models across entire agent categories simultaneously in either *Complete 
 #### Reasoning Effort Level Selection
 Configure model reasoning effort (`low`, `medium`, `high`, `xhigh`, `max`) per agent according to provider metadata.
 
-<p align="center">
-  <img src="docs/images/sdd-profile-manager/Nivel%20de%20esfuerzo.png" alt="Reasoning effort selection dialog displaying effort levels for primary ODD models (legacy asset path retained)" width="720" />
-</p>
 
 #### Model Fallback Policy
 Configure explicit fallback models for resilient sub-agent failure recovery during long-running ODD executions.
 
-<p align="center">
-  <img src="docs/images/sdd-profile-manager/Fallback.png" alt="Model fallback selection screen for configuring backup models for primary agents" width="720" />
-</p>
 
 #### Integrated Plugins Selector
 Access integrated companion plugins—including Suite de Agentes and Task Manager—directly from the principal TUI interface.
