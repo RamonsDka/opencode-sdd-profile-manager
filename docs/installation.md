@@ -2,16 +2,16 @@
 
 This guide covers installing and deploying the **OpenCode ODD Profile Manager** principal plugin pack (legacy package ID `opencode-sdd-profile-manager`, unchanged) and its integrated companion plugins via versioned release archives, npm packages, or local source checkouts.
 
-> **Release availability**: npm/release artifacts below refer only to published GitHub Releases or npm packages. The V2 local source in this working tree is uncommitted; docs do not imply it is published.
+> **Release availability**: npm/release artifacts below refer only to published GitHub Releases or npm packages. The V2 source is committed on `main` (PR #34); the archived `sdd-profile-manager-v2.0.1` bundle predates V2 and does not include the V2 host bridge. Use the [latest release](https://github.com/RamonsDka/opencode-sdd-profile-manager/releases/latest) for current archives.
 
 ---
 
 ## Prerequisites
 
-- **Node.js 24**: Major version 24 is required (`>=24 <25`).
+- **Node.js 24**: Major version 24 is required (`>=24 <25`). Note: `@opentui/core@0.5.14` declares `node >=26.4.0`, so Node 24 prints an unsupported-engine warning; it does not block install or tests.
 - **OpenCode**: Version `>=1.17.11` (or `>=1.18.5` for full Suite de Agentes integration).
-- **OpenTUI**: Version `>=0.4.2 <1`.
-- **SolidJS**: Version `1.9.12`.
+- **OpenTUI**: Version `>=0.5.14 <1`.
+- **SolidJS**: Version `1.9.15`. The root `solid-js` is the single identity; `package.json` intentionally overrides transitive pins plus two nested `@opentui/*` `solid-js` peers (`$solid-js`) so `npm ci` resolves without `--force`/`--legacy-peer-deps`. Do not downgrade Solid to satisfy the upstream `1.9.12` peer.
 - **Optional**: [Engram](https://github.com/Gentle-AI/engram) running locally on port `7437` for project memory browsing.
 
 ---
@@ -30,7 +30,7 @@ This guide covers installing and deploying the **OpenCode ODD Profile Manager** 
 
 GitHub Releases provide pre-compiled, verifiable distribution bundles containing `dist/tui.js`, vendored sub-plugins, documentation, and SHA-256 checksums.
 
-1. Download `sdd-profile-manager-v2.0.1.zip` (or `.tar.gz`) from [GitHub Releases](https://github.com/RamonsDka/opencode-sdd-profile-manager/releases).
+1. Download the latest archive from [GitHub Releases](https://github.com/RamonsDka/opencode-sdd-profile-manager/releases/latest) (the archived `sdd-profile-manager-v2.0.1.zip`/`.tar.gz` predates V2 and does not include the V2 host bridge).
 2. Extract the archive into your local OpenCode plugins directory:
    - **Linux / macOS**: `~/.config/opencode/plugins/sdd-profile-manager`
    - **Windows**: `C:\Users\<user>\.config\opencode\plugins\sdd-profile-manager`
@@ -62,9 +62,11 @@ GitHub Releases provide pre-compiled, verifiable distribution bundles containing
 
 ---
 
-## Method 2 — npm Package
+## Method 2 — npm Package (unavailable until published)
 
-OpenCode can automatically install, cache, and load the canonical npm package:
+> The `opencode-sdd-profile-manager` package is not published to the npm registry. Do not expect `npm install` or automatic host resolution to find it. The entry below is the intended configuration once published; until then use the `main`-branch source directory installer in Method 3.
+
+OpenCode can automatically install, cache, and load the canonical npm package once published:
 
 1. Add `opencode-sdd-profile-manager` to your `tui.json`:
 
@@ -107,7 +109,7 @@ npm run build
 
 The build process generates `dist/tui.js` and populates `dist/plugins/`. Register the absolute path to `dist/tui.js` in `tui.json` and restart OpenCode.
 
-> **V2 local source install (current working-tree path only)**: `scripts/install-v2-local.mjs` performs a dry-run by default and prints the planned configuration entry for this checkout. Pass `--apply` explicitly to write it. This describes the local checkout only, not a published release.
+> **V2 local source install (this `main` checkout path only)**: run `node scripts/install-v2-local.mjs` for a dry-run that prints the planned `cli.json`/`opencode.json(c)` directory entry for this checkout. Pass `--apply` explicitly to write it; unrelated entries are preserved and no build step runs. This describes the local `main` source only, not a published release.
 
 ---
 
