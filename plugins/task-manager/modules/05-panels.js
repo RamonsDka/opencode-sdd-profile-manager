@@ -323,8 +323,26 @@
 
       var columns = Math.max(2, Math.min(4, Math.ceil(Math.sqrt(nodes.length))));
       var rows = Math.max(1, Math.ceil(nodes.length / columns));
-      var cellW = 220, cellH = 160, svgW = Math.max(560, columns * cellW), svgH = Math.max(360, rows * cellH + 60);
-      var positions = nodes.map(function (_, index) { var row = Math.floor(index / columns), col = index % columns, count = Math.min(columns, nodes.length - row * columns), offset = (svgW - count * cellW) / 2; return { x: offset + col * cellW + cellW / 2, y: 75 + row * cellH }; });
+      var cellW = 240, cellH = 180, svgW = Math.max(640, columns * cellW + 40), svgH = Math.max(380, rows * cellH + 80);
+      var positions;
+      if (nodes.length <= 6) {
+        // Radial distribution for clean visual balance on small-medium graphs
+        var centerX = svgW / 2, centerY = svgH / 2;
+        var radius = Math.min(centerX, centerY) * 0.65;
+        positions = nodes.map(function (_, index) {
+          var angle = (index / nodes.length) * 2 * Math.PI - Math.PI / 2;
+          return {
+            x: centerX + radius * Math.cos(angle),
+            y: centerY + radius * Math.sin(angle)
+          };
+        });
+      } else {
+        // Grid distribution for larger graphs with ample padding
+        positions = nodes.map(function (_, index) {
+          var row = Math.floor(index / columns), col = index % columns, count = Math.min(columns, nodes.length - row * columns), offset = (svgW - count * cellW) / 2;
+          return { x: offset + col * cellW + cellW / 2, y: 90 + row * cellH };
+        });
+      }
       var html = '<div class="codegraph-container"><div class="codegraph-summary"><div><strong>' + nodes.length + '</strong><span>módulos</span></div><div><strong>' + edges.length + '</strong><span>relaciones</span></div><p>Nodos interactivos dinámicos: arrastra los módulos con el mouse o haz clic para inspeccionar detalles.</p></div>';
       html += '<svg class="codegraph-svg" id="codegraph-svg-canvas" viewBox="0 0 ' + svgW + ' ' + svgH + '\" width=\"100%\" height=\"' + svgH + '\" role=\"img\" aria-label=\"Mapa de dependencias del proyecto\"><defs><marker id=\"graph-arrow\" markerWidth=\"8\" markerHeight=\"8\" refX=\"7\" refY=\"4\" orient=\"auto\"><path d=\"M0,0 L8,4 L0,8 z\" fill=\"var(--accent-blue)\"></path></marker></defs>';
 
@@ -348,13 +366,13 @@
         var cx = positions[i].x;
         var cy = positions[i].y;
         html += '<g class="graph-node" id="cg-node-' + esc(node.id) + '" data-codegraph-node="' + esc(node.id) + '" data-index="' + i + '" role="button" tabindex="0" aria-label="Abrir relaciones de ' + label + '" aria-expanded="false" transform="translate(' + cx + ',' + cy + ')" style="cursor:grab;">'
-          + '<circle class="node-pulse" cx="0" cy="0" r="48"></circle>'
-          + '<circle class="node-bg" cx="0" cy="0" r="48"></circle>'
-          + '<circle cx="0" cy="0" r="44" fill="var(--bg-surface-secondary)" fill-opacity="0.85"></circle>'
-          + '<circle cx="0" cy="-22" r="11" fill="var(--color-inprogress-bg)" stroke="var(--accent-blue)" stroke-width="1.2"></circle>'
-          + '<text x="0" y="-18" text-anchor="middle" font-family="var(--font-mono)" font-size="9.5" font-weight="700" fill="var(--accent-blue)">' + esc(String(i + 1).padStart(2, '0')) + '</text>'
-          + '<text x="0" y="3" text-anchor="middle" font-family="var(--font-sans)" font-size="12" font-weight="700" fill="#ffffff">' + label + '</text>'
-          + '<text x="0" y="19" text-anchor="middle" font-family="var(--font-mono)" font-size="9.5" fill="var(--text-tertiary)">' + node.files.length + ' arch · ' + node.taskIds.length + ' tar</text>'
+          + '<circle class="node-pulse" cx="0" cy="0" r="52"></circle>'
+          + '<circle class="node-bg" cx="0" cy="0" r="52"></circle>'
+          + '<circle cx="0" cy="0" r="48" fill="var(--bg-surface-secondary)" fill-opacity="0.9"></circle>'
+          + '<circle cx="0" cy="-24" r="12" fill="var(--color-inprogress-bg)" stroke="var(--accent-blue)" stroke-width="1.2"></circle>'
+          + '<text x="0" y="-20" text-anchor="middle" font-family="var(--font-mono)" font-size="9.5" font-weight="700" fill="var(--accent-blue)">' + esc(String(i + 1).padStart(2, '0')) + '</text>'
+          + '<text x="0" y="2" text-anchor="middle" font-family="var(--font-sans)" font-size="12" font-weight="700" fill="#ffffff">' + label + '</text>'
+          + '<text x="0" y="20" text-anchor="middle" font-family="var(--font-mono)" font-size="9.5" fill="var(--text-tertiary)">' + node.files.length + ' arch · ' + node.taskIds.length + ' tar</text>'
           + '</g>';
       }
       html += '</svg>';

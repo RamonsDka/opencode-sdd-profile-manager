@@ -69,6 +69,7 @@ import { canonicalizeProfileModels, getOrchestratorPolicy, type OrchestratorPoli
 import { buildPluginHubOptions } from "./plugins/registry";
 import { loadOfflineHelp, type HelpTopic } from "./plugins/offline-help";
 import { openVendoredSuite } from "./plugins/suite-adapter";
+import { openVendoredSessionVault } from "./plugins/vault-adapter";
 import { resolveTaskManagerRoot, type TaskManagerRootCandidates } from "./plugins/task-manager-root";
 import { provisionTaskManagerBase, setTaskManagerRunningState } from "./plugins/task-manager-lifecycle";
 import { launchTaskManagerBrowser } from "./plugins/task-manager-coordinator";
@@ -106,7 +107,7 @@ const NAV_TEXT = {
   noProfiles: "Sin perfiles",
   noVersions: "Sin versiones",
   noMemories: "Sin memorias",
-  profileManagement: "Gestión de perfiles SDD",
+  profileManagement: "Gestión de perfiles ODD",
   createProfile: "󰏪 Crear nuevo perfil SDD",
   manageProfiles: "󰓅 Gestionar perfiles SDD",
   importExport: "󰄠 Importar / Exportar perfiles",
@@ -193,10 +194,10 @@ export function buildProfileAgentRows(
 }
 
 export function buildReasoningRowForAgent(profileData: any, agentName: string): { title: string; value: string; category: string } {
-  const saved = profileData?.configs?.[agentName]?.reasoningEffort;
+  const saved = profileData?.configs?.[agentName]?.nativeVariant || profileData?.configs?.[agentName]?.reasoningEffort;
   const displayEffort = saved ? localizedEffortLabel(saved) : UI_TEXT.defaultEffort;
   return {
-    title: `${agentName}: ${displayEffort}`,
+    title: `${agentName === "gentle-orchestrator" ? "Gentle-orchestrator" : agentName}: ${displayEffort}`,
     value: `reasoning:${agentName}`,
     category: catalogCategory(agentName),
   };
@@ -274,7 +275,7 @@ export function resolveProfileDetailNavigationAction(optionValue: string):
 
 export function buildProfileDetailHubOptions(api: any, profileOpt: any, profileData: any) {
   const { sddAgents, fallbackAgents } = buildProfileDetailAgentSections(api.state.config, profileData);
-  const reasoningSaved = sddAgents.filter(([name]) => Boolean(profileData?.configs?.[name]?.reasoningEffort)).length;
+  const reasoningSaved = sddAgents.filter(([name]) => Boolean(profileData?.configs?.[name]?.nativeVariant || profileData?.configs?.[name]?.reasoningEffort)).length;
   const reasoningSummary = `${reasoningSaved}/${sddAgents.length} guardados`;
   const fallbackConfigured = fallbackAgents.filter(([, modelId]) => Boolean(modelId)).length;
   const fallbackSummary = `${fallbackConfigured}/${fallbackAgents.length} configurados`;
@@ -358,13 +359,13 @@ function buildPrimaryModelOptions(profileData: any, api?: any) {
   return buildCatalogRows(CATALOG_GROUPS, (key) => {
     const entry = entries.find((candidate) => candidate.profileKey === key);
     if (!entry) return null;
-    const modelId = entry.profileKey === "sdd-ORCHETATOR"
-      ? models[policy.canonicalName]
-      : models[entry.profileKey];
+    const modelId = entry.profileKey === "gentle-orchestrator"
+      ? models[policy.canonicalName] ?? agentConfig[policy.canonicalName]?.model
+      : models[entry.profileKey] ?? agentConfig[entry.profileKey]?.model;
     const desc = api ? localizedModelInfo(api, modelId) : (modelId || "Sin asignar");
     const isUnconfigured = !Object.hasOwn(agentConfig, entry.displayName);
     const option: any = {
-      title: entry.displayName,
+      title: entry.profileKey === "gentle-orchestrator" ? "Gentle-orchestrator" : entry.displayName,
       value: `model:${entry.profileKey}`,
       description: desc,
       category: catalogCategory(entry.profileKey),
@@ -405,7 +406,7 @@ export function buildFallbackSubmenuOptions(profileData: any, sections: any, api
       : UI_TEXT.inherited;
     const isUnconfigured = !Object.hasOwn(agentConfig, `${entry.profileKey}-fallback`);
     const option: any = {
-      title: entry.displayName,
+      title: entry.profileKey === "gentle-orchestrator" ? "Gentle-orchestrator" : entry.displayName,
       value: `fallback:${entry.profileKey}`,
       description: desc,
       category: catalogCategory(entry.profileKey),
@@ -1394,7 +1395,7 @@ export function showReasoningEffortPicker(api: any, profileOpt: any, agentName: 
   safeSetDialogSize(api, "medium");
   const { profilesDir } = resolvePaths(), profilePath = path.join(profilesDir, profileOpt.value);
   try {
-    const profile = readProfileData(profilePath), modelId = flow?.pending?.modelId || profile?.models?.[agentName], current = profile?.configs?.[agentName]?.reasoningEffort;
+    const profile = readProfileData(profilePath), modelId = flow?.pending?.modelId || profile?.models?.[agentName], current = profile?.configs?.[agentName]?.nativeVariant || profile?.configs?.[agentName]?.reasoningEffort;
     const state = buildReasoningEditState(api?.state?.provider || [], agentName, modelId, current);
     if (state.kind === "ineligible" || state.kind === "missing-model") {
       api.ui.toast({ title: "Razonamiento no disponible", message: buildReasoningBlockedMessage(state), variant: "warning" });
@@ -1403,7 +1404,7 @@ export function showReasoningEffortPicker(api: any, profileOpt: any, agentName: 
     }
     const pickerProps = createReasoningEffortPickerDialogProps(api, profileOpt, agentName, profilePath, profile, state, returnTarget, flow, flow?.sequential ? { updateProfileReasoningWithoutVersion: undefined } : {
       updateProfileReasoningWithoutVersion: (targetPath, targetAgent, value, policy) => {
-        const nextProfile = updateProfileReasoningEffort(profile, targetAgent, value);
+        const nextProfile = updateProfileReasoningEffort(profile, targetAgent, value, api?.state?.provider || []);
         writeProfileData(targetPath, nextProfile, policy);
         return nextProfile;
       },
@@ -1859,6 +1860,7 @@ export function buildPluginHelpOptions() {
   return [
     { title: "Suite de Agentes", value: "suite", description: "Documentación offline de la Suite de Agentes." },
     { title: "Task Manager", value: "task-manager", description: "Documentación offline del Task Manager portátil." },
+    { title: "Session Vault", value: "session-vault", description: "Documentación offline de Session Vault." },
     { title: "Hub (opencode-sdd-profile-manager)", value: "hub", description: "Documentación del hub y gestión de perfiles/plugins." },
     { title: "← Volver", value: "__back__", description: "Volver al menú de plugins." },
   ];
@@ -1891,7 +1893,14 @@ export function showPluginsHelpMenu(api: any) {
 export function showPluginHelpDetail(api: any, topic: HelpTopic) {
   safeSetDialogSize(api, "xlarge");
   const content = loadOfflineHelp(topic);
-  const title = topic === "suite" ? "Ayuda: Suite de Agentes" : topic === "task-manager" ? "Ayuda: Task Manager" : "Ayuda: Hub de Plugins";
+  const title =
+    topic === "suite"
+      ? "Ayuda: Suite de Agentes"
+      : topic === "task-manager"
+        ? "Ayuda: Task Manager"
+        : topic === "session-vault"
+          ? "Ayuda: Session Vault"
+          : "Ayuda: Hub de Plugins";
   api.ui.dialog.replace(() => (
     <api.ui.DialogAlert
       title={title}
@@ -2004,6 +2013,8 @@ export function showPluginsMenu(api: any) {
           openVendoredSuite(api);
         } else if (opt.value === "task-manager") {
           await launchTaskManagerAction(api);
+        } else if (opt.value === "session-vault") {
+          await openVendoredSessionVault(api);
         } else if (opt.value === "__back__") {
           showProfilesMenu(api);
         } else {

@@ -399,11 +399,11 @@ describe('skeleton shell — file:// portability & tokens', () => {
     assert.ok(finalDistributionBadgeRuleIndex > globalBadgeRuleIndex, 'the final distribution badge containment rule must override the global badge rule');
   });
 
-  it('declares the seven tab targets in the keyboard contract order', () => {
+  it('declares the eight tab targets in the keyboard contract order', () => {
     const window = new Window({ url: 'http://localhost/' });
     window.document.write(readSkeleton());
     window.document.close();
-    assert.deepEqual([...window.document.querySelectorAll('.tab-btn[data-target-view]')].map((button) => button.dataset.targetView), ['view-overview', 'view-phases', 'view-kanban', 'view-codegraph', 'view-tree', 'view-git', 'view-help']);
+    assert.deepEqual([...window.document.querySelectorAll('.tab-btn[data-target-view]')].map((button) => button.dataset.targetView), ['view-overview', 'view-phases', 'view-kanban', 'view-codegraph', 'view-tree', 'view-git', 'view-help', 'view-acknowledgements']);
   });
 
   it('keeps Overview as summary-only while stable dedicated mounts own details', () => {
@@ -414,9 +414,47 @@ describe('skeleton shell — file:// portability & tokens', () => {
     const overview = document.getElementById('view-overview');
     assert.equal(overview.querySelector('#phases-panel'), null);
     assert.equal(overview.querySelector('#help-panel'), null);
-    for (const id of ['full-phases-mount', 'full-help-mount', 'full-kanban-mount', 'full-codegraph-mount', 'full-tree-mount', 'full-git-mount']) {
+    for (const id of ['full-phases-mount', 'full-help-mount', 'full-kanban-mount', 'full-codegraph-mount', 'full-tree-mount', 'full-git-mount', 'full-acknowledgements-mount']) {
       assert.notEqual(document.getElementById(id), null, id + ' must be a stable dedicated mount');
     }
+  });
+
+  it('provides detailed acknowledgements view and compact overview teaser', () => {
+    const window = new Window({ url: 'http://localhost/' });
+    window.document.write(readSkeleton());
+    window.document.close();
+    const document = window.document;
+
+    const teaser = document.getElementById('overview-credits-section');
+    assert.notEqual(teaser, null, 'Overview credits teaser must exist');
+    const cta = teaser.querySelector('#btn-open-acknowledgements');
+    assert.notEqual(cta, null, 'Teaser CTA button must exist');
+    assert.equal(cta.getAttribute('data-jump-view'), 'view-acknowledgements');
+
+    const ackView = document.getElementById('view-acknowledgements');
+    assert.notEqual(ackView, null, 'view-acknowledgements must exist');
+    assert.match(ackView.textContent, /Ramón Dka/i);
+    assert.match(ackView.textContent, /Gentleman Programming/i);
+    assert.match(ackView.textContent, /Gentle AI/i);
+    assert.match(ackView.textContent, /TikTok/i);
+
+    const tiktok = ackView.querySelector('.btn-tiktok-pending');
+    assert.notEqual(tiktok, null, 'TikTok pending placeholder must exist');
+    assert.equal(tiktok.getAttribute('data-external-link'), null, 'TikTok must not have external link');
+    assert.equal(tiktok.getAttribute('aria-disabled'), 'true');
+
+    const links = Array.from(ackView.querySelectorAll('[data-external-link]')).map((el) => el.getAttribute('data-external-link'));
+    assert.ok(links.includes('https://github.com/RamonsDka'));
+    assert.ok(links.includes('https://github.com/RamonsDka/task-manager-portable'));
+    assert.ok(links.includes('https://www.youtube.com/@RamonsDk-Dev'));
+    assert.ok(links.includes('https://gentlemanprogramming.com/#consulting'));
+    assert.ok(links.includes('https://github.com/Gentleman-Programming/gentle-ai'));
+  });
+
+  it('configures owners and tags in a compact auto-fit band without vertical stretching', () => {
+    const html = readSkeleton();
+    assert.match(html, /\.insight-meta-strip[^}]*flex-direction:\s*row/s);
+    assert.match(html, /\.insight-subregion[^}]*min-height:\s*0/s);
   });
 
   it('provides body mounts required by the real optional-panel renderers', () => {

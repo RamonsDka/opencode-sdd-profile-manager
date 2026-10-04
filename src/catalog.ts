@@ -17,28 +17,15 @@ import {
 } from "./utils";
 
 const CATALOG_AGENT_GROUPS = [
-  ["sdd-ORCHETATOR"],
+  ["gentle-orchestrator", "gentle-ai-verify", "gentle-ai-worker", "gentle-ai-explore"],
+  ["jd-fix-agent", "jd-judge-b", "jd-judge-a"],
   [
-    "sdd-propose",
-    "sdd-design",
-    "sdd-apply",
-    "sdd-verify",
-    "sdd-spec",
-    "sdd-onboard",
-    "sdd-explore",
-    "sdd-init",
-    "sdd-tasks",
-    "sdd-archive",
-  ],
-  ["jd-judge-a", "jd-judge-b", "jd-fix-agent"],
-  [
+    "review-risk",
+    "review-refuter",
     "review-readability",
     "review-reliability",
     "review-resilience",
     "review-validator",
-    "review-refuter",
-    "review-risk",
-    "model-audit",
   ],
   ["gentle-ai-windows-validator", "compaction", "summary", "title"],
 ] as const satisfies readonly (readonly PersistibleAgentKey[])[];
@@ -46,28 +33,23 @@ const CATALOG_AGENT_GROUPS = [
 export const CATALOG_GROUPS = [
   {
     id: "orchestrator",
-    labelEs: "Orquestador",
+    labelEs: "GENERAL",
     agents: CATALOG_AGENT_GROUPS[0],
   },
   {
-    id: "sdd-core",
-    labelEs: "Núcleo SDD",
+    id: "judgment-day",
+    labelEs: "JUECES",
     agents: CATALOG_AGENT_GROUPS[1],
   },
   {
-    id: "judgment-day",
-    labelEs: "Judgment Day",
-    agents: CATALOG_AGENT_GROUPS[2],
-  },
-  {
     id: "reviewers",
-    labelEs: "Revisores",
-    agents: CATALOG_AGENT_GROUPS[3],
+    labelEs: "4R REVIEW",
+    agents: CATALOG_AGENT_GROUPS[2],
   },
   {
     id: "auxiliaries",
     labelEs: "Auxiliares",
-    agents: CATALOG_AGENT_GROUPS[4],
+    agents: CATALOG_AGENT_GROUPS[3],
   },
 ] as const satisfies readonly CatalogGroup[];
 

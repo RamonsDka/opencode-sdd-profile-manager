@@ -1,0 +1,53 @@
+{
+  "name": "opencode-session-vault",
+  "version": "0.1.0",
+  "description": "Retención de sesiones con candados, perfiles y TUI para OpenCode",
+  "type": "module",
+  "license": "MIT",
+  "exports": {
+    ".": {
+      "types": "./src/tui.tsx",
+      "import": "./src/tui.tsx"
+    },
+    "./tui": "./src/tui.tsx"
+  },
+  "files": [
+    "dist",
+    "src",
+    "README.md",
+    "LICENSE"
+  ],
+  "scripts": {
+    "build": "node scripts/build.mjs",
+    "typecheck": "tsc --noEmit",
+    "test": "node --experimental-strip-types --test test/*.test.ts",
+    "install:local": "node dist/install.mjs",
+    "uninstall:local": "node dist/install.mjs --uninstall",
+    "test:ui": "node scripts/build-ui-smoke.mjs && bun --conditions=browser scripts/ui-smoke.mjs",
+    "test:integration": "node --experimental-strip-types scripts/integration.mjs"
+  },
+  "engines": {
+    "node": ">=22.6",
+    "opencode": ">=2.0.21 <3"
+  },
+  "peerDependencies": {
+    "@opencode/plugin": "2.0.21",
+    "@opentui/core": ">=0.5.14 <1",
+    "@opentui/solid": ">=0.5.14 <1",
+    "solid-js": ">=1.9.15 <2"
+  },
+  "devDependencies": {
+    "@opencode-ai/plugin": "1.18.29",
+    "@opencode/client": "2.0.21",
+    "@opencode/plugin": "2.0.21",
+    "@opentui/core": "0.5.14",
+    "@opentui/keymap": "0.5.14",
+    "@opentui/solid": "0.5.14",
+    "@types/node": "24.3.0",
+    "esbuild": "0.25.9",
+    "esbuild-plugin-solid": "0.6.0",
+    "jsonc-parser": "3.3.1",
+    "solid-js": "1.9.15",
+    "typescript": "5.9.2"
+  }
+}

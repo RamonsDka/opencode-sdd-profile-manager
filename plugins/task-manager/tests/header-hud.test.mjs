@@ -451,6 +451,62 @@ describe('header-hud — global %, totals, badges', () => {
     assert.equal(children.indexOf(customRegion) < children.indexOf(metaStrip), true, 'table must appear directly before metadata strip');
   });
 
+  it('collapses large owner and tag dimensions and expands them without opening the metric dialog', () => {
+    const tasks = Array.from({ length: 15 }, (_, index) => ({
+      id: `T${index + 1}`,
+      title: `Task ${index + 1}`,
+      status: index % 2 ? 'completed' : 'in-progress',
+      owner: `Owner ${index + 1}`,
+      tag: `Tag ${index + 1}`,
+    }));
+    const state = createState({ phases: [{ id: 'p1', number: 1, title: 'Scale', status: 'in-progress', tasks }] });
+    const { document, hud } = mountWithState(state);
+    hud.renderAll(state, document);
+
+    const card = document.getElementById('metric-insights');
+    const ownerRegion = card.querySelector('.insight-owners');
+    const toggle = ownerRegion.querySelector('[data-dim-toggle]');
+    const overflowItems = Array.from(ownerRegion.querySelectorAll('[data-overflow-dim]'));
+    assert.equal(overflowItems.length, 3);
+    assert.equal(overflowItems.every((item) => item.style.display === 'none'), true);
+
+    toggle.click();
+    assert.equal(toggle.getAttribute('aria-expanded'), 'true');
+    assert.equal(overflowItems.every((item) => item.style.display === 'inline-flex'), true);
+    assert.equal(document.getElementById('overview-detail-dialog').dataset.open, undefined);
+  });
+
+  it('labels preview telemetry as demo and never presents it as measured host data', () => {
+    const state = createState({
+      tokenUsage: {
+        schemaVersion: '1.0',
+        updatedAt: '2026-09-04T12:00:00Z',
+        source: 'preview',
+        scope: 'preview-demo',
+        root: '.',
+        totals: { input: 100, output: 50, reasoning: 25, cacheRead: 0, cacheWrite: 0, total: 175 },
+        byAgent: [{
+          agent: 'orchestrator',
+          model: 'Preview Runtime',
+          categories: { input: 100, output: 50, reasoning: 25, cacheRead: 0, cacheWrite: 0, total: 175 },
+          total: 175,
+          evidence: 'preview',
+          confidence: 0.2,
+        }],
+      },
+    });
+    const { document, hud } = mountWithState(state);
+    hud.renderAll(state, document);
+
+    const insightsCard = document.getElementById('metric-insights');
+    assert.match(insightsCard.textContent, /Preview \/ Demo/i);
+    assert.doesNotMatch(insightsCard.textContent, /Medida Real/i);
+
+    insightsCard.click();
+    const dialog = document.getElementById('overview-detail-dialog');
+    assert.match(dialog.textContent, /valores simulados como preview en la plantilla/i);
+  });
+
   it('fills the executive summary with three additional truthful informational cards', () => {
     const state = createState({
       meta: { features: { git: true, tree: true, codegraph: false } },
@@ -475,19 +531,29 @@ describe('header-hud — global %, totals, badges', () => {
 });
 
 describe('header-hud — preference-backed stable navigation', () => {
-  it('maps keys 1–7 in contract order, preserves island bytes, and ignores editable controls', () => {
+  it('maps keys 1–8 in contract order, preserves island bytes, and ignores editable controls', () => {
     const state = createState();
     const { document, window, hud } = mountWithState(state);
     const islandBytes = document.getElementById('tm-state').textContent;
     hud.renderAll(state, document);
-    for (const [key, view] of ['overview', 'phases', 'kanban', 'codegraph', 'tree', 'git', 'help'].entries()) {
+    for (const [key, view] of ['overview', 'phases', 'kanban', 'codegraph', 'tree', 'git', 'help', 'acknowledgements'].entries()) {
       document.dispatchEvent(new window.KeyboardEvent('keydown', { key: String(key + 1), bubbles: true }));
       assert.equal(document.getElementById('view-' + view).hidden, false, 'key ' + (key + 1) + ' activates ' + view);
     }
     const input = document.getElementById('global-search-input');
     input.dispatchEvent(new window.KeyboardEvent('keydown', { key: '1', bubbles: true }));
-    assert.equal(document.getElementById('view-help').hidden, false, 'input keystroke is not hijacked');
+    assert.equal(document.getElementById('view-acknowledgements').hidden, false, 'input keystroke is not hijacked');
     assert.equal(document.getElementById('tm-state').textContent, islandBytes);
+  });
+
+  it('navigates to acknowledgements view via teaser CTA with data-jump-view', () => {
+    const { document, hud } = mountWithState(createState());
+    hud.setupNavTabs(document);
+    const cta = document.getElementById('btn-open-acknowledgements');
+    assert.notEqual(cta, null, 'CTA button must exist');
+    cta.click();
+    assert.equal(document.getElementById('view-acknowledgements').hidden, false);
+    assert.equal(document.querySelector('.tab-btn.active').getAttribute('data-target-view'), 'view-acknowledgements');
   });
 
   it('binds shell shortcuts once across repeated initialization and stores only preferences', () => {

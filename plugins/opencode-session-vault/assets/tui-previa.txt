@@ -1,0 +1,42 @@
+╭──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────╮
+│                                                                                                                      │
+│ SESSION VAULT                                                                                   [g] ⚙ Configuración  │
+│ BASE DE DATOS DE OPENCODE · Vista previa del borrado                                                                 │
+│                                                                                                                      │
+│ ┌───────────────────────────┐ ┌───────────────────────────┐ ┌──────────────────────┐ ┌─────────────────────────────┐ │
+│ │ 15                        │ │ 2                         │ │ 5                    │ │ 5                           │ │
+│ │ Familias                  │ │ Candados                  │ │ Cupo                 │ │ Candidatas                  │ │
+│ └───────────────────────────┘ └───────────────────────────┘ └──────────────────────┘ └─────────────────────────────┘ │
+│ Lote por API: hasta 5 familias, primero las más antiguas. Respaldo verificado antes de borrar.                       │
+│ Aviso de almacenamiento: El tamaño de la base SQLite en disco no se reduce sin compactación fuera de línea (VACUUM). │
+│  [m] Ir a Mantenimiento fuera de línea (sin CLI)                                                                     │
+│                                                                                                                      │
+│ ┌──────────────────────────────────────────────────────────────────────────────────────────────────────────────────┐ │
+│ │[/] Buscar título, ID o proyecto…                                                                                 │ │
+│ └──────────────────────────────────────────────────────────────────────────────────────────────────────────────────┘ │
+│  LOCK   ID          SESIÓN / PROYECTO                                                  ÚLTIMA ACTIVIDAD  JSON ≈      │
+│  ○      ses_demo14  Integración abandonada                                             28/08/26, 01:12   —           │
+│  ○      ses_demo13  Pruebas antiguas del router                                        29/08/26, 01:12   —           │
+│  ○      ses_demo11  Sesión archivada de pruebas                                        31/08/26, 01:12   —           │
+│  ○      ses_demo10  Landing experimental                                               01/09/26, 01:12   —           │
+│  ○      ses_demo9   Migración PostgreSQL                                               02/09/26, 01:12   —           │
+│                                                                                                                      │
+│                                                                                                                      │
+│                                                                                                                      │
+│                                                                                                                      │
+│                                                                                                                      │
+│ 1–5 de 5                                                                                        Candidata a limpieza │
+│ C:/Users/RDK/Proyectos/opencode-tools                                                                                │
+│                                                                                                                      │
+│ ┌──────────────────────────────────────────────────────────────────────────────────────────────────────────────────┐ │
+│ │  [p] Mod · personalizado   [m] Mantenimiento                                               AUTO PAUSADO · v0.1.0 │ │
+│ │  ↑↓  Mover   [c]  Borrar por API   Esc  Volver                                                                   │ │
+│ │  [c] Borrar por API con respaldo…                                                                                │ │
+│ │  ← Volver a sesiones                                                                                             │ │
+│ └──────────────────────────────────────────────────────────────────────────────────────────────────────────────────┘ │
+│ Lote por API: 5 familias candidatas (máx. 5). Borrado seguro con respaldo.                                           │
+╰──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────╯
+                                                                                                                        
+                                                                                                                        
+                                                                                                                        
+                                                                                                                        

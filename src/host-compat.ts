@@ -113,3 +113,5 @@ export function resetHostCompatStateForTests(): void {
 	rendererMissingReported = false;
 	reportedSlotFailures.clear();
 }
+
+export { createV2Host } from "./host-v2";

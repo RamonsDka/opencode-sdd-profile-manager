@@ -8,6 +8,10 @@ const PLUGIN_VERSION = "1.8.0";
 
 export const TASK_MANAGER_CAPABILITY_TOKEN_INSIGHTS = "token-insights-v2";
 
+function hasTokenInsightsCapability(html: string): boolean {
+  return /data-tm-capability\s*=\s*["']token-insights-v2["']/i.test(html);
+}
+
 export function currentTaskManagerMeta() {
   return { signature: SIGNATURE, pluginVersion: PLUGIN_VERSION, templateVersion: TEMPLATE_VERSION, schemaVersion: SCHEMA_VERSION, stateVersion: STATE_VERSION };
 }
@@ -38,7 +42,7 @@ export function isLegacyManagedTaskManagerHtml(html: string | undefined): boolea
       html.includes("Task-Manager-Portable") ||
       html.includes("drop-in-task-manager") ||
       html.includes('data-tm-capability="token-insights-v1"') ||
-      html.includes(`data-tm-capability="${TASK_MANAGER_CAPABILITY_TOKEN_INSIGHTS}"`) ||
+      hasTokenInsightsCapability(html) ||
       state.signature === SIGNATURE;
 
     return hasLegacyMarkers;
@@ -53,7 +57,8 @@ export function classifyTaskManagerHtml(html: string | undefined): TaskManagerHt
   if (!island) return "unrecognized";
   try {
     const state = JSON.parse(island) as Partial<ReturnType<typeof currentTaskManagerMeta>> & Record<string, unknown>;
-    if (state.signature !== SIGNATURE || state.schemaVersion !== SCHEMA_VERSION || state.stateVersion !== STATE_VERSION || typeof state.pluginVersion !== "string") return "unrecognized";
+    const isValidStateVersion = typeof state.stateVersion === "number" && Number.isInteger(state.stateVersion) && state.stateVersion >= 1;
+    if (state.signature !== SIGNATURE || state.schemaVersion !== SCHEMA_VERSION || !isValidStateVersion || typeof state.pluginVersion !== "string") return "unrecognized";
 
     // If it has legacy markers like the obsolete welcome dialog, it is considered old and eligible for shell upgrade
     if (html.includes("welcome-dialog") || html.includes("AUTÓNOMO + SUBAGENTE") || html.includes("Delegación y Subagente")) {
@@ -61,7 +66,7 @@ export function classifyTaskManagerHtml(html: string | undefined): TaskManagerHt
     }
 
     // Must have the required structural capability marker (e.g. token-insights-v2)
-    if (!html.includes(`data-tm-capability="${TASK_MANAGER_CAPABILITY_TOKEN_INSIGHTS}"`)) {
+    if (!hasTokenInsightsCapability(html)) {
       return "old";
     }
 

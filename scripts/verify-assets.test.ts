@@ -17,6 +17,7 @@ describe("Phase 0 Publication Foundation & Asset Boundaries", () => {
       expect(requiredPluginAssets("/package").map((asset) => asset.replaceAll("\\", "/"))).toEqual([
         "/package/plugins/task-manager/Task-Manager-Portable.html",
         "/package/plugins/suite-de-agentes/README.md",
+        "/package/plugins/opencode-session-vault/README.md",
       ]);
     });
 

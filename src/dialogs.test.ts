@@ -228,11 +228,11 @@ describe('dialog pure builders', () => {
   });
 
   it('builds concise reasoning detail rows with stable action tokens', () => {
-    const withValue = buildReasoningRowForAgent({ configs: { 'sdd-apply': { reasoningEffort: 'high' } } }, 'sdd-apply');
+    const withValue = buildReasoningRowForAgent({ configs: { 'gentle-ai-worker': { reasoningEffort: 'high' } } }, 'gentle-ai-worker');
     expect(withValue).toEqual({
-      title: 'sdd-apply: high',
-      value: 'reasoning:sdd-apply',
-      category: 'Núcleo SDD',
+      title: 'gentle-ai-worker: high',
+      value: 'reasoning:gentle-ai-worker',
+      category: 'GENERAL',
     });
 
     const withoutValue = buildReasoningRowForAgent({}, 'sdd-apply');
@@ -327,8 +327,8 @@ describe('dialog pure builders', () => {
     expect(modelOptions.map((option) => option.category)).toEqual(
       CATALOG_GROUPS.flatMap((group) => group.agents.map(() => group.labelEs)),
     );
-    expect(modelOptions).toHaveLength(25);
-    expect(modelOptions.find((option) => option.value === 'model:sdd-ORCHETATOR')?.description).toContain('openai/gpt-4.1');
+    expect(modelOptions).toHaveLength(17);
+    expect(modelOptions.find((option) => option.value === 'model:gentle-orchestrator')?.description).toContain('openai/gpt-4.1');
     expect(modelOptions.find((option) => option.value === 'model:summary')?.description).toBe('Sin asignar');
     expect(modelOptions.some((option) => option.title === 'legacy-runtime-only')).toBe(false);
     expect(modelOptions.some((option) => option.value.startsWith('__'))).toBe(false);
@@ -367,9 +367,10 @@ describe('dialog pure builders', () => {
     const reasoning = buildReasoningSubmenuOptions(profileData, sections);
     const fallback = buildFallbackSubmenuOptions(profileData, sections);
 
-    expect(primary.some((option) => option.value === 'model:sdd-apply')).toBe(true);
-    expect(reasoning.some((option) => option.value === 'reasoning:sdd-design')).toBe(true);
-    expect(fallback.some((option) => option.value === 'fallback:sdd-design')).toBe(true);
+    expect(primary.some((option) => option.value === 'model:gentle-ai-worker')).toBe(true);
+    expect(reasoning.some((option) => option.value === 'reasoning:gentle-ai-verify')).toBe(true);
+    expect(fallback.some((option) => option.value === 'fallback:gentle-ai-verify')).toBe(true);
+    expect(primary.some((option) => option.value === 'model:sdd-apply')).toBe(false);
     expect(primary.at(-1)?.value).toBe('__back__');
     expect(reasoning.at(-1)?.value).toBe('__back__');
     expect(fallback.at(-1)?.value).toBe('__back__');
@@ -534,6 +535,28 @@ describe('dialog pure builders', () => {
   });
 
   describe('catalog-driven dialogs & category ordering', () => {
+    it('keeps the approved ODD catalog and inherits runtime models without mutating historical data', () => {
+      const api = { state: { config: { agent: {
+        'gentle-orchestrator': { model: 'runtime/orchestrator' },
+        'gentle-ai-worker': { model: 'runtime/worker' },
+        'sdd-apply': { model: 'historic/apply' },
+      } }, provider: [] } };
+      const profileData = { models: { 'sdd-apply': 'historic/profile', 'unknown-agent': 'historic/custom' } };
+      const before = JSON.stringify(profileData);
+      const options = buildPrimaryModelSubmenuOptions(profileData, {}, api);
+      expect(CATALOG_GROUPS.map((group) => group.labelEs)).toEqual(['GENERAL', 'JUECES', '4R REVIEW', 'Auxiliares']);
+      expect(options.filter((option) => option.value.startsWith('model:')).map((option) => option.title)).toEqual([
+        'Gentle-orchestrator', 'gentle-ai-verify', 'gentle-ai-worker', 'gentle-ai-explore',
+        'jd-fix-agent', 'jd-judge-b', 'jd-judge-a', 'review-risk', 'review-refuter',
+        'review-readability', 'review-reliability', 'review-resilience', 'review-validator',
+        'gentle-ai-windows-validator', 'compaction', 'summary', 'title',
+      ]);
+      expect(options.find((option) => option.value === 'model:gentle-orchestrator')?.description).toContain('runtime/orchestrator');
+      expect(options.find((option) => option.value === 'model:gentle-ai-worker')?.description).toContain('runtime/worker');
+      expect(options.some((option) => option.value.startsWith('model:sdd-'))).toBe(false);
+      expect(JSON.stringify(profileData)).toBe(before);
+    });
+
     const createMockApi = (configAgent: any = {}) => ({
       ui: {
         dialog: {
@@ -548,9 +571,9 @@ describe('dialog pure builders', () => {
     });
 
     it.each([
-      ['primary runtime (T10)', { 'sdd-spec': {} }, 'sdd-spec', 'model:sdd-spec', undefined],
-      ['primary configured (T10)', { 'sdd-spec': {} }, 'sdd-spec', 'model:sdd-spec', undefined],
-      ['fallback runtime (T11)', { 'sdd-spec-fallback': {} }, 'sdd-spec-fallback', 'fallback:sdd-spec', undefined],
+      ['primary runtime (T10)', { 'gentle-ai-verify': {} }, 'gentle-ai-verify', 'model:gentle-ai-verify', undefined],
+      ['primary configured (T10)', { 'gentle-ai-worker': {} }, 'gentle-ai-worker', 'model:gentle-ai-worker', undefined],
+      ['fallback runtime (T11)', { 'gentle-ai-verify-fallback': {} }, 'gentle-ai-verify-fallback', 'fallback:gentle-ai-verify', undefined],
     ])('%s', (_, agentConfig, displayName, expectedValue, expectedBadge) => {
       const api = createMockApi(agentConfig);
       const catalog = buildCatalogSections(api.state.config, { models: {} });
@@ -565,14 +588,14 @@ describe('dialog pure builders', () => {
     });
 
     it('displays fallback model desc from profileKey and badge from displayName hasOwn (T18)', () => {
-      const api = createMockApi({ 'sdd-apply-fallback': {} });
-      const profileData = { fallback: { 'sdd-apply': 'openai/gpt-4.1-mini' } };
+      const api = createMockApi({ 'gentle-ai-worker-fallback': {} });
+      const profileData = { fallback: { 'gentle-ai-worker': 'openai/gpt-4.1-mini' } };
       const catalog = buildCatalogSections(api.state.config, profileData as any);
       const options = buildFallbackSubmenuOptions(profileData, catalog, api);
-      const option = options.find((opt) => opt.value === 'fallback:sdd-apply');
+      const option = options.find((opt) => opt.value === 'fallback:gentle-ai-worker');
 
       expect(option).toBeDefined();
-      expect(option?.title).toBe('sdd-apply');
+      expect(option?.title).toBe('gentle-ai-worker');
       expect(option?.description).toContain('openai/gpt-4.1-mini');
       expect(option?.badge).toBeUndefined();
     });
@@ -691,7 +714,7 @@ describe('dialog pure builders', () => {
       const expectedAgents = CATALOG_GROUPS.flatMap((group) => group.agents);
       expect(primary.filter((option) => option.value.startsWith('model:')).map((option) => option.value.slice(6))).toEqual(expectedAgents);
       expect(fallback.filter((option) => option.value.startsWith('fallback:')).map((option) => option.value.slice(9))).toEqual(expectedAgents.filter((agent) => agent === 'gentle-ai-windows-validator' || !['compaction', 'summary', 'title'].includes(agent)));
-      expect(CATALOG_GROUPS.map((group) => group.labelEs)).toEqual(['Orquestador', 'Núcleo SDD', 'Judgment Day', 'Revisores', 'Auxiliares']);
+      expect(CATALOG_GROUPS.map((group) => group.labelEs)).toEqual(['GENERAL', 'JUECES', '4R REVIEW', 'Auxiliares']);
       expect(primary.filter((option) => option.value.startsWith('model:')).map((option) => option.category)).toEqual(CATALOG_GROUPS.flatMap((group) => group.agents.map(() => group.labelEs)));
       expect(primary.some((option) => option.value === '__catalog_separator__' || option.description === 'No seleccionable')).toBe(false);
     });

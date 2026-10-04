@@ -147,6 +147,63 @@ describe('todo-help — todo text/priority/done visuals', () => {
     dialog.querySelector('[data-todo-close]').click();
     assert.equal(dialog.dataset.open, 'false');
   });
+
+  it('shows five attention signals by default and expands the remaining signals on demand', () => {
+    const state = createState({
+      todos: Array.from({ length: 7 }, (_, index) => ({
+        id: `td-${index + 1}`,
+        text: `Signal ${index + 1}`,
+        priority: index < 2 ? 'P0' : 'P1',
+        done: false,
+      })),
+    });
+    const { document, todoHelp } = mountWithTodoHelp(state);
+
+    const items = Array.from(document.querySelectorAll('.todo-item'));
+    assert.equal(items.length, 7);
+    assert.equal(items.filter((item) => item.style.display === 'none').length, 2);
+
+    const toggle = document.getElementById('btn-toggle-todos');
+    assert.match(toggle.textContent, /Mostrar todas las señales \(7\)/i);
+    toggle.click();
+    assert.equal(items.filter((item) => item.style.display === 'none').length, 0);
+    assert.match(toggle.textContent, /Contraer a las 5 principales/i);
+    assert.equal(toggle.querySelector('.todo-toggle-arrow').textContent, '▴');
+  });
+
+  it('opens external credit links through the delegated safe listener for mouse and keyboard', () => {
+    const state = createState({ todos: [] });
+    const { document, window } = mountWithTodoHelp(state);
+    const calls = [];
+    window.open = (...args) => calls.push(args);
+    const link = document.querySelector('[data-external-link]');
+    assert.notEqual(link, null);
+
+    link.click();
+    link.dispatchEvent(new window.KeyboardEvent('keydown', { key: 'Enter', bubbles: true }));
+
+    assert.equal(calls.length, 2);
+    assert.equal(calls[0][0], link.getAttribute('data-external-link'));
+    assert.equal(calls[0][1], '_blank');
+    assert.equal(calls[0][2], 'noopener,noreferrer');
+  });
+
+  it('keeps TikTok placeholder non-navigable with no external link and preserves safe external links', () => {
+    const state = createState({ todos: [] });
+    const { document } = mountWithTodoHelp(state);
+    const tiktok = document.querySelector('.btn-tiktok-pending');
+    assert.notEqual(tiktok, null, 'TikTok placeholder must exist');
+    assert.equal(tiktok.getAttribute('data-external-link'), null, 'TikTok placeholder must have no data-external-link');
+    assert.equal(tiktok.getAttribute('aria-disabled'), 'true');
+    assert.match(tiktok.textContent, /TikTok/i);
+
+    const safeLinks = Array.from(document.querySelectorAll('#view-acknowledgements [data-external-link]')).map((el) => el.getAttribute('data-external-link'));
+    assert.ok(safeLinks.includes('https://github.com/RamonsDka'));
+    assert.ok(safeLinks.includes('https://github.com/RamonsDka/task-manager-portable'));
+    assert.ok(safeLinks.includes('https://www.youtube.com/@RamonsDk-Dev'));
+    assert.ok(safeLinks.includes('https://gentlemanprogramming.com/#consulting'));
+    assert.ok(safeLinks.includes('https://github.com/Gentleman-Programming/gentle-ai'));
+  });
 });
 
 describe('todo-help — help shows copy/AI-update/schema + AI-instructions; labels override', () => {

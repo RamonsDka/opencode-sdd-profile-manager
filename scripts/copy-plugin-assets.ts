@@ -84,7 +84,12 @@ export function copyPluginAssets(packageRoot = root): void {
     execSync("npm run build", { cwd: suiteDir, stdio: "inherit" });
   }
 
-  for (const plugin of ["suite-de-agentes", "task-manager"]) {
+  const vaultDir = path.join(packageRoot, "plugins", "opencode-session-vault");
+  if (fs.existsSync(path.join(vaultDir, "package.json"))) {
+    execSync("npm run build", { cwd: vaultDir, stdio: "inherit" });
+  }
+
+  for (const plugin of ["suite-de-agentes", "task-manager", "opencode-session-vault"]) {
     const src = path.join(packageRoot, "plugins", plugin);
     const dest = path.join(packageRoot, "dist", "plugins", plugin);
     if (fs.existsSync(dest)) {

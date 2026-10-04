@@ -51,7 +51,7 @@ my-project/
 ## Visual Tour
 
 ### 1. Executive Summary & HUD
-The Header HUD consolidates overall project progress, risk indicators, task distribution, current SDD phase, Git lineage, test coverage, and key insights.
+The Header HUD consolidates overall project progress, risk indicators, task distribution, current ODD phase, Git lineage, test coverage, and key insights.
 
 ![Executive Summary](docs/image/overview-dashboard.jpg)
 

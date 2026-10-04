@@ -13,6 +13,7 @@ import { createLogger } from "./logger";
 import {
   applyProfileReasoningEffort,
   getReasoningEffortOptions,
+  getReasoningVariantOptions,
   pruneProfileReasoningEffort,
   normalizeProfileConfigs,
   resolveReasoningEffortSelection,
@@ -55,7 +56,7 @@ import {
   isCatalogVisibleAgent,
   withFileLock,
 } from "./utils";
-import { FALLBACK_SYNC_BASE_ORDER, deriveFallbackProfileKey, isValidAgentKey } from "./catalog";
+import { FALLBACK_SYNC_BASE_ORDER, PERSISTIBLE_AGENT_KEYS, deriveFallbackProfileKey, isValidAgentKey } from "./catalog";
 import { resolvePaths, ensureProfilesDir } from "./config";
 import {
   canonicalizeProfileModels,
@@ -981,14 +982,15 @@ export function buildBulkProfileOverwrite(
     const modelMap = target === BULK_ASSIGNMENT_TARGET.FALLBACK ? nextFallback : nextModels;
     const configKey = target === BULK_ASSIGNMENT_TARGET.FALLBACK ? `${targetName}-fallback` : targetName;
     if (modelMap[targetName] !== trimmedModelId) modelsAssigned += 1;
-    const currentEffort = nextConfigs[configKey]?.reasoningEffort;
+    const currentEffort = nextConfigs[configKey]?.nativeVariant || nextConfigs[configKey]?.reasoningEffort;
     if (reasoningEffort) {
       if (currentEffort !== reasoningEffort) effortsAssigned += 1;
-      nextConfigs[configKey] = { ...nextConfigs[configKey], reasoningEffort };
+      nextConfigs[configKey] = getReasoningVariantOptions(context.providers as any[], trimmedModelId).some(option => option.variantId === reasoningEffort)
+        ? { nativeVariant: reasoningEffort } : { reasoningEffort };
     } else {
       if (currentEffort) effortsAssigned += 1;
       if (nextConfigs[configKey]) {
-        const { reasoningEffort: _, ...rest } = nextConfigs[configKey];
+        const { reasoningEffort: _, nativeVariant: _variant, ...rest } = nextConfigs[configKey];
         if (Object.keys(rest).length > 0) {
           nextConfigs[configKey] = rest;
         } else {
@@ -1332,10 +1334,9 @@ export function commitPendingModelSelection(
       const fallbackConfigKey = `${pending.agentName}-fallback`;
       const nextConfigs = { ...nextProfile.configs };
       if (resolvedEffort) {
-        nextConfigs[fallbackConfigKey] = {
-          ...nextConfigs[fallbackConfigKey],
-          reasoningEffort: resolvedEffort,
-        };
+        nextConfigs[fallbackConfigKey] = getReasoningVariantOptions(context?.providers as any[] || [], pending.modelId).some(option => option.variantId === resolvedEffort)
+          ? { nativeVariant: resolvedEffort }
+          : { reasoningEffort: resolvedEffort };
       } else {
         delete nextConfigs[fallbackConfigKey];
       }
@@ -1344,7 +1345,7 @@ export function commitPendingModelSelection(
     } else {
       const resolvedEffort = resolvePendingReasoningEffort(context, pending.modelId, effortSelection || "provider-default");
       const mutation = preparePrimaryModelMutation(nextProfile, pending.agentName, pending.modelId, policy);
-      const reasonedProfile = updateProfileReasoningEffort(mutation.profile, mutation.agentName, resolvedEffort);
+       const reasonedProfile = updateProfileReasoningEffort(mutation.profile, mutation.agentName, resolvedEffort, context?.providers as any[]);
       delete nextProfile.configs;
       Object.assign(nextProfile, reasonedProfile);
     }
@@ -1352,8 +1353,8 @@ export function commitPendingModelSelection(
     const effortConfigKey = pending.field === PROFILE_PHASE_MODEL_FIELD.FALLBACK
       ? `${pending.agentName}-fallback`
       : pending.agentName;
-    const currentEffort = profileData.configs?.[effortConfigKey]?.reasoningEffort;
-    const nextEffort = nextProfile.configs?.[effortConfigKey]?.reasoningEffort;
+    const currentEffort = JSON.stringify(profileData.configs?.[effortConfigKey]);
+    const nextEffort = JSON.stringify(nextProfile.configs?.[effortConfigKey]);
     const changed = currentModel !== pending.modelId || currentEffort !== nextEffort;
     const contextValue = context || { providers: [], effortPolicy: "none" as const };
     if (!changed) return { profile: profileData, changed: false, context: contextValue };
@@ -1509,13 +1510,16 @@ export function validateProfileFallbackMapping(config: any, fallback: ProfileFal
   const agents = normalizeConfigAgent(config?.agent);
 
   for (const [baseAgentName, model] of Object.entries(fallback || {})) {
-    const isStoredOnlyCatalogKey = isCatalogVisibleAgent(baseAgentName);
-    if (!isFallbackEligibleSddAgent(baseAgentName) && !isStoredOnlyCatalogKey) {
+    // Historical coordinator intent remains stored, never a generated fallback target.
+    const isStoredOnlyCatalogKey = isCatalogVisibleAgent(baseAgentName) ||
+      baseAgentName === "sdd-ORCHETATOR" || baseAgentName === LEGACY_ORCHESTRATOR;
+    const isExplicitHistoricalTarget = baseAgentName === "model-audit";
+    if (!isFallbackEligibleSddAgent(baseAgentName) && !isStoredOnlyCatalogKey && !isExplicitHistoricalTarget) {
       errors.push(`Invalid fallback target '${baseAgentName}'. Must be a managed base agent (sdd-*, review-*, jd-*, excluding sdd-orchestrator).`);
       continue;
     }
 
-    if (isFallbackEligibleSddAgent(baseAgentName) && !agents[baseAgentName]) {
+    if ((isFallbackEligibleSddAgent(baseAgentName) || isExplicitHistoricalTarget) && !agents[baseAgentName]) {
       errors.push(`Fallback target '${baseAgentName}' does not exist in active config.`);
       continue;
     }
@@ -1541,7 +1545,8 @@ function hasExplicitFallbackOverride(fallbackModels: ProfileFallbackModels, agen
 
 function isFallbackSyncBaseAgent(agentName: string, fallbackModels: ProfileFallbackModels): boolean {
   if (isFallbackEligibleSddAgent(agentName)) return true;
-  return isRuntimeSyncEligibleAgent(agentName) && hasExplicitFallbackOverride(fallbackModels, agentName);
+  return (isRuntimeSyncEligibleAgent(agentName) || agentName === "model-audit") &&
+    hasExplicitFallbackOverride(fallbackModels, agentName);
 }
 
 /**
@@ -1639,6 +1644,7 @@ function applyProfileModelsToConfig(currentConfig: any, profileModels: ProfileMo
       ...(existing && typeof existing === "object" && !Array.isArray(existing) ? existing : {}),
       model: modelId,
     };
+    if (existing?.model !== modelId) delete nextConfig.agent[agentName].variant;
   }
 
   return nextConfig;
@@ -1714,7 +1720,9 @@ export async function activateProfileFile(api: any, profilePath: string, profile
     let currentConfig: any;
     if (fs.existsSync(configPath)) {
       try {
-        currentConfig = JSON.parse(stripJsonBom(fs.readFileSync(configPath, "utf-8")));
+      currentConfig = api.nativeConfigDocument
+        ? (await api.client.global.config.get()).data
+        : JSON.parse(stripJsonBom(fs.readFileSync(configPath, "utf-8")));
       } catch (e) {
         log.error(`activateProfileFile: failed to parse global config ${configPath}`, e);
         throw new Error("Global config JSON is invalid");
@@ -1725,21 +1733,41 @@ export async function activateProfileFile(api: any, profilePath: string, profile
     }
 
     const runtimeConfigResult = await api.client.global.config.get();
-    const runtimeConfig = runtimeConfigResult?.data || {};
-    const policy = getOrchestratorPolicy(Object.keys(currentConfig?.agent || {}), currentConfig?.default_agent);
+    const installedAgents = typeof api.getInstalledAgentDefinitions === "function"
+      ? await api.getInstalledAgentDefinitions()
+      : {};
+    const runtimeConfig = {
+      ...runtimeConfigResult?.data,
+      agent: { ...installedAgents, ...normalizeConfigAgent(runtimeConfigResult?.data?.agent) },
+    };
+    const policy = getOrchestratorPolicy([
+      UPDATED_ORCHESTRATOR,
+      ...Object.keys(normalizeConfigAgent(currentConfig?.agent)),
+      ...Object.keys(runtimeConfig.agent),
+    ], currentConfig?.default_agent);
+    // Activation is a projection of the current catalog, never a history migration.
+    const currentModels = Object.fromEntries(
+      Object.entries(canonicalizeProfileModels(profileData.models || {}, policy))
+        .filter(([name]) => PERSISTIBLE_AGENT_KEYS.includes(name as any)),
+    );
     const discovered = discoverInstalledAgentDefinitions(
       currentConfig,
       runtimeConfig,
-      canonicalizeProfileModels(profileData.models || {}, policy),
+      currentModels,
     );
-    const nextConfigWithModels = applyProfileModelsToConfig(discovered.config, discovered.models);
-    const fallbackValidationErrors = validateProfileFallbackMapping(nextConfigWithModels, profileData.fallback || {});
-    if (fallbackValidationErrors.length > 0) {
-      throw new Error(fallbackValidationErrors.join(" | "));
-    }
-
-    const nextConfigWithFallback = syncSddFallbackAgents(nextConfigWithModels, profileData.fallback || {}, profileData.configs);
-    const reasoningResult = applyProfileReasoningEffort(nextConfigWithFallback, profileData, api?.state?.provider || [], policy);
+    // Historical fallback/reasoning intent remains stored and inert in this unit.
+    const activationProfile = {
+      models: discovered.models,
+      configs: Object.fromEntries(Object.entries(normalizeProfileConfigs(profileData.configs, policy, true) || {})
+        .filter(([name]) => Object.hasOwn(discovered.models, name))),
+    };
+    const reasoningResult = applyProfileReasoningEffort(
+      applyProfileModelsToConfig(discovered.config, discovered.models),
+      activationProfile,
+      api.state?.provider || [],
+      policy,
+      true,
+    );
     const nextConfig = reasoningResult.config;
 
     const result = await api.client.global.config.update({
@@ -1748,23 +1776,12 @@ export async function activateProfileFile(api: any, profilePath: string, profile
 
     if (result?.error) throw new Error(formatConfigUpdateError(result.error));
 
-    if (fs.existsSync(configPath)) {
-      const shouldRewriteConfigFile = reasoningResult.clearedAgents.length > 0;
-      if (shouldRewriteConfigFile) {
-        fs.writeFileSync(configPath, JSON.stringify(nextConfig, null, 2));
-      }
-    }
-
     const warnings = [
       ...(discovered.missing.length > 0 ? [`Missing agent definitions: ${discovered.missing.join(", ")}`] : []),
       ...reasoningResult.warnings,
     ];
     if (warnings.length > 0) {
-      api.ui.toast({
-        title: "Activation Warning",
-        message: warnings.join(" | "),
-        variant: "warning",
-      });
+      log.warn(`activateProfileFile: ${warnings.join(" | ")}`);
     }
 
     // IMPORTANT:

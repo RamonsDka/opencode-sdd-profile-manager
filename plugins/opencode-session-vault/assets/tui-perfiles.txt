@@ -1,0 +1,42 @@
+╭──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────╮
+│                                                                                                                      │
+│ SESSION VAULT                                                                                   [g] ⚙ Configuración  │
+│ BASE DE DATOS DE OPENCODE · Perfiles de retención                                                                    │
+│                                                                                                                      │
+│ ┌───────────────────────────┐ ┌───────────────────────────┐ ┌──────────────────────┐ ┌─────────────────────────────┐ │
+│ │ 15                        │ │ 2                         │ │ 10                   │ │ 0                           │ │
+│ │ Familias                  │ │ Candados                  │ │ Cupo                 │ │ Candidatas                  │ │
+│ └───────────────────────────┘ └───────────────────────────┘ └──────────────────────┘ └─────────────────────────────┘ │
+│                                                                                                                      │
+│  [1] Últimas 10  ✓ ACTUAL                                                                                            │
+│                                                                                                                      │
+│  [2] Básico · 15%                                                                                                    │
+│                                                                                                                      │
+│  [3] Moderado · 25%                                                                                                  │
+│                                                                                                                      │
+│  [4] Conservador · 40%                                                                                               │
+│                                                                                                                      │
+│  [5] Mod · personalizado                                                                                             │
+│                                                                                                                      │
+│ El porcentaje establece un cupo fijo sobre familias sin candado.                                                     │
+│                                                                                                                      │
+│ Se redondea hacia arriba. Mínimo: 1. Los candados se conservan además del cupo.                                      │
+│                                                                                                                      │
+│                                                                                                                      │
+│                                                                                                                      │
+│                                                                                                                      │
+│ ┌──────────────────────────────────────────────────────────────────────────────────────────────────────────────────┐ │
+│ │  [p] Últimas 10   [m] Mantenimiento                                                        AUTO PAUSADO · v0.1.0 │ │
+│ │  [1–5]  Elegir perfil   Esc  Volver                                                                              │ │
+│ │  ← Volver a sesiones                                                                                             │ │
+│ └──────────────────────────────────────────────────────────────────────────────────────────────────────────────────┘ │
+│ 0 familias candidatas · 15 sin verificar protegidas. El candado siempre tiene prioridad.                             │
+│                                                                                                                      │
+╰──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────╯
+                                                                                                                        
+                                                                                                                        
+                                                                                                                        
+                                                                                                                        
+                                                                                                                        
+                                                                                                                        
+                                                                                                                        

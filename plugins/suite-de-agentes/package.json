@@ -3,45 +3,67 @@
   "version": "1.1.0",
   "description": "Named agent suites, model profiles, and per-turn consent controls for OpenCode",
   "type": "module",
-  "main": "./dist/server.js",
+  "main": "./src/server/index.ts",
   "exports": {
-    ".": { "import": "./dist/server.js" },
-    "./server": { "import": "./dist/server.js" },
-    "./tui": { "import": "./dist/tui.js" },
-    "./core": { "import": "./dist/core/index.js" }
+    ".": {
+      "import": "./src/server/index.ts"
+    },
+    "./server": {
+      "import": "./src/server/index.ts"
+    },
+    "./tui": {
+      "import": "./src/tui/index.tsx"
+    },
+    "./core": {
+      "import": "./dist/core/index.js"
+    }
   },
-  "files": ["dist", "README.md", "LICENSE", "docs", "examples", "install.ps1", "install.sh", "scripts"],
+  "files": [
+    "src",
+    "dist",
+    "README.md",
+    "LICENSE",
+    "docs",
+    "examples",
+    "install.ps1",
+    "install.sh",
+    "scripts"
+  ],
   "scripts": {
     "build": "tsup",
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
     "test:watch": "vitest",
-    "package": "node scripts/package.mjs",
-    "prepack": "npm run build"
+    "package": "node scripts/package.mjs"
   },
   "peerDependencies": {
     "@opencode-ai/plugin": ">=1.18.5",
-    "@opentui/core": ">=0.4.2 <1",
-    "@opentui/keymap": ">=0.4.2 <1",
-    "@opentui/solid": ">=0.4.2 <1",
-    "solid-js": "^1.9.12"
+    "@opencode/plugin": "2.0.21",
+    "@opentui/core": ">=0.5.14 <1",
+    "@opentui/keymap": ">=0.5.14 <1",
+    "@opentui/solid": ">=0.5.14 <1",
+    "solid-js": ">=1.9.15 <2"
   },
   "dependencies": {
     "@opencode-ai/sdk": "1.18.5"
   },
   "devDependencies": {
     "@opencode-ai/plugin": "1.18.5",
-    "@opentui/core": "0.4.5",
-    "@opentui/keymap": "0.4.5",
-    "@opentui/solid": "0.4.5",
+    "@opencode/plugin": "2.0.21",
+    "@opentui/core": "0.5.14",
+    "@opentui/keymap": "0.5.14",
+    "@opentui/solid": "0.5.14",
     "@types/babel__core": "^7.20.5",
     "@types/node": "25.7.0",
     "esbuild-plugin-solid": "0.6.0",
-    "solid-js": "^1.9.12",
+    "solid-js": "1.9.15",
     "tsup": "8.5.1",
     "typescript": "6.0.3",
     "vitest": "4.1.6"
   },
-  "engines": { "node": ">=24.15.0 <25", "opencode": ">=1.18.5" },
+  "engines": {
+    "node": ">=24.15.0 <25",
+    "opencode": ">=1.18.5"
+  },
   "license": "MIT"
 }

@@ -1,0 +1,46 @@
+OPENCODE SESSION VAULT — v0.1.0
+
+WINDOWS
+1. Extrae todo el ZIP.
+2. Cierra OpenCode.
+3. Abre INSTALAR.cmd con doble clic.
+4. Vuelve a abrir OpenCode.
+5. Escribe /session-vault y pulsa Enter.
+
+Si el instalador dice que falta Node.js:
+Instala Node.js 22.6 o posterior desde https://nodejs.org/
+Después vuelve a abrir INSTALAR.cmd.
+
+Requiere OpenCode 1.18.29 de la rama 1.x. No uses este paquete con OpenCode 2 beta.
+
+AL PRINCIPIO
+- Conserva las últimas 10 familias, más las protegidas.
+- La limpieza automática está PAUSADA.
+- Mueve la selección con las flechas.
+- Espacio pone o quita el candado.
+- v muestra lo que se borraría.
+- c, dentro de la vista previa, pide escribir LIMPIAR para ejecutar.
+- g abre configuración. a permite activar o pausar el automático.
+- p abre los perfiles: 10, 15%, 25%, 40% o personalizado.
+- Esc vuelve atrás o cierra la ventana.
+
+Usa una sola instancia de OpenCode al limpiar.
+Amplía la terminal a un mínimo de 70 columnas y 30 filas.
+
+ANTES DE BORRAR
+El plugin guarda y comprueba una copia comprimida del chat.
+RESTAURAR.cmd permite extraer una copia y obtener los comandos para importarla.
+Las copias no son un respaldo completo de todos los archivos o eventos de OpenCode.
+
+EL ARCHIVO DE LA BASE NO SE ACHICA INMEDIATAMENTE
+SQLite puede conservar espacio vacío para reutilizarlo.
+La compactación se hace aparte con OpenCode cerrado.
+Lee docs/05-MANTENIMIENTO.md antes de usar esa opción.
+
+Este paquete es un MVP funcional. Se probó con OpenCode real en Linux.
+Incluye instalador de Windows; todavía no se ejecutó en Windows nativo.
+
+Más información: README.md
+Auditoría y planificación: docs/
+Código listo para instalar: dist/
+Código editable y pruebas: src/, scripts/, test/

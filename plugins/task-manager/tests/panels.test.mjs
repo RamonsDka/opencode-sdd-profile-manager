@@ -175,6 +175,9 @@ describe('panels — git snapshot verbatim, zero runtime calls; tree depth; code
     assert.notEqual(svg, null, 'SVG should exist');
     const nodes = svg.querySelectorAll('g.graph-node');
     assert.equal(nodes.length, 2, 'should have 2 nodes');
+    const transforms = Array.from(nodes).map((node) => node.getAttribute('transform'));
+    assert.notEqual(transforms[0], transforms[1], 'radial layout must assign distinct node positions');
+    assert.match(transforms[0], /^translate\([\d.]+,[\d.]+\)$/);
     const nodeBgs = svg.querySelectorAll('circle.node-bg');
     assert.equal(nodeBgs.length, 2, 'should have 2 node circles');
     const paths = svg.querySelectorAll('path.graph-edge');

@@ -134,11 +134,22 @@ describe('utils logic', () => {
     });
 
     it('keeps catalog visibility, persistence, and runtime sync as separate boundaries', () => {
-      expect(isCatalogVisibleAgent('sdd-ORCHETATOR')).toBe(true);
-      expect(isPersistibleAgentKey('sdd-ORCHETATOR')).toBe(true);
+      expect(isCatalogVisibleAgent('sdd-ORCHETATOR')).toBe(false);
+      expect(isPersistibleAgentKey('sdd-ORCHETATOR')).toBe(false);
+      expect(isCatalogVisibleAgent('gentle-orchestrator')).toBe(true);
+      for (const name of ['gentle-ai-worker', 'gentle-ai-explore', 'gentle-ai-verify']) {
+        expect(isManagedSddAgent(name)).toBe(true);
+        expect(isSddFallbackAgent(`${name}-fallback`)).toBe(true);
+        expect(isFallbackEligibleSddAgent(name)).toBe(true);
+        expect(isRuntimeSyncEligibleAgent(name)).toBe(true);
+      }
+      for (const name of ['gentle-ai-windows-validator', 'compaction', 'summary', 'title', 'unknown-agent']) {
+        expect(isManagedSddAgent(name)).toBe(false);
+        expect(isFallbackEligibleSddAgent(name)).toBe(false);
+      }
       expect(isPersistibleAgentKey('─────────────')).toBe(false);
 
-      expect(isRuntimeSyncEligibleAgent('sdd-apply')).toBe(true);
+      expect(isRuntimeSyncEligibleAgent('sdd-apply')).toBe(false);
       expect(isRuntimeSyncEligibleAgent('gentle-ai-windows-validator')).toBe(true);
       expect(isRuntimeSyncEligibleAgent('sdd-ORCHETATOR')).toBe(false);
       expect(isRuntimeSyncEligibleAgent('compaction')).toBe(false);

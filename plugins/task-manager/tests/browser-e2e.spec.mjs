@@ -69,11 +69,14 @@ test('fixed offline artifact preserves boundaries and browser behavior', async (
     if (box) assert.ok(box.width >= 44 && box.height >= 44, `${await control.getAttribute('id')} is ${box.width}×${box.height}`);
   }
 
-  for (const index of [0, 1, 2, 3, 4, 5, 6]) {
+  for (const index of [0, 1, 2, 3, 4, 5, 6, 7]) {
     await page.locator('.tab-btn[data-target-view]').nth(index).click();
     await expect(page.locator('.tab-btn[aria-selected="true"]')).toHaveCount(1);
     await page.keyboard.press(String(index + 1));
   }
+  await page.keyboard.press('8');
+  await expect(page.locator('#view-acknowledgements')).toBeVisible();
+  await expect(page.locator('#tab-btn-acknowledgements')).toHaveAttribute('aria-selected', 'true');
   await page.keyboard.press('2');
   const editable = page.locator('#task-filter-text');
   await editable.fill('phase');
@@ -202,9 +205,46 @@ test('fixed offline artifact preserves boundaries and browser behavior', async (
   await expect(insightsCard.locator('.insight-meta-strip')).toBeVisible();
   await expect(insightsCard.locator('.insight-owners')).toBeVisible();
   await expect(insightsCard.locator('.insight-tags')).toBeVisible();
+  const metaStripBox = await insightsCard.locator('.insight-meta-strip').boundingBox();
+  if (metaStripBox) {
+    assert.ok(metaStripBox.height < 250, `Owners/Tags strip height (${metaStripBox.height}px) must be compact, without vertical stretching or void`);
+  }
   await expect(insightsCard.locator('.insight-status-region')).toHaveCount(0);
   await expect(insightsCard.locator('.insight-risk-region')).toHaveCount(0);
   await expect(insightsCard.locator('.insight-trend-region')).toHaveCount(0);
+
+  // Test Overview Credits Teaser and CTA jump to Acknowledgements View
+  const teaserSection = page.locator('#overview-credits-section');
+  await expect(teaserSection).toBeVisible();
+  const teaserCta = teaserSection.locator('#btn-open-acknowledgements');
+  await expect(teaserCta).toBeVisible();
+  await teaserCta.click();
+  await expect(page.locator('#view-acknowledgements')).toBeVisible();
+  await expect(page.locator('#tab-btn-acknowledgements')).toHaveAttribute('aria-selected', 'true');
+
+  // Verify elements inside full Acknowledgements view
+  const ackView = page.locator('#view-acknowledgements');
+  await expect(ackView.locator('.avatar-author')).toBeVisible();
+  await expect(ackView.locator('.avatar-gentle')).toBeVisible();
+  await expect(ackView.locator('.avatar-media')).toBeVisible();
+  await expect(ackView.locator('.avatar-future')).toBeVisible();
+
+  // TikTok placeholder non-navigable
+  const tiktokBtn = ackView.locator('.btn-tiktok-pending');
+  await expect(tiktokBtn).toBeVisible();
+  await expect(tiktokBtn).toHaveAttribute('aria-disabled', 'true');
+  await expect(tiktokBtn).not.toHaveAttribute('data-external-link');
+
+  // Check safe external links in acknowledgements
+  const extLinks = await ackView.locator('[data-external-link]').evaluateAll((els) => els.map((e) => e.getAttribute('data-external-link')));
+  assert.ok(extLinks.includes('https://github.com/RamonsDka'));
+  assert.ok(extLinks.includes('https://github.com/RamonsDka/task-manager-portable'));
+  assert.ok(extLinks.includes('https://www.youtube.com/@RamonsDk-Dev'));
+  assert.ok(extLinks.includes('https://gentlemanprogramming.com/#consulting'));
+  assert.ok(extLinks.includes('https://github.com/Gentleman-Programming/gentle-ai'));
+
+  // Return to overview for remaining tests
+  await page.keyboard.press('1');
 
   // Test Desglose de consumo y actividad por agente Detail Dialog layout and ordering
   await insightsCard.focus();

@@ -563,6 +563,13 @@
       color: var(--accent-blue);
     }
 
+    .tab-icon svg {
+      width: 14px;
+      height: 14px;
+      vertical-align: -2px;
+      display: inline-block;
+    }
+
     .tab-badge {
       font-size: 10px;
       font-family: var(--font-mono);
@@ -776,6 +783,20 @@
       border-color: rgba(245, 158, 11, 0.4);
     }
 
+    .token-chip-preview {
+      color: #bc8cff;
+      background: rgba(137, 87, 229, 0.15);
+      border-color: rgba(137, 87, 229, 0.45);
+      font-weight: 600;
+    }
+
+    .token-chip-measured {
+      color: var(--accent-green);
+      background: rgba(16, 185, 129, 0.15);
+      border-color: rgba(16, 185, 129, 0.45);
+      font-weight: 600;
+    }
+
     /* Token Chart Bars */
     .token-chart-container {
       display: flex;
@@ -851,6 +872,12 @@
       background: rgba(245, 158, 11, 0.15);
       color: var(--accent-amber);
       border: 1px solid rgba(245, 158, 11, 0.3);
+    }
+
+    .token-evidence-preview {
+      background: rgba(137, 87, 229, 0.15);
+      color: #bc8cff;
+      border: 1px solid rgba(137, 87, 229, 0.4);
     }
 
     .token-agent-total {
@@ -979,20 +1006,82 @@
       color: var(--text-tertiary);
     }
 
-    /* Owners & Tags Horizontal Strip */
+    /* Owners & Tags Horizontal Strip — Auto-fit compact band */
     .insight-meta-strip.insight-side-rail,
     .insight-meta-strip,
     .insight-side-rail {
       display: flex;
+      flex-direction: row;
       align-items: flex-start;
       flex-wrap: wrap;
-      gap: 10px 24px;
+      gap: 12px 24px;
       background: var(--bg-surface-primary);
       border: 1px solid var(--border-subtle);
       border-radius: var(--radius-sm);
-      padding: 10px 14px;
+      padding: 12px 16px;
       width: 100%;
       min-width: 0;
+      min-height: 0;
+      height: auto;
+      align-self: flex-start;
+      box-sizing: border-box;
+    }
+
+    .insight-subregion {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      flex: 1 1 280px;
+      min-width: 0;
+      min-height: 0;
+      height: auto;
+      align-self: flex-start;
+    }
+
+    .insight-dimension-list {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px 8px;
+      align-items: center;
+      max-height: 140px;
+      overflow-y: auto;
+      padding-right: 4px;
+      min-width: 0;
+      min-height: 0;
+    }
+
+    .insight-dimension-list::-webkit-scrollbar {
+      width: 4px;
+    }
+    .insight-dimension-list::-webkit-scrollbar-thumb {
+      background: var(--border-medium);
+      border-radius: 4px;
+    }
+
+    .insight-dimension-line {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 11px;
+      color: var(--text-secondary);
+      background: var(--bg-surface-secondary);
+      border: 1px solid var(--border-subtle);
+      border-radius: var(--radius-full);
+      padding: 3px 10px;
+      font-variant-numeric: tabular-nums;
+      white-space: nowrap;
+      transition: all 0.15s ease;
+    }
+
+    .insight-dimension-line:hover {
+      border-color: var(--accent-blue);
+      color: var(--text-primary);
+      transform: translateY(-1px);
+    }
+
+    .insight-dimension-line strong {
+      color: var(--text-primary);
+      font-weight: 600;
     }
 
     @media (max-width: 640px) {
@@ -1001,20 +1090,12 @@
       .insight-side-rail {
         display: flex;
         flex-direction: column;
-        gap: 10px;
+        gap: 12px;
       }
     }
 
-    .insight-subregion {
-      display: flex;
-      flex-direction: column;
-      gap: 6px;
-      flex: 0 1 auto;
-      min-width: 0;
-    }
-
     .insight-subregion .insight-dimension-list {
-      flex-wrap: nowrap;
+      flex-wrap: wrap;
     }
 
     @media (max-width: 1100px) {
@@ -1951,26 +2032,27 @@
     .help-portability-note p { color:var(--text-tertiary); font-size:11.5px; margin:3px 0 8px; overflow-wrap:anywhere; }
     .help-portability-tags { display:flex; flex-wrap:wrap; gap:6px; }
     .help-portability-tags span { background:var(--bg-surface-tertiary); border:1px solid var(--border-subtle); border-radius:var(--radius-full); padding:3px 8px; color:var(--text-secondary); font-size:10.5px; }
-    #overview-detail-dialog { color:var(--text-primary); background:var(--bg-surface-primary); border:1px solid var(--border-focus); border-radius:var(--radius-lg); width:min(1080px,calc(100% - 32px)); max-width:none; max-height:min(820px,calc(100dvh - 32px)); margin:auto; padding:24px; box-shadow:var(--shadow-lg),0 0 50px rgba(88,166,255,.14); overflow:auto; }
-    #overview-detail-dialog::backdrop { background:rgba(3,6,10,.82); }
-    .overview-detail-heading { display:flex; align-items:flex-start; justify-content:space-between; gap:16px; margin-bottom:18px; }
-    #overview-detail-title { font-size:24px; color:var(--text-primary); }
-    #overview-detail-value { color:var(--accent-blue); font:700 22px var(--font-mono); }
-    #overview-detail-summary { color:var(--text-secondary); max-width:68ch; margin-top:5px; }
-    #overview-detail-content { display:flex; flex-direction:column; gap:16px; width:100%; }
+    #overview-detail-dialog { color:var(--text-primary); background:var(--bg-surface-primary); border:1px solid var(--border-focus); border-radius:var(--radius-lg); width:min(1080px,calc(100% - 32px)); max-width:none; max-height:min(850px,calc(100dvh - 32px)); margin:auto; padding:28px; box-shadow:var(--shadow-lg),0 0 60px rgba(88,166,255,.18); overflow:auto; }
+    #overview-detail-dialog::backdrop { background:rgba(3,6,10,.86); backdrop-filter:blur(6px); }
+    .overview-detail-heading { display:flex; align-items:flex-start; justify-content:space-between; gap:20px; margin-bottom:22px; padding-bottom:18px; border-bottom:1px solid var(--border-subtle); }
+    #overview-detail-title { font-size:26px; font-weight:700; color:var(--text-primary); letter-spacing:-0.02em; line-height:1.2; }
+    #overview-detail-value { color:var(--accent-blue); font:700 28px var(--font-mono); margin-top:4px; letter-spacing:-0.01em; display:inline-block; text-shadow:0 0 16px rgba(88,166,255,.3); }
+    #overview-detail-summary { color:var(--text-secondary); max-width:72ch; margin-top:8px; font-size:13.5px; line-height:1.5; }
+    #overview-detail-content { display:flex; flex-direction:column; gap:20px; width:100%; }
     .overview-detail-main-custom { width:100%; min-width:0; }
-    .overview-detail-meta-strip { display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); gap:12px; width:100%; }
-    @media (max-width:900px) { .overview-detail-meta-strip { grid-template-columns:repeat(2,minmax(0,1fr)); } }
-    @media (max-width:480px) { .overview-detail-meta-strip { grid-template-columns:1fr; } }
-    .overview-detail-section { background:var(--bg-surface-secondary); border:1px solid var(--border-subtle); border-radius:var(--radius-sm); padding:12px 14px; min-width:0; }
-    .overview-detail-section h3 { color:var(--text-tertiary); font:600 11px var(--font-mono); text-transform:uppercase; letter-spacing:0.04em; margin-bottom:8px; }
-    .overview-meta-list { display:flex; flex-direction:column; gap:4px; padding:0; margin:0; list-style:none; }
-    .overview-meta-list li { font-size:12px; color:var(--text-secondary); line-height:1.4; word-break:break-word; }
-    .overview-detail-missing { background:var(--bg-surface-secondary); border:1px solid rgba(210,153,34,.48); border-radius:var(--radius-sm); padding:12px 14px; }
-    .overview-detail-missing h3 { color:var(--text-primary); font-size:13px; margin-bottom:8px; }
-    .overview-detail-missing p { color:var(--accent-amber); margin-bottom:8px; font-size:12px; }
-    .overview-detail-missing ul { display:flex; flex-direction:column; gap:4px; padding-left:18px; color:var(--text-secondary); font-size:12px; }
-    .overview-detail-actions { display:flex; justify-content:flex-end; gap:8px; flex-wrap:wrap; margin-top:18px; }
+    .overview-detail-meta-strip { display:grid; grid-template-columns:repeat(auto-fit, minmax(220px, 1fr)); gap:14px; width:100%; }
+    .overview-detail-section { background:linear-gradient(180deg, var(--bg-surface-secondary) 0%, rgba(22,27,34,0.6) 100%); border:1px solid var(--border-subtle); border-radius:var(--radius-md); padding:16px 18px; min-width:0; box-shadow:0 4px 12px rgba(0,0,0,0.25); display:flex; flex-direction:column; gap:10px; transition:border-color 0.2s ease, transform 0.2s ease; }
+    .overview-detail-section:hover { border-color:var(--border-focus); transform:translateY(-1px); }
+    .overview-detail-section h3 { color:var(--accent-blue); font:700 11.5px var(--font-mono); text-transform:uppercase; letter-spacing:0.06em; margin-bottom:2px; display:flex; align-items:center; gap:6px; }
+    .overview-detail-section h3::before { content:''; display:inline-block; width:6px; height:6px; border-radius:50%; background:var(--accent-blue); box-shadow:0 0 6px var(--accent-blue); }
+    .overview-meta-list { display:flex; flex-direction:column; gap:8px; padding:0; margin:0; list-style:none; }
+    .overview-meta-list li { font-size:13px; color:var(--text-primary); line-height:1.5; word-break:break-word; padding:8px 12px; background:var(--bg-surface-primary); border:1px solid var(--border-subtle); border-radius:var(--radius-sm); display:flex; align-items:center; gap:8px; }
+    .overview-meta-list li::before { content:'▸'; color:var(--accent-blue); font-size:12px; opacity:0.8; }
+    .overview-detail-missing { background:rgba(210,153,34,0.08); border:1px solid rgba(210,153,34,.4); border-radius:var(--radius-md); padding:16px 18px; }
+    .overview-detail-missing h3 { color:var(--accent-amber); font-size:13.5px; font-weight:600; margin-bottom:6px; display:flex; align-items:center; gap:6px; }
+    .overview-detail-missing p { color:var(--text-secondary); margin-bottom:10px; font-size:12.5px; }
+    .overview-detail-missing ul { display:flex; flex-direction:column; gap:6px; padding-left:18px; color:var(--text-secondary); font-size:12.5px; }
+    .overview-detail-actions { display:flex; justify-content:flex-end; gap:10px; flex-wrap:wrap; margin-top:20px; padding-top:16px; border-top:1px solid var(--border-subtle); }
     .state-tools { margin-top:14px; }
     .state-health-card { display:grid; grid-template-columns:auto minmax(0,1fr) auto; gap:12px; align-items:center; background:var(--bg-surface-secondary); border:1px solid var(--border-medium); border-radius:var(--radius-md); padding:14px; }
     .state-health-icon { width:34px; height:34px; border-radius:50%; display:grid; place-items:center; font:700 14px var(--font-mono); }
@@ -1988,6 +2070,207 @@
     #tm-diagnostics ul { padding-left:18px; }
     #tm-state-json { max-height:360px; overflow:auto; white-space:pre; background:var(--bg-canvas); border:1px solid var(--border-subtle); border-radius:var(--radius-sm); padding:12px; color:var(--text-secondary); font:12px/1.55 var(--font-mono); }
     .state-tools-actions { display:flex; align-items:center; gap:8px; flex-wrap:wrap; margin-top:10px; }
+
+    /* Acknowledgements View & Teaser */
+    .ack-hero-panel {
+      background: linear-gradient(135deg, rgba(22,27,34,0.95) 0%, rgba(13,17,23,0.98) 100%);
+      border: 1px solid var(--border-subtle);
+      border-radius: var(--radius-lg);
+      padding: 24px 28px;
+      position: relative;
+      overflow: hidden;
+      box-shadow: var(--shadow-md);
+    }
+    .ack-hero-accent-line {
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      height: 3px;
+      background: linear-gradient(90deg, #ef4444 0%, #388bfd 30%, #8957e5 60%, #238636 100%);
+    }
+    .ack-hero-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      gap: 20px;
+      flex-wrap: wrap;
+    }
+    .ack-hero-title {
+      font-size: 24px;
+      font-weight: 700;
+      color: #fff;
+      letter-spacing: -0.02em;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+    .ack-hero-copy {
+      color: var(--text-secondary);
+      font-size: 13.5px;
+      line-height: 1.55;
+      max-width: 80ch;
+      margin-top: 8px;
+    }
+    .ack-cards-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+      gap: 16px;
+      width: 100%;
+    }
+    .ack-card {
+      background: var(--bg-surface-primary);
+      border: 1px solid var(--border-subtle);
+      border-radius: var(--radius-md);
+      padding: 20px 22px;
+      display: flex;
+      flex-direction: column;
+      gap: 14px;
+      position: relative;
+      overflow: hidden;
+      box-shadow: var(--shadow-sm);
+      transition: transform 0.15s ease, border-color 0.15s ease;
+    }
+    .ack-card:hover {
+      border-color: var(--border-medium);
+      transform: translateY(-2px);
+    }
+    .ack-card-header {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+    .ack-avatar {
+      width: 42px;
+      height: 42px;
+      border-radius: 50%;
+      display: grid;
+      place-items: center;
+      font-weight: 700;
+      font-size: 18px;
+      color: #fff;
+      flex-shrink: 0;
+    }
+    .ack-avatar.avatar-author {
+      background: linear-gradient(135deg, #388bfd 0%, #8957e5 100%);
+      box-shadow: 0 0 16px rgba(56, 139, 253, 0.4);
+    }
+    .ack-avatar.avatar-gentle {
+      background: linear-gradient(135deg, #238636 0%, #2ea043 100%);
+      box-shadow: 0 0 16px rgba(46, 160, 67, 0.4);
+    }
+    .ack-avatar.avatar-media {
+      background: linear-gradient(135deg, #ef4444 0%, #f97316 100%);
+      box-shadow: 0 0 16px rgba(239, 68, 68, 0.4);
+    }
+    .ack-avatar.avatar-future {
+      background: linear-gradient(135deg, #06b6d4 0%, #3b82f6 100%);
+      box-shadow: 0 0 16px rgba(6, 182, 212, 0.4);
+    }
+    .ack-card-meta {
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+      min-width: 0;
+    }
+    .ack-card-title {
+      font-size: 15px;
+      font-weight: 700;
+      color: var(--text-primary);
+      line-height: 1.3;
+    }
+    .ack-card-role {
+      font-size: 11px;
+      font-family: var(--font-mono);
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+    }
+    .ack-role-blue { color: var(--accent-blue); }
+    .ack-role-green { color: var(--accent-green); }
+    .ack-role-red { color: #ff6b6b; }
+    .ack-role-cyan { color: #22d3ee; }
+    .ack-card-body {
+      font-size: 12.5px;
+      color: var(--text-secondary);
+      line-height: 1.5;
+      margin: 0;
+      flex-grow: 1;
+    }
+    .ack-card-links {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      align-items: center;
+      margin-top: auto;
+      padding-top: 4px;
+    }
+    .ack-link-btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 7px;
+      padding: 6px 12px;
+      font-size: 11.5px;
+      font-weight: 600;
+      border-radius: var(--radius-sm);
+      cursor: pointer;
+      text-decoration: none;
+      transition: all 0.15s ease;
+      background: var(--bg-surface-secondary);
+      border: 1px solid var(--border-subtle);
+      color: var(--text-primary);
+    }
+    .ack-link-btn:hover {
+      transform: translateY(-1px);
+    }
+    .ack-link-btn.btn-yt {
+      color: #ff6b6b;
+      border-color: rgba(239, 68, 68, 0.35);
+      background: rgba(239, 68, 68, 0.08);
+    }
+    .ack-link-btn.btn-yt:hover {
+      background: rgba(239, 68, 68, 0.18);
+      border-color: rgba(239, 68, 68, 0.6);
+      box-shadow: 0 0 12px rgba(239, 68, 68, 0.25);
+    }
+    .ack-link-btn.btn-gh {
+      color: #79c0ff;
+      border-color: rgba(56, 139, 253, 0.35);
+      background: rgba(56, 139, 253, 0.08);
+    }
+    .ack-link-btn.btn-gh:hover {
+      background: rgba(56, 139, 253, 0.18);
+      border-color: rgba(56, 139, 253, 0.6);
+      box-shadow: 0 0 12px rgba(56, 139, 253, 0.25);
+    }
+    .ack-link-btn.btn-gentle {
+      color: #7ee787;
+      border-color: rgba(35, 134, 54, 0.35);
+      background: rgba(35, 134, 54, 0.08);
+    }
+    .ack-link-btn.btn-gentle:hover {
+      background: rgba(35, 134, 54, 0.18);
+      border-color: rgba(35, 134, 54, 0.6);
+      box-shadow: 0 0 12px rgba(35, 134, 54, 0.25);
+    }
+    .ack-link-btn.btn-tiktok-pending {
+      color: #22d3ee;
+      border: 1px dashed rgba(6, 182, 212, 0.45);
+      background: rgba(6, 182, 212, 0.06);
+      cursor: default;
+      opacity: 0.85;
+    }
+    .ack-future-slot {
+      border: 1px dashed var(--border-medium);
+      background: rgba(255, 255, 255, 0.02);
+      border-radius: var(--radius-md);
+      padding: 14px 18px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      flex-wrap: wrap;
+    }
 
     /* Modal Close Button for Detail Dialogs */
     .welcome-close-btn {
@@ -2283,7 +2566,7 @@
 <body>
   <!-- AI-EDITABLE: STATE — single source of truth, AI edits only this block -->
   <!-- AI-EDITABLE: STATE -->
-  <script type="application/json" id="tm-state">{"schemaVersion":"1.0","meta":{"projectName":"Task Manager Portable","version":"1.1.0","branch":"main","commit":"2faddaa","syncStatus":"Sincronizado","harness":"OpenCode","harnessRole":"Autonomous Multi-Agent Runtime","description":"Single-file offline project dashboard with zero runtime dependencies","lastUpdated":"2026-08-26T15:00:00Z","labels":{"es":{"overallProgress":"Progreso Global","filterAll":"Todas","filterActive":"Activas","todoTitle":"Tareas Rápidas","helpTitle":"Ayuda — Cómo usar este archivo","headerSubtitle":"Dashboard técnico drop-in — gestionado por orquestador IA"}},"features":{"git":true,"tree":true,"codegraph":true,"help":true},"history":[{"timestamp":"2026-08-18T09:00:00Z","completed":4,"total":16},{"timestamp":"2026-08-20T09:00:00Z","completed":8,"total":16},{"timestamp":"2026-08-24T09:00:00Z","completed":12,"total":16},{"timestamp":"2026-08-26T15:00:00Z","completed":16,"total":16}]},"phases":[{"id":"phase-1","number":1,"title":"Planificación y Arquitectura","status":"completed","target":"Fase 1","lead":"Orquestador","tasks":[{"id":"T1-01","title":"Definir esquema de datos y contratos JSON schemaVersion 1.0","status":"completed","tag":"Backend","note":"Esquema JSON inmutable validado con tipado estricto y manejo de errores sin white-screen.","owner":"sdd-spec","commit":"a1b2c3d","subtasks":[{"id":"ST1-1","title":"Modelar esquema JSON schemaVersion 1.0","status":"completed","done":true},{"id":"ST1-2","title":"Definir reglas de validación y límites","status":"completed","done":true},{"id":"ST1-3","title":"Aprobar contratos con el equipo","status":"completed","done":true}]},{"id":"T1-02","title":"Diseñar tokens del tema Obsidian Dark y layout responsivo","status":"completed","tag":"Design","note":"Tokens CSS verbatim, variables :root y soporte para viewports de 320px a 1920px.","owner":"sdd-design","commit":"b2c3d4e"},{"id":"T1-03","title":"Mapear estructura modular desacoplada y scripts de ensamblado","status":"completed","tag":"Arch","note":"Estructura modular 01-07 sin empaquetadores externos para portabilidad directa file://.","owner":"sdd-explore","commit":"c3d4e5f"}]},{"id":"phase-2","number":2,"title":"Núcleo y Métricas Reactivas","status":"completed","target":"Fase 2","lead":"sdd-tasks","tasks":[{"id":"T2-01","title":"Implementar parser seguro, validación y derivación matemática","status":"completed","tag":"Core","note":"Manejo seguro de división 0/0, prevención de NaN y escape de etiquetas script.","owner":"sdd-apply","commit":"d4e5f6a","subtasks":[{"id":"ST2-1","title":"Parser con escape seguro \\u003c/script\\u003e","status":"completed","done":true},{"id":"ST2-2","title":"Derivación de métricas y porcentajes","status":"completed","done":true}]},{"id":"T2-02","title":"Header y HUD panorámico con métricas derivadas","status":"completed","tag":"Frontend","note":"Cálculo dinámico en tiempo real del progreso global y tarjetas ejecutivas interactivas.","owner":"sdd-apply","commit":"e5f6a7b"},{"id":"T2-03","title":"Hub de cabecera con Reloj Digital 12h/24h y badge de última actualización","status":"completed","tag":"Frontend","note":"Reloj digital en vivo con zona horaria local, switch interactivo 12H/24H y pulso de frescura.","owner":"sdd-apply","commit":"2faddaa","subtasks":[{"id":"ST2-3a","title":"Reloj digital reactivo con horas, minutos, segundos y fecha","status":"completed","done":true},{"id":"ST2-3b","title":"Interruptor de formato horario 12H/24H y detector de timezone","status":"completed","done":true},{"id":"ST2-3c","title":"Badge con cálculo de tiempo relativo de última actualización","status":"completed","done":true}]}]},{"id":"phase-3","number":3,"title":"Fases, Tareas y Filtros Interactivos","status":"completed","target":"Fase 3","lead":"sdd-apply","tasks":[{"id":"T3-01","title":"Acordeón colapsable con toggle aislado y vista dedicada","status":"completed","tag":"UI","note":"Event delegation optimizado, persistencia en UI preferences e interactividad fluida.","owner":"sdd-apply","commit":"f6a7b8c","subtasks":[{"id":"ST3-1","title":"Event delegation en contenedor de fases","status":"completed","done":true},{"id":"ST3-2","title":"Aislamiento de toggle individual","status":"completed","done":true}]},{"id":"T3-02","title":"Toolbar de filtrado múltiple (texto, estado, responsable, tag, fase)","status":"completed","tag":"UI","note":"Filtrado AND unificado en lista y tablero Kanban con contadores reactivos.","owner":"sdd-apply","commit":"a7b8c9d"},{"id":"T3-03","title":"Barra de progreso por fase y checklist visual de subtareas","status":"completed","tag":"UI","note":"Checklists enriquecidos, barras de progreso dinámicas y visualización de bloqueos.","owner":"sdd-apply","commit":"b8c9d0e","subtasks":[{"id":"ST3-3a","title":"Cálculo de progreso por subtarea","status":"completed","done":true},{"id":"ST3-3b","title":"Checklist visual interactivo","status":"completed","done":true},{"id":"ST3-3c","title":"Animaciones de transición y badges","status":"completed","done":true}]},{"id":"T3-04","title":"Hardening de seguridad y prueba de escape hostil \\u003c/script\\u003e","status":"completed","tag":"Security","note":"Protección rigurosa contra inyección XSS y preservación de cadenas hostiles.","owner":"sdd-review","commit":"c9d0e1f","risk":"high","blockedReason":"Awaiting security review"}]},{"id":"phase-4","number":4,"title":"Paneles Opcionales y Visualizaciones","status":"completed","target":"Fase 4","lead":"sdd-apply","tasks":[{"id":"T4-01","title":"Panel Git Stream con historial de commits y estado de sincronización","status":"completed","tag":"Git","note":"Visualización de flujo git offline sin llamadas de red.","owner":"sdd-apply","commit":"d0e1f2a"},{"id":"T4-02","title":"Árbol jerárquico de archivos con navegación e indentación","status":"completed","tag":"Tree","note":"Explorador de arquitectura y estructura del repositorio.","owner":"sdd-apply","commit":"e1f2a3b"},{"id":"T4-03","title":"Mapa interactivo Codegraph SVG con diálogo accesible","status":"completed","tag":"Graph","note":"Grafo SVG de dependencias entre módulos con inspección semántica por nodo.","owner":"sdd-apply","commit":"f2a3b4c"}]},{"id":"phase-5","number":5,"title":"Consola IA, Ayuda y Verificación Total","status":"completed","target":"Fase 5","lead":"sdd-verify","tasks":[{"id":"T5-01","title":"Scratchpad de Tareas Rápidas (todos P0/P1/P2)","status":"completed","tag":"Docs","note":"Gestión de tareas de atención rápida con etiquetas prioritarias e indicadores de estado.","owner":"sdd-tasks","commit":"a3b4c5d"},{"id":"T5-02","title":"Consola IA con Prompt Maestro Autónomo y selector de modelos","status":"completed","tag":"AI","note":"Generación guiada de comandos para asistentes LLM y auto-actualización del estado.","owner":"Orquestador","commit":"b4c5d6e"},{"id":"T5-03","title":"Modal interactivo de bienvenida y suite de 136 pruebas e2e","status":"completed","tag":"QA","note":"Ventana emergente de bienvenida ¡ATENCIÓN!, checklist de portabilidad y pruebas 100% en verde.","owner":"sdd-verify","commit":"2faddaa","subtasks":[{"id":"ST5-3a","title":"Ventana emergente modal de bienvenida con ¡ATENCIÓN!","status":"completed","done":true},{"id":"ST5-3b","title":"Suite de pruebas unitarias automatizadas (136 tests)","status":"completed","done":true},{"id":"ST5-3c","title":"Validación Playwright e2e en navegador real con 9 viewports","status":"completed","done":true}]}]}],"todos":[{"id":"td-1","text":"Verificar compatibilidad offline file:// sin servidor","priority":"P0","done":true},{"id":"td-2","text":"Comprobar alternancia de formato de reloj 12H/24H","priority":"P1","done":true},{"id":"td-3","text":"Validar pulso y cálculo de última actualización","priority":"P1","done":true},{"id":"td-4","text":"Garantizar persistencia estricta en bloque tm-state","priority":"P2","done":true}],"tokenUsage":{"schemaVersion":"1.0","updatedAt":"2026-08-29T07:20:00.000Z","source":"opencode-sdk","scope":"opencode-sdd-profile-manager","root":"opencode-sdd-profile-manager","totals":{"input":84200,"output":18450,"reasoning":7200,"cacheRead":142000,"cacheWrite":4100,"total":255950,"cost":0.142},"byAgent":[{"agent":"sdd-apply","model":"claude-3-7-sonnet","models":["claude-3-7-sonnet"],"categories":{"input":38400,"output":9200,"reasoning":4800,"cacheRead":64000,"cacheWrite":2100,"total":118500},"total":118500,"cost":0.068,"sessions":4,"messages":18,"evidence":"measured","confidence":1},{"agent":"Orquestador","model":"claude-3-7-sonnet","models":["claude-3-7-sonnet"],"categories":{"input":24100,"output":4300,"reasoning":1800,"cacheRead":48000,"cacheWrite":1200,"total":79400},"total":79400,"cost":0.045,"sessions":5,"messages":14,"evidence":"measured","confidence":1},{"agent":"sdd-verify","model":"gemini-2.5-flash","models":["gemini-2.5-flash"],"categories":{"input":14200,"output":3150,"reasoning":600,"cacheRead":21000,"cacheWrite":500,"total":39450},"total":39450,"cost":0.019,"sessions":3,"messages":9,"evidence":"measured","confidence":1},{"agent":"Agent Task Manager","model":"claude-3-5-haiku","models":["claude-3-5-haiku"],"categories":{"input":7500,"output":1800,"reasoning":0,"cacheRead":9000,"cacheWrite":300,"total":18600},"total":18600,"cost":0.01,"sessions":2,"messages":6,"evidence":"derived","confidence":1}]},"git":{"branch":"main","totalCount":151,"limit":5,"commits":[{"hash":"2faddaa","message":"chore(release): 1.0.1"},{"hash":"d193e1e","message":"Merge pull request #2 from RamonsDka/fix/issue-1-portable-filename"},{"hash":"375dac5","message":"fix: clarify portable filename in help prompt and docs"},{"hash":"4172efd","message":"ci: update official GitHub actions"},{"hash":"1306233","message":"ci: verify with Node.js 24"}],"syncStatus":"Sincronizado"},"tree":[{"name":"Task-Manager-Portable.html","depth":0,"type":"file"},{"name":"modules/","depth":0,"type":"dir"},{"name":"01-skeleton.html","depth":1,"type":"file"},{"name":"02-core.js","depth":1,"type":"file"},{"name":"03-header-hud.js","depth":1,"type":"file"},{"name":"04-phases.js","depth":1,"type":"file"},{"name":"05-panels.js","depth":1,"type":"file"},{"name":"06-todo-help.js","depth":1,"type":"file"},{"name":"scripts/","depth":0,"type":"dir"},{"name":"assemble.mjs","depth":1,"type":"file"},{"name":"run-tests.mjs","depth":1,"type":"file"},{"name":"scan-portability.mjs","depth":1,"type":"file"},{"name":"tests/","depth":0,"type":"dir"},{"name":"docs/","depth":0,"type":"dir"}],"codegraph":{"nodes":[{"id":"skeleton","label":"Skeleton","files":["modules/01-skeleton.html"],"details":"Estructura HTML5 base, tokens y shells."},{"id":"core","label":"Core","files":["modules/02-core.js"],"taskIds":["T2-01"],"details":"Parsea, valida y deriva métricas del estado."},{"id":"hud","label":"HUD & Clock","files":["modules/03-header-hud.js"],"taskIds":["T2-02","T2-03"],"details":"Header, reloj digital, fecha, última act. y métricas."},{"id":"phases","label":"Phases & Kanban","files":["modules/04-phases.js"],"taskIds":["T3-01","T3-03"],"details":"Acordeón de fases, tareas, subtareas y Kanban."},{"id":"panels","label":"Panels","files":["modules/05-panels.js"],"taskIds":["T4-01","T4-02","T4-03"],"details":"Git stream, árbol de archivos y Codegraph SVG."},{"id":"help","label":"AI Console & Help","files":["modules/06-todo-help.js"],"taskIds":["T5-01","T5-02","T5-03"],"details":"Tareas rápidas, consola IA, prompts y bienvenida."}],"edges":[{"from":"skeleton","to":"core"},{"from":"core","to":"hud"},{"from":"core","to":"phases"},{"from":"core","to":"panels","label":"usa","details":"Panels consume los helpers de Core."},{"from":"core","to":"help"},{"from":"phases","to":"panels"}]}}</script>
+  <script type="application/json" id="tm-state">{"signature":"opencode-task-manager","pluginVersion":"1.8.0","templateVersion":"1.4.0","schemaVersion":"1.0","stateVersion":1,"meta":{"projectName":"Task Manager Portable","version":"1.4.0-preview","branch":"main","commit":"d209b489c6e2757f04968715ffb3d301738d2166","syncStatus":"synced","harness":"OpenCode","harnessRole":"Autonomous Multi-Agent Runtime","description":"Panel de control técnico portable para orquestación de tareas y ciclo de vida SDD","lastSyncSource":"agent-task-manager","lastSyncStartAt":"2026-09-05T05:41:48.148Z","lastSyncCompletedAt":"2026-09-05T05:45:46.378Z","lastSyncAt":"2026-09-05T05:45:46.378Z","lastUpdated":"2026-09-05T05:45:46.378Z","labels":{"es":{"overallProgress":"Progreso Global","filterAll":"Todas","filterActive":"Activas","todoTitle":"Tareas Rápidas","helpTitle":"Ayuda — Cómo usar este archivo","headerSubtitle":"Dashboard técnico drop-in — gestionado por orquestador IA"}},"features":{"git":true,"tree":true,"codegraph":true,"help":true,"todo":true},"history":[{"timestamp":"2026-08-20T09:00:00Z","completed":4,"total":16},{"timestamp":"2026-08-24T09:00:00Z","completed":8,"total":16},{"timestamp":"2026-08-28T09:00:00Z","completed":11,"total":16},{"timestamp":"2026-09-01T15:00:00Z","completed":13,"total":16},{"timestamp":"2026-09-04T12:00:00Z","completed":14,"total":16},{"timestamp":"2026-09-05T05:45:46.378Z","completed":16,"total":16}]},"phases":[{"id":"phase-1","number":1,"title":"Planificación y Arquitectura","status":"completed","target":"Fase 1","lead":"Orquestador","tasks":[{"id":"T1-01","title":"Definir esquema de datos y contratos JSON schemaVersion 1.0","status":"completed","tag":"Backend","note":"Esquema JSON inmutable validado con tipado estricto y manejo de errores sin white-screen.","owner":"sdd-spec","commit":"a1b2c3d","subtasks":[{"id":"ST1-1","title":"Modelar esquema JSON schemaVersion 1.0","status":"completed","done":true},{"id":"ST1-2","title":"Definir reglas de validación y límites","status":"completed","done":true},{"id":"ST1-3","title":"Aprobar contratos con el equipo","status":"completed","done":true}]},{"id":"T1-02","title":"Diseñar tokens del tema Obsidian Dark y layout responsivo","status":"completed","tag":"Design","note":"Tokens CSS verbatim, variables :root y soporte para viewports de 320px a 1920px.","owner":"sdd-design","commit":"b2c3d4e"},{"id":"T1-03","title":"Mapear estructura modular desacoplada y scripts de ensamblado","status":"completed","tag":"Arch","note":"Estructura modular 01-07 sin empaquetadores externos para portabilidad directa file://.","owner":"sdd-explore","commit":"c3d4e5f"}]},{"id":"phase-2","number":2,"title":"Núcleo y Métricas Reactivas","status":"completed","target":"Fase 2","lead":"sdd-tasks","tasks":[{"id":"T2-01","title":"Implementar parser seguro, validación y derivación matemática","status":"completed","tag":"Core","note":"Manejo seguro de división 0/0, prevención de NaN y escape de etiquetas script.","owner":"sdd-apply","commit":"d4e5f6a","subtasks":[{"id":"ST2-1","title":"Parser con escape seguro \\u003c/script\\u003e","status":"completed","done":true},{"id":"ST2-2","title":"Derivación de métricas y porcentajes","status":"completed","done":true}]},{"id":"T2-02","title":"Header y HUD panorámico con métricas derivadas","status":"completed","tag":"Frontend","note":"Cálculo dinámico en tiempo real del progreso global y tarjetas ejecutivas interactivas.","owner":"sdd-apply","commit":"e5f6a7b"},{"id":"T2-03","title":"Hub de cabecera con Reloj Digital 12h/24h y badge de última actualización","status":"completed","tag":"Frontend","note":"Reloj digital en vivo con zona horaria local, switch interactivo 12H/24H y pulso de frescura.","owner":"sdd-apply","commit":"2faddaa","subtasks":[{"id":"ST2-3a","title":"Reloj digital reactivo con horas, minutos, segundos y fecha","status":"completed","done":true},{"id":"ST2-3b","title":"Interruptor de formato horario 12H/24H y detector de timezone","status":"completed","done":true},{"id":"ST2-3c","title":"Badge con cálculo de tiempo relativo de última actualización","status":"completed","done":true}]}]},{"id":"phase-3","number":3,"title":"Fases, Tareas y Filtros Interactivos","status":"completed","target":"Fase 3","lead":"sdd-apply","tasks":[{"id":"T3-01","title":"Acordeón colapsable con toggle aislado y vista dedicada","status":"completed","tag":"UI","note":"Event delegation optimizado, persistencia en UI preferences e interactividad fluida.","owner":"sdd-apply","commit":"f6a7b8c","subtasks":[{"id":"ST3-1","title":"Event delegation en contenedor de fases","status":"completed","done":true},{"id":"ST3-2","title":"Aislamiento de toggle individual","status":"completed","done":true}]},{"id":"T3-02","title":"Toolbar de filtrado múltiple (texto, estado, responsable, tag, fase)","status":"completed","tag":"UI","note":"Filtrado AND unificado en lista y tablero Kanban con contadores reactivos.","owner":"sdd-apply","commit":"a7b8c9d"},{"id":"T3-03","title":"Barra de progreso por fase y checklist visual de subtareas","status":"completed","tag":"UI","note":"Checklists enriquecidos, barras de progreso dinámicas y visualización de bloqueos.","owner":"sdd-apply","commit":"b8c9d0e","subtasks":[{"id":"ST3-3a","title":"Cálculo de progreso por subtarea","status":"completed","done":true},{"id":"ST3-3b","title":"Checklist visual interactivo","status":"completed","done":true},{"id":"ST3-3c","title":"Animaciones de transición y badges","status":"completed","done":true}]},{"id":"T3-04","title":"Hardening de seguridad y prueba de escape hostil \\u003c/script\\u003e","status":"completed","tag":"Security","note":"Protección rigurosa contra inyección XSS y preservación de cadenas hostiles.","owner":"sdd-review","commit":"c9d0e1f","risk":"high","blockedReason":"Awaiting security review"}]},{"id":"phase-4","number":4,"title":"Paneles Opcionales y Visualizaciones","status":"completed","target":"Fase 4","lead":"sdd-apply","tasks":[{"id":"T4-01","title":"Panel Git Stream con historial de commits y estado de sincronización","status":"completed","tag":"Git","note":"Visualización de flujo git offline sin llamadas de red.","owner":"sdd-apply","commit":"d0e1f2a"},{"id":"T4-02","title":"Árbol jerárquico de archivos con navegación e indentación","status":"completed","tag":"Tree","note":"Explorador de arquitectura y estructura del repositorio.","owner":"sdd-apply","commit":"e1f2a3b"},{"id":"T4-03","title":"Mapa interactivo Codegraph SVG con diálogo accesible","status":"completed","tag":"Graph","note":"Grafo SVG de dependencias entre módulos con inspección semántica por nodo.","owner":"sdd-apply","commit":"f2a3b4c"}]},{"id":"phase-5","number":5,"title":"Consola IA, Ayuda y Verificación Total","status":"completed","target":"Fase 5","lead":"sdd-verify","tasks":[{"id":"T5-01","title":"Scratchpad de Tareas Rápidas (todos P0/P1/P2)","status":"completed","tag":"Docs","note":"Gestión de tareas de atención rápida con etiquetas prioritarias e indicadores de estado.","owner":"sdd-tasks","commit":"a3b4c5d"},{"id":"T5-02","title":"Consola IA con Prompt Maestro Autónomo y selector de modelos","status":"completed","tag":"AI","note":"Generación guiada de comandos para asistentes LLM y auto-actualización del estado.","owner":"Orquestador","commit":"b4c5d6e"},{"id":"T5-03","title":"Modal interactivo de bienvenida y suite de 136 pruebas e2e","status":"completed","tag":"QA","note":"Ventana emergente de bienvenida ¡ATENCIÓN!, checklist de portabilidad y suite ampliada a 157 pruebas 100% en verde.","owner":"sdd-verify","commit":"2faddaa","subtasks":[{"id":"ST5-3a","title":"Ventana emergente modal de bienvenida con ¡ATENCIÓN!","status":"completed","done":true},{"id":"ST5-3b","title":"Suite de pruebas unitarias automatizadas (136 tests)","status":"completed","done":true},{"id":"ST5-3c","title":"Validación Playwright e2e en navegador real con 9 viewports","status":"completed","done":true},{"id":"ST5-3d","title":"Ampliación de suite a 157 pruebas automatizadas unitarias, de integración y accesibilidad","status":"completed","done":true}]}]}],"todos":[{"id":"td-1","text":"Verificar compatibilidad offline file:// sin servidor","priority":"P0","done":true},{"id":"td-2","text":"Comprobar alternancia de formato de reloj 12H/24H","priority":"P1","done":true},{"id":"td-3","text":"Validar pulso y cálculo de última actualización","priority":"P1","done":true},{"id":"td-4","text":"Garantizar persistencia estricta en bloque tm-state","priority":"P0","done":true},{"id":"td-5","text":"Revisar sincronización atómica sin mutaciones fuera de la isla","priority":"P1","done":true},{"id":"td-6","text":"Comprobar diferenciación visual de telemetría preview vs host real","priority":"P2","done":false}],"git":{"branch":"main","commits":[{"hash":"d209b489c6e2757f04968715ffb3d301738d2166","shortHash":"d209b48","message":"chore(release): prepare v2.1.0 (#28)","author":"RamonsDk-Dev","date":"2026-08-31T09:28:00-04:00"},{"hash":"452c8f96d2297480848534a8ad4b6ff3451de2f2","shortHash":"452c8f9","message":"docs(agent-suite): document permission-aware installation (#27)","author":"RamonsDk-Dev","date":"2026-08-31T09:23:10-04:00"},{"hash":"e5eaec226d6e7ee9893be103d195d3246042db69","shortHash":"e5eaec2","message":"feat(agent-suite): add installer permission consent (#26)","author":"RamonsDk-Dev","date":"2026-08-31T09:17:47-04:00"},{"hash":"ba2f2320922e745e369d73cacea3509f6786c741","shortHash":"ba2f232","message":"fix(agent-suite): isolate malformed suite configuration (#25)","author":"RamonsDk-Dev","date":"2026-08-31T09:10:18-04:00"},{"hash":"90c7804abeb523162d92b4c6b4ad790fa1394eca","shortHash":"90c7804","message":"fix(release): align package metadata with release (#23)","author":"RamonsDk-Dev","date":"2026-08-30T10:04:15-04:00"}],"syncStatus":"synced","totalCount":182,"limit":5},"tree":[{"name":"Task-Manager-Portable.html","depth":0,"type":"file"},{"name":"modules/","depth":0,"type":"dir"},{"name":"01-skeleton.html","depth":1,"type":"file"},{"name":"02-core.js","depth":1,"type":"file"},{"name":"03-header-hud.js","depth":1,"type":"file"},{"name":"04-phases.js","depth":1,"type":"file"},{"name":"05-panels.js","depth":1,"type":"file"},{"name":"06-todo-help.js","depth":1,"type":"file"},{"name":"scripts/","depth":0,"type":"dir"},{"name":"assemble.mjs","depth":1,"type":"file"},{"name":"run-tests.mjs","depth":1,"type":"file"},{"name":"scan-portability.mjs","depth":1,"type":"file"},{"name":"tests/","depth":0,"type":"dir"},{"name":"docs/","depth":0,"type":"dir"}],"codegraph":{"nodes":[{"id":"skeleton","label":"Skeleton","files":["modules/01-skeleton.html"],"details":"Estructura HTML5 base, tokens y shells."},{"id":"core","label":"Core","files":["modules/02-core.js"],"taskIds":["T2-01"],"details":"Parsea, valida y deriva métricas del estado."},{"id":"hud","label":"HUD & Clock","files":["modules/03-header-hud.js"],"taskIds":["T2-02","T2-03"],"details":"Header, reloj digital, fecha, última act. y métricas."},{"id":"phases","label":"Phases & Kanban","files":["modules/04-phases.js"],"taskIds":["T3-01","T3-03"],"details":"Acordeón de fases, tareas, subtareas y Kanban."},{"id":"panels","label":"Panels","files":["modules/05-panels.js"],"taskIds":["T4-01","T4-02","T4-03"],"details":"Git stream, árbol de archivos y Codegraph SVG."},{"id":"help","label":"AI Console & Help","files":["modules/06-todo-help.js"],"taskIds":["T5-01","T5-02","T5-03"],"details":"Tareas rápidas, consola IA, prompts y bienvenida."}],"edges":[{"from":"skeleton","to":"core"},{"from":"core","to":"hud"},{"from":"core","to":"phases"},{"from":"core","to":"panels","label":"usa","details":"Panels consume los helpers de Core."},{"from":"core","to":"help"},{"from":"phases","to":"panels"}]},"tokenUsage":{"schemaVersion":"1.0","updatedAt":"2026-09-05T05:41:48.600Z","source":"activity-estimation","scope":"C:/Users/DELL/projects/0.-MEJORA-OPENCODE-TRABAJANDO/opencode-sdd-profile-manager/plugins/task-manager","root":"C:/Users/DELL/projects/0.-MEJORA-OPENCODE-TRABAJANDO/opencode-sdd-profile-manager/plugins/task-manager","totals":{"input":0,"output":0,"reasoning":0,"cacheRead":0,"cacheWrite":0,"total":192},"byAgent":[{"agent":"sdd-apply","categories":{"input":0,"output":0,"reasoning":0,"cacheRead":0,"cacheWrite":0,"total":110},"total":110,"messages":9,"sessions":1,"evidence":"estimated","confidence":0.25},{"agent":"sdd-spec","categories":{"input":0,"output":0,"reasoning":0,"cacheRead":0,"cacheWrite":0,"total":16},"total":16,"messages":1,"sessions":1,"evidence":"estimated","confidence":0.25},{"agent":"sdd-verify","categories":{"input":0,"output":0,"reasoning":0,"cacheRead":0,"cacheWrite":0,"total":16},"total":16,"messages":1,"sessions":1,"evidence":"estimated","confidence":0.25},{"agent":"sdd-design","categories":{"input":0,"output":0,"reasoning":0,"cacheRead":0,"cacheWrite":0,"total":10},"total":10,"messages":1,"sessions":1,"evidence":"estimated","confidence":0.25},{"agent":"sdd-explore","categories":{"input":0,"output":0,"reasoning":0,"cacheRead":0,"cacheWrite":0,"total":10},"total":10,"messages":1,"sessions":1,"evidence":"estimated","confidence":0.25},{"agent":"sdd-review","categories":{"input":0,"output":0,"reasoning":0,"cacheRead":0,"cacheWrite":0,"total":10},"total":10,"messages":1,"sessions":1,"evidence":"estimated","confidence":0.25},{"agent":"sdd-tasks","categories":{"input":0,"output":0,"reasoning":0,"cacheRead":0,"cacheWrite":0,"total":10},"total":10,"messages":1,"sessions":1,"evidence":"estimated","confidence":0.25},{"agent":"Orquestador","categories":{"input":0,"output":0,"reasoning":0,"cacheRead":0,"cacheWrite":0,"total":10},"total":10,"messages":1,"sessions":1,"evidence":"estimated","confidence":0.25}]}}</script>
 
   <div class="app-container" id="dashboard-root">
     <!-- AI-EDITABLE: HEADER -->
@@ -2375,6 +2658,9 @@
         </button>
         <button class="tab-btn" id="tab-btn-help" data-target-view="view-help" role="tab" aria-selected="false">
           <span class="tab-icon">⚡</span> Consola IA
+        </button>
+        <button class="tab-btn" id="tab-btn-acknowledgements" data-target-view="view-acknowledgements" role="tab" aria-selected="false">
+          <span class="tab-icon"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"></path></svg></span> Agradecimientos
         </button>
       </div>
       <div class="nav-controls">
@@ -2574,11 +2860,70 @@
             <div class="panel-body"><div class="todo-list" id="todo-items-container"><div class="informational-empty">Sin señales de atención registradas</div></div></div>
           </section>
         </div>
-        <aside class="dashboard-side-col"><section class="panel-card"><div class="panel-header"><div class="panel-title">Lectura del HUB</div></div><div class="panel-body">El resumen consolida señales, Kanban y fases sin ejecutar acciones. Las pestañas mantienen sus vistas especializadas.</div></section></aside>
+        <aside class="dashboard-side-col">
+          <section class="panel-card" id="hub-health-panel">
+            <div class="panel-header">
+              <div class="panel-title"><span>Salud & Vitalidad del HUB</span></div>
+              <span class="badge badge-tag" id="hub-health-badge">Activo</span>
+            </div>
+            <div class="panel-body" id="hub-health-body" style="display:flex;flex-direction:column;gap:12px;">
+              <div class="health-vital-item" style="background:var(--bg-surface-secondary);padding:10px 12px;border-radius:var(--radius-sm);border:1px solid var(--border-subtle);display:flex;flex-direction:column;gap:4px;">
+                <div style="display:flex;justify-content:space-between;align-items:center;">
+                  <span style="font-size:11px;font-family:var(--font-mono);color:var(--text-tertiary);text-transform:uppercase;">Invariantes del Sistema</span>
+                  <span style="font-size:11px;color:var(--accent-green);font-weight:600;">✓ Blindado</span>
+                </div>
+                <div style="font-size:12px;color:var(--text-secondary);line-height:1.4;">
+                  Zero runtime dependencies · 100% offline file:// · Mutaciones exclusivas en isla JSON.
+                </div>
+              </div>
+              <div class="health-vital-item" style="background:var(--bg-surface-secondary);padding:10px 12px;border-radius:var(--radius-sm);border:1px solid var(--border-subtle);display:flex;flex-direction:column;gap:4px;">
+                <div style="display:flex;justify-content:space-between;align-items:center;">
+                  <span style="font-size:11px;font-family:var(--font-mono);color:var(--text-tertiary);text-transform:uppercase;">Lectura del HUB</span>
+                  <span style="font-size:11px;color:var(--accent-blue);font-weight:600;">Telemetría</span>
+                </div>
+                <div style="font-size:12px;color:var(--text-secondary);line-height:1.4;">
+                  El resumen consolida señales, Kanban y fases sin ejecutar acciones. Las pestañas superiores ofrecen vistas dedicadas.
+                </div>
+              </div>
+            </div>
+          </section>
+        </aside>
       </main>
       <div class="overview-detail-stack">
         <section class="panel-card" id="overview-kanban-section"><div class="panel-header"><div><div class="panel-title"><span>Tablero Kanban por Estado</span></div><p class="overview-section-copy">Vista informativa completa; la pestaña Kanban conserva su vista dedicada.</p></div></div><div class="panel-body"><div class="kanban-grid" id="overview-kanban-mount"></div></div></section>
         <section class="panel-card" id="overview-phases-section"><div class="panel-header"><div><div class="panel-title"><span>Fases del Proyecto</span></div><p class="overview-section-copy">Desglose de fases y tareas para lectura rápida; los filtros permanecen en la pestaña Fases.</p></div></div><div class="panel-body"><div class="overview-phase-list" id="overview-phases-mount"></div></div></section>
+        <!-- Acknowledgements / Credits & Community Teaser -->
+        <section class="panel-card credits-teaser-strip" id="overview-credits-section" style="background:linear-gradient(135deg, rgba(22,27,34,0.92) 0%, rgba(13,17,23,0.98) 100%);border:1px solid var(--border-subtle);overflow:hidden;position:relative;padding:12px 18px;">
+          <div style="position:absolute;top:0;left:0;right:0;height:2px;background:linear-gradient(90deg, #ef4444 0%, #388bfd 35%, #8957e5 65%, #238636 100%);"></div>
+          <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px;">
+            <div style="display:flex;align-items:center;gap:14px;flex-wrap:wrap;min-width:0;">
+              <div style="display:flex;align-items:center;gap:8px;">
+                <span style="display:inline-flex;color:var(--accent-amber);"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3l2.2 4.6 5 .7-3.6 3.5.9 5-4.5-2.4-4.5 2.4.9-5-3.6-3.5 5-.7L12 3z"></path></svg></span>
+                <strong style="font-size:13px;color:var(--text-primary);letter-spacing:-0.01em;">Reconocimientos & Ecosistema</strong>
+              </div>
+              <div class="credits-teaser-chips" style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
+                <span class="teaser-chip teaser-youtube external-link-btn" role="link" tabindex="0" aria-label="Abrir YouTube de Ramón Dka en nueva pestaña" data-external-link="https://www.youtube.com/@RamonsDk-Dev" style="display:inline-flex;align-items:center;gap:6px;padding:3px 9px;border-radius:var(--radius-full);background:rgba(239,68,68,0.12);border:1px solid rgba(239,68,68,0.35);color:#ff6b6b;font-size:11px;font-weight:600;cursor:pointer;">
+                  <svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M23.498 6.186a3.016 3.016 0 0 0-2.122-2.136C19.505 3.545 12 3.545 12 3.545s-7.505 0-9.377.505A3.017 3.017 0 0 0 .502 6.186C0 8.07 0 12 0 12s0 3.93.502 5.814a3.016 3.016 0 0 0 2.122 2.136c1.871.505 9.376.505 9.376.505s7.505 0 9.377-.505a3.015 3.015 0 0 0 2.122-2.136C24 15.93 24 12 24 12s0-3.93-.502-5.814zM9.545 15.568V8.432L15.818 12l-6.273 3.568z"/></svg>
+                  YouTube @RamonsDk-Dev
+                </span>
+                <span class="teaser-chip teaser-github external-link-btn" role="link" tabindex="0" aria-label="Abrir GitHub de Ramón Dka en nueva pestaña" data-external-link="https://github.com/RamonsDka" style="display:inline-flex;align-items:center;gap:6px;padding:3px 9px;border-radius:var(--radius-full);background:rgba(56,139,253,0.12);border:1px solid rgba(56,139,253,0.35);color:#79c0ff;font-size:11px;font-weight:600;cursor:pointer;">
+                  <svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path fill-rule="evenodd" clip-rule="evenodd" d="M12 2C6.477 2 2 6.484 2 12.017c0 4.425 2.865 8.18 6.839 9.504.5.092.682-.217.682-.483 0-.237-.008-.868-.013-1.703-2.782.605-3.369-1.343-3.369-1.343-.454-1.158-1.11-1.466-1.11-1.466-.908-.62.069-.608.069-.608 1.003.07 1.53 1.032 1.53 1.032.892 1.53 2.341 1.088 2.91.832.092-.647.35-1.088.636-1.338-2.22-.253-4.555-1.113-4.555-4.951 0-1.093.39-1.988 1.029-2.688-.103-.253-.446-1.272.098-2.65 0 0 .84-.27 2.75 1.026A9.564 9.564 0 0112 6.844c.85.004 1.705.115 2.504.337 1.909-1.296 2.747-1.027 2.747-1.027.546 1.379.202 2.398.1 2.651.64.7 1.028 1.595 1.028 2.688 0 3.848-2.339 4.695-4.566 4.943.359.309.678.92.678 1.855 0 1.338-.012 2.419-.012 2.747 0 .268.18.58.688.482A10.019 10.019 0 0022 12.017C22 6.484 17.522 2 12 2z"/></svg>
+                  GitHub
+                </span>
+                <span class="teaser-chip teaser-gentle external-link-btn" role="link" tabindex="0" aria-label="Abrir repositorio de Gentle AI en GitHub en nueva pestaña" data-external-link="https://github.com/Gentleman-Programming/gentle-ai" style="display:inline-flex;align-items:center;gap:6px;padding:3px 9px;border-radius:var(--radius-full);background:rgba(35,134,54,0.12);border:1px solid rgba(35,134,54,0.35);color:#7ee787;font-size:11px;font-weight:600;cursor:pointer;">
+                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"></polygon></svg>
+                  Gentle AI
+                </span>
+              </div>
+            </div>
+            <div>
+              <button type="button" class="btn btn-primary btn-sm credits-cta-btn" id="btn-open-acknowledgements" data-jump-view="view-acknowledgements" style="display:inline-flex;align-items:center;gap:6px;font-weight:600;cursor:pointer;">
+                <span>Ver Agradecimientos completos</span>
+                <span aria-hidden="true">→</span>
+              </button>
+            </div>
+          </div>
+        </section>
       </div>
     </div>
 
@@ -2615,6 +2960,141 @@
 
     <div id="view-help" class="view-container" hidden>
       <div id="full-help-mount"><section id="help-panel" class="help-panel" data-help></section></div>
+    </div>
+
+    <div id="view-acknowledgements" class="view-container" hidden>
+      <div id="full-acknowledgements-mount" style="width:100%;display:flex;flex-direction:column;gap:18px;">
+        <!-- Hero Header -->
+        <section class="panel-card ack-hero-panel">
+          <div class="ack-hero-accent-line"></div>
+          <div class="ack-hero-header">
+            <div>
+              <div class="ack-hero-title">
+                <span style="display:inline-flex;align-items:center;color:var(--accent-blue);"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"></path></svg></span>
+                <span>Agradecimientos & Ecosistema</span>
+              </div>
+              <p class="ack-hero-copy">
+                Reconocimiento a los creadores, mentores e iniciativas que hacen posible este panel de control técnico autónomo, portable y de alta fidelidad para el desarrollo asistido por IA.
+              </p>
+            </div>
+            <div style="display:flex;gap:8px;align-items:center;">
+              <span class="badge badge-tag">v1.4.0 Drop-in</span>
+              <span class="badge badge-completed">100% Offline</span>
+            </div>
+          </div>
+        </section>
+
+        <!-- Detailed Cards Grid -->
+        <div class="ack-cards-grid">
+          <!-- Card 1: Ramón Dka (Autor & Creador) -->
+          <article class="ack-card">
+            <div class="ack-card-header">
+              <div class="ack-avatar avatar-author">R</div>
+              <div class="ack-card-meta">
+                <h3 class="ack-card-title">Ramón Dka / RamonsDk-Dev</h3>
+                <span class="ack-card-role ack-role-blue">Autor & Creador del Proyecto</span>
+              </div>
+            </div>
+            <p class="ack-card-body">
+              Diseño integral, desarrollo arquitectónico y concepción del Task Manager Portable como herramienta drop-in de un solo archivo. Creado para orquestar flujos de trabajo con agentes IA mediante la persistencia desacoplada de la isla JSON y el ciclo de vida SDD con cero dependencias en tiempo de ejecución.
+            </p>
+            <div class="ack-card-links">
+              <span class="ack-link-btn btn-gh external-link-btn" role="link" tabindex="0" aria-label="Abrir perfil de GitHub de Ramón Dka en nueva pestaña" data-external-link="https://github.com/RamonsDka">
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path fill-rule="evenodd" clip-rule="evenodd" d="M12 2C6.477 2 2 6.484 2 12.017c0 4.425 2.865 8.18 6.839 9.504.5.092.682-.217.682-.483 0-.237-.008-.868-.013-1.703-2.782.605-3.369-1.343-3.369-1.343-.454-1.158-1.11-1.466-1.11-1.466-.908-.62.069-.608.069-.608 1.003.07 1.53 1.032 1.53 1.032.892 1.53 2.341 1.088 2.91.832.092-.647.35-1.088.636-1.338-2.22-.253-4.555-1.113-4.555-4.951 0-1.093.39-1.988 1.029-2.688-.103-.253-.446-1.272.098-2.65 0 0 .84-.27 2.75 1.026A9.564 9.564 0 0112 6.844c.85.004 1.705.115 2.504.337 1.909-1.296 2.747-1.027 2.747-1.027.546 1.379.202 2.398.1 2.651.64.7 1.028 1.595 1.028 2.688 0 3.848-2.339 4.695-4.566 4.943.359.309.678.92.678 1.855 0 1.338-.012 2.419-.012 2.747 0 .268.18.58.688.482A10.019 10.019 0 0022 12.017C22 6.484 17.522 2 12 2z"/></svg>
+                <span>GitHub Personal</span>
+              </span>
+              <span class="ack-link-btn btn-gh external-link-btn" role="link" tabindex="0" aria-label="Abrir repositorio de Task Manager Portable en nueva pestaña" data-external-link="https://github.com/RamonsDka/task-manager-portable">
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"></path><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"></path></svg>
+                <span>Repositorio del Proyecto</span>
+              </span>
+            </div>
+          </article>
+
+          <!-- Card 2: Gentleman Programming & Gentle AI -->
+          <article class="ack-card">
+            <div class="ack-card-header">
+              <div class="ack-avatar avatar-gentle">G</div>
+              <div class="ack-card-meta">
+                <h3 class="ack-card-title">Gentleman Programming & Gentle AI</h3>
+                <span class="ack-card-role ack-role-green">Inspiración & Estándares de Ingeniería</span>
+              </div>
+            </div>
+            <p class="ack-card-body">
+              Agradecimiento especial por la continua divulgación de estándares inquebrantables de ingeniería de software, la filosofía de Receipt-Driven Development (RDD), el diseño de arquitecturas robustas y la convicción de no conformarse con lo inmediato sino elevar las capacidades de los desarrolladores al tope de su potencial.
+            </p>
+            <div class="ack-card-links">
+              <span class="ack-link-btn btn-gentle external-link-btn" role="link" tabindex="0" aria-label="Abrir sitio web de Gentleman Programming en nueva pestaña" data-external-link="https://gentlemanprogramming.com/#consulting">
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"></circle><line x1="2" y1="12" x2="22" y2="12"></line><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"></path></svg>
+                <span>Gentleman Programming</span>
+              </span>
+              <span class="ack-link-btn btn-gentle external-link-btn" role="link" tabindex="0" aria-label="Abrir repositorio de Gentle AI en GitHub en nueva pestaña" data-external-link="https://github.com/Gentleman-Programming/gentle-ai">
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"></polygon></svg>
+                <span>Gentle AI Repo</span>
+              </span>
+            </div>
+          </article>
+
+          <!-- Card 3: Canales y Redes (YouTube & TikTok) -->
+          <article class="ack-card">
+            <div class="ack-card-header">
+              <div class="ack-avatar avatar-media">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M23.498 6.186a3.016 3.016 0 0 0-2.122-2.136C19.505 3.545 12 3.545 12 3.545s-7.505 0-9.377.505A3.017 3.017 0 0 0 .502 6.186C0 8.07 0 12 0 12s0 3.93.502 5.814a3.016 3.016 0 0 0 2.122 2.136c1.871.505 9.376.505 9.376.505s7.505 0 9.377-.505a3.015 3.015 0 0 0 2.122-2.136C24 15.93 24 12 24 12s0-3.93-.502-5.814zM9.545 15.568V8.432L15.818 12l-6.273 3.568z"/></svg>
+              </div>
+              <div class="ack-card-meta">
+                <h3 class="ack-card-title">Canales & Divulgación Multimedia</h3>
+                <span class="ack-card-role ack-role-red">Contenido Técnico & Video</span>
+              </div>
+            </div>
+            <p class="ack-card-body">
+              Canal oficial compartido por el autor para publicar contenido técnico y ampliar la documentación audiovisual del proyecto. La ficha queda preparada para incorporar nuevas plataformas sin alterar la arquitectura offline.
+            </p>
+            <div class="ack-card-links">
+              <span class="ack-link-btn btn-yt external-link-btn" role="link" tabindex="0" aria-label="Abrir canal de YouTube de Ramón Dka en nueva pestaña" data-external-link="https://www.youtube.com/@RamonsDk-Dev">
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M23.498 6.186a3.016 3.016 0 0 0-2.122-2.136C19.505 3.545 12 3.545 12 3.545s-7.505 0-9.377.505A3.017 3.017 0 0 0 .502 6.186C0 8.07 0 12 0 12s0 3.93.502 5.814a3.016 3.016 0 0 0 2.122 2.136c1.871.505 9.376.505 9.376.505s7.505 0 9.377-.505a3.015 3.015 0 0 0 2.122-2.136C24 15.93 24 12 24 12s0-3.93-.502-5.814zM9.545 15.568V8.432L15.818 12l-6.273 3.568z"/></svg>
+                <span>YouTube @RamonsDk-Dev</span>
+              </span>
+              <span class="ack-link-btn btn-tiktok-pending" role="note" aria-disabled="true" title="Enlace pendiente de configuración">
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M19.59 6.69a4.83 4.83 0 0 1-3.77-4.25V2h-3.45v13.67a2.89 2.89 0 0 1-5.2 1.74 2.89 2.89 0 0 1 2.31-4.64c.298-.002.595.042.88.13V9.4a6.33 6.33 0 0 0-1-.08A6.34 6.34 0 0 0 3 15.66a6.34 6.34 0 0 0 10.82 4.49 6.27 6.27 0 0 0 1.87-4.49V8.69a8.18 8.18 0 0 0 4.77 1.52v-3.4a4.85 4.85 0 0 1-.87-.12z"/></svg>
+                <span>TikTok (Pendiente)</span>
+              </span>
+            </div>
+          </article>
+
+          <!-- Card 4: Espacio para Futuras Redes / Enlaces -->
+          <article class="ack-card" style="border-style:dashed;">
+            <div class="ack-card-header">
+              <div class="ack-avatar avatar-future">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 5v14M5 12h14"></path></svg>
+              </div>
+              <div class="ack-card-meta">
+                <h3 class="ack-card-title">Comunidad & Futuras Conexiones</h3>
+                <span class="ack-card-role ack-role-cyan">Espacio en Expansión</span>
+              </div>
+            </div>
+            <p class="ack-card-body">
+              Espacio reservado para futuras plataformas, comunidades y recursos oficiales. Los destinos se habilitarán únicamente cuando sus enlaces sean proporcionados y verificados.
+            </p>
+            <div class="ack-future-slot">
+              <span style="font-size:11.5px;color:var(--text-tertiary);font-family:var(--font-mono);">[ Próximamente: Discord · X · Blog Técnico ]</span>
+              <span class="badge" style="background:rgba(6,182,212,0.12);border-color:rgba(6,182,212,0.3);color:#22d3ee;font-size:10px;">Reservado</span>
+            </div>
+          </article>
+        </div>
+
+        <!-- Invariants Card -->
+        <section class="panel-card" style="background:var(--bg-surface-secondary);border:1px solid var(--border-subtle);padding:18px 22px;">
+          <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:12px;">
+            <div style="display:flex;align-items:center;gap:10px;">
+              <span style="display:inline-flex;color:var(--accent-green);"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path><path d="M9 12l2 2 4-4"></path></svg></span>
+              <strong style="font-size:13px;color:var(--text-primary);">Compromiso de Portabilidad & Privacidad</strong>
+            </div>
+            <span style="font-size:11px;color:var(--accent-green);font-family:var(--font-mono);font-weight:600;">✓ Sin telemetría remota ni cookies</span>
+          </div>
+          <p style="font-size:12px;color:var(--text-secondary);line-height:1.5;margin-top:8px;">
+            Todos los enlaces externos son estrictamente informativos y se abren bajo consentimiento explícito del usuario mediante listeners seguros (<code>noopener,noreferrer</code>). El dashboard no realiza peticiones HTTP de fondo, no utiliza librerías externas de terceros y es 100% operativo sin conexión a internet.
+          </p>
+        </section>
+      </div>
     </div>
   </div>
 
@@ -2995,12 +3475,12 @@
 
       var modelsList = Array.isArray(item.models) ? item.models.map(String).filter(Boolean) : (item.model ? [String(item.model)] : []);
       var evidence = String(item.evidence || 'measured');
-      if (evidence !== 'measured' && evidence !== 'derived' && evidence !== 'estimated') {
+      if (evidence !== 'measured' && evidence !== 'derived' && evidence !== 'estimated' && evidence !== 'preview') {
         evidence = 'measured';
       }
       var confidence = (typeof item.confidence === 'number' && isFinite(item.confidence))
         ? Math.max(0, Math.min(1, item.confidence))
-        : (evidence === 'estimated' ? 0.35 : 1.0);
+        : (evidence === 'estimated' ? 0.35 : (evidence === 'preview' ? 0.2 : 1.0));
 
       var sessions = Math.max(0, Math.round(finiteNumber(item.sessions, 0)));
       var messages = Math.max(0, Math.round(finiteNumber(item.messages, 0)));
@@ -3049,11 +3529,14 @@
 
     var hasData = byAgent.length > 0 && totTotal > 0;
 
+    var isPreview = String(raw.source || '').toLowerCase() === 'preview' || byAgent.some(function (a) { return a.evidence === 'preview'; });
+
     return {
       hasData: hasData,
       schemaVersion: '1.0',
       updatedAt: updatedAt,
       isStale: isStale,
+      isPreview: isPreview,
       source: String(raw.source || 'opencode-sdk'),
       scope: String(raw.scope || ''),
       root: String(raw.root || ''),
@@ -3198,7 +3681,7 @@
 
   var UI_PREFERENCES_KEY = 'tm-ui-preferences';
   var UI_PREFERENCE_VERSION = 1;
-  var VIEW_IDS = ['overview', 'phases', 'kanban', 'codegraph', 'tree', 'git', 'help'];
+  var VIEW_IDS = ['overview', 'phases', 'kanban', 'codegraph', 'tree', 'git', 'help', 'acknowledgements'];
   var FILTER_STATUSES = ['all', 'active', 'completed', 'in-progress', 'pending', 'blocked'];
 
   function defaultUiPreferences() {
@@ -3387,8 +3870,9 @@
         + '</div>';
     }
 
+    var byAgent = Array.isArray(tokenUsage.byAgent) ? tokenUsage.byAgent : [];
     var isActivityEstimation = tokenUsage.source === 'activity-estimation';
-    var byAgent = tokenUsage.byAgent;
+    var isPreview = tokenUsage.source === 'preview' || !!tokenUsage.isPreview || byAgent.some(function (a) { return a && a.evidence === 'preview'; });
     var maxTotal = byAgent.reduce(function (max, item) { return Math.max(max, item.total); }, 1);
     var anyEstimated = false;
 
@@ -3404,9 +3888,9 @@
 
       var evidenceLabel = isActivityEstimation
         ? 'Estimación por actividad'
-        : (item.evidence === 'measured' ? 'Medido' : (item.evidence === 'derived' ? 'Derivado' : 'Estimado'));
+        : (item.evidence === 'preview' ? 'Preview / Demo' : (item.evidence === 'measured' ? 'Medido' : (item.evidence === 'derived' ? 'Derivado' : 'Estimado')));
       var evidenceClass = isActivityEstimation ? 'token-evidence-estimated' : ('token-evidence-' + item.evidence);
-      var costText = (!isActivityEstimation && item.cost !== undefined) ? ' · $' + item.cost.toFixed(3) : '';
+      var costText = (!isActivityEstimation && item.cost !== undefined && !isPreview) ? ' · $' + item.cost.toFixed(3) : '';
       var unitLabel = isActivityEstimation ? ' u. activ.' : ' tokens';
 
       var barInnerHtml = isActivityEstimation
@@ -3441,14 +3925,22 @@
         + '<span class="legend-item"><span class="legend-swatch" style="background:linear-gradient(90deg,#38bdf8,#818cf8);"></span> Unidades relativas de actividad</span>'
         + '<span class="token-estimate-note">* Estimación por actividad basada en asignación y avance de tareas (sin telemetría directa de tokens)</span>'
         + '</div>')
-      : ('<div class="token-chart-legend">'
-        + '<span class="legend-item"><span class="legend-swatch legend-input"></span> Entrada</span>'
-        + '<span class="legend-item"><span class="legend-swatch legend-output"></span> Salida</span>'
-        + '<span class="legend-item"><span class="legend-swatch legend-cache-read"></span> Lectura Caché</span>'
-        + '<span class="legend-item"><span class="legend-swatch legend-reasoning"></span> Razonamiento</span>'
-        + (anyCacheWrite ? '<span class="legend-item"><span class="legend-swatch legend-cache-write"></span> Escritura Caché</span>' : '')
-        + (anyEstimated ? '<span class="token-estimate-note">* Estimación determinista (caracteres / 4)</span>' : '')
-        + '</div>');
+      : (isPreview
+        ? ('<div class="token-chart-legend">'
+          + '<span class="legend-item"><span class="legend-swatch legend-input"></span> Entrada</span>'
+          + '<span class="legend-item"><span class="legend-swatch legend-output"></span> Salida</span>'
+          + '<span class="legend-item"><span class="legend-swatch legend-cache-read"></span> Lectura Caché</span>'
+          + '<span class="legend-item"><span class="legend-swatch legend-reasoning"></span> Razonamiento</span>'
+          + '<span class="token-estimate-note" style="color:#bc8cff;font-weight:600;">🔮 Vista previa demostrativa — el host OpenCode inyectará telemetría real al sincronizar</span>'
+          + '</div>')
+        : ('<div class="token-chart-legend">'
+          + '<span class="legend-item"><span class="legend-swatch legend-input"></span> Entrada</span>'
+          + '<span class="legend-item"><span class="legend-swatch legend-output"></span> Salida</span>'
+          + '<span class="legend-item"><span class="legend-swatch legend-cache-read"></span> Lectura Caché</span>'
+          + '<span class="legend-item"><span class="legend-swatch legend-reasoning"></span> Razonamiento</span>'
+          + (anyCacheWrite ? '<span class="legend-item"><span class="legend-swatch legend-cache-write"></span> Escritura Caché</span>' : '')
+          + (anyEstimated ? '<span class="token-estimate-note">* Estimación determinista (caracteres / 4)</span>' : '')
+          + '</div>'));
 
     return '<div class="token-chart-container">' + rows + '</div>' + legendHtml;
   }
@@ -3458,18 +3950,19 @@
       return '<p class="overview-section-copy">No hay telemetría de tokens registrada para este proyecto.</p>';
     }
 
+    var byAgent = Array.isArray(tokenUsage.byAgent) ? tokenUsage.byAgent : [];
     var isActivityEstimation = tokenUsage.source === 'activity-estimation';
-    var byAgent = tokenUsage.byAgent;
+    var isPreview = tokenUsage.source === 'preview' || !!tokenUsage.isPreview || byAgent.some(function (a) { return a && a.evidence === 'preview'; });
     var totals = tokenUsage.totals;
     var anyEstimated = false;
 
     var rows = byAgent.map(function (item) {
       if (item.evidence === 'estimated') anyEstimated = true;
       var cats = item.categories || {};
-      var costStr = (!isActivityEstimation && item.cost !== undefined) ? '$' + item.cost.toFixed(4) : '—';
+      var costStr = (!isActivityEstimation && !isPreview && item.cost !== undefined) ? '$' + item.cost.toFixed(4) : '—';
       var evidenceLabel = isActivityEstimation
         ? 'Estimación por actividad'
-        : (item.evidence === 'measured' ? 'Medido' : (item.evidence === 'derived' ? 'Derivado' : 'Estimado'));
+        : (item.evidence === 'preview' ? 'Preview / Demo' : (item.evidence === 'measured' ? 'Medido' : (item.evidence === 'derived' ? 'Derivado' : 'Estimado')));
       var modelsStr = (item.models && item.models.length) ? item.models.join(', ') : (item.model || '—');
 
       return '<tr>'
@@ -3533,7 +4026,9 @@
       + '</div>'
       + (isActivityEstimation
         ? '<p class="token-table-note">* Estimación determinista por volumen de tareas y subtareas asignadas.</p>'
-        : (anyEstimated ? '<p class="token-table-note">* Estimación determinista basada en longitud de caracteres (chars / 4).</p>' : ''));
+        : (isPreview
+          ? '<p class="token-table-note" style="color:#bc8cff;font-weight:600;">* Valores simulados como preview en la plantilla. Serán reemplazados automáticamente por telemetría real del host OpenCode al sincronizar el proyecto.</p>'
+          : (anyEstimated ? '<p class="token-table-note">* Estimación determinista basada en longitud de caracteres (chars / 4).</p>' : '')));
 
     return tableHtml;
   }
@@ -3565,8 +4060,21 @@
   }
   function renderDimensionLines(map) {
     var keys = Object.keys(map || {});
-    var lines = keys.length ? keys.map(function (key) { var bucket = map[key] || {}; return '<span class="insight-dimension-line"><strong>' + esc(key) + '</strong> ' + Math.round(finiteNumber(bucket.completed, 0)) + '/' + Math.round(Math.max(0, finiteNumber(bucket.total, 0))) + '</span>'; }).join('') : '<span class="insight-empty">No task data</span>';
-    return '<div class="insight-dimension-list">' + lines + '</div>';
+    if (!keys.length) return '<div class="insight-dimension-list"><span class="insight-empty">No task data</span></div>';
+    var visibleKeys = keys;
+    var maxInitial = 12;
+    var lines = visibleKeys.map(function (key, idx) {
+      var bucket = map[key] || {};
+      var hiddenAttr = idx >= maxInitial ? ' style="display:none;" data-overflow-dim="1"' : '';
+      return '<span class="insight-dimension-line"' + hiddenAttr + '><strong>' + esc(key) + '</strong> ' + Math.round(finiteNumber(bucket.completed, 0)) + '/' + Math.round(Math.max(0, finiteNumber(bucket.total, 0))) + '</span>';
+    }).join('');
+
+    var toggleBtn = '';
+    if (keys.length > maxInitial) {
+      toggleBtn = '<button type="button" class="btn btn-secondary btn-sm dim-toggle-btn" data-dim-toggle="1" data-more-count="' + (keys.length - maxInitial) + '" aria-expanded="false" style="padding:2px 8px;font-size:10px;height:24px;border-radius:12px;">+' + (keys.length - maxInitial) + ' más</button>';
+    }
+
+    return '<div class="insight-dimension-list">' + lines + toggleBtn + '</div>';
   }
   function riskCount(insights, level) {
     return (insights && Array.isArray(insights.tasks) ? insights.tasks : []).filter(function (task) { return task && task.risk === level; }).length;
@@ -3752,8 +4260,39 @@
     }
     if (hud.getAttribute('data-metric-details-bound') !== '1') {
       hud.setAttribute('data-metric-details-bound', '1');
-      hud.addEventListener('click', function (event) { var card = event.target.closest && event.target.closest('[data-metric-detail]'); if (card && hud.contains(card)) open(card); });
-      hud.addEventListener('keydown', function (event) { var card = event.target.closest && event.target.closest('[data-metric-detail]'); if (card && (event.key === 'Enter' || event.key === ' ')) { event.preventDefault(); open(card); } });
+      hud.addEventListener('click', function (event) {
+        var dimBtn = event.target.closest && event.target.closest('[data-dim-toggle]');
+        if (dimBtn && hud.contains(dimBtn)) {
+          event.stopPropagation();
+          var parent = dimBtn.parentElement;
+          if (!parent) return;
+          var hiddenItems = parent.querySelectorAll('[data-overflow-dim]');
+          var isExpanded = dimBtn.getAttribute('data-exp') === '1';
+          hiddenItems.forEach(function (el) {
+            el.style.display = isExpanded ? 'none' : 'inline-flex';
+          });
+          dimBtn.setAttribute('data-exp', isExpanded ? '0' : '1');
+          dimBtn.setAttribute('aria-expanded', isExpanded ? 'false' : 'true');
+          var moreCount = dimBtn.getAttribute('data-more-count') || '';
+          dimBtn.textContent = isExpanded ? ('+' + moreCount + ' más') : 'Ver menos';
+          return;
+        }
+        var card = event.target.closest && event.target.closest('[data-metric-detail]');
+        if (card && hud.contains(card)) open(card);
+      });
+      hud.addEventListener('keydown', function (event) {
+        var dimBtn = event.target.closest && event.target.closest('[data-dim-toggle]');
+        if (dimBtn && (event.key === 'Enter' || event.key === ' ')) {
+          event.preventDefault();
+          dimBtn.click();
+          return;
+        }
+        var card = event.target.closest && event.target.closest('[data-metric-detail]');
+        if (card && (event.key === 'Enter' || event.key === ' ')) {
+          event.preventDefault();
+          open(card);
+        }
+      });
     }
     if (dialog.getAttribute('data-overview-dialog-bound') !== '1') {
       dialog.setAttribute('data-overview-dialog-bound', '1');
@@ -4250,19 +4789,20 @@
       + '<div class="insight-band-stack">'
       + '<div class="insight-band-region insight-tokens-main">'
       + '<div class="insight-tokens-header">'
-      + '<span class="insight-region-label">' + (insights.tokenUsage && insights.tokenUsage.source === 'activity-estimation' ? 'Estimación de Actividad por Agente' : 'Telemetría de Tokens por Agente') + '</span>'
+      + '<span class="insight-region-label">' + (insights.tokenUsage && insights.tokenUsage.source === 'activity-estimation' ? 'Estimación de Actividad por Agente' : (insights.tokenUsage && (insights.tokenUsage.source === 'preview' || insights.tokenUsage.isPreview) ? 'Telemetría de Tokens (Preview / Demo)' : 'Telemetría de Tokens por Agente (Real)')) + '</span>'
       + (function () {
         var tokenUsage = insights.tokenUsage || { hasData: false, totals: { total: 0 } };
         if (tokenUsage.hasData) {
           var isAct = tokenUsage.source === 'activity-estimation';
+          var isPrev = tokenUsage.source === 'preview' || !!tokenUsage.isPreview;
           var totals = tokenUsage.totals;
           var cacheShare = (!isAct && totals.total > 0 && totals.cacheRead > 0) ? Math.round(totals.cacheRead / totals.total * 100) : 0;
           return '<div class="insight-tokens-summary-chips">'
             + '<span class="token-chip token-chip-total">' + formatCompactTokens(totals.total) + (isAct ? ' u. activ.' : ' tokens') + '</span>'
             + '<span class="token-chip">' + tokenUsage.byAgent.length + ' agentes</span>'
             + (cacheShare > 0 ? '<span class="token-chip">' + cacheShare + '% caché</span>' : '')
-            + (totals.cost !== undefined ? '<span class="token-chip">$' + totals.cost.toFixed(3) + '</span>' : '')
-            + (isAct ? '<span class="token-chip token-chip-estimate">Estimación por actividad</span>' : '')
+            + (!isPrev && totals.cost !== undefined ? '<span class="token-chip">$' + totals.cost.toFixed(3) + '</span>' : '')
+            + (isPrev ? '<span class="token-chip token-chip-preview">🔮 Preview / Demo</span>' : (isAct ? '<span class="token-chip token-chip-estimate" style="color:var(--accent-amber);border-color:rgba(245,158,11,0.4);">⚡ Estimación</span>' : '<span class="token-chip token-chip-measured">✓ Medida Real</span>'))
             + (tokenUsage.isStale ? '<span class="token-chip token-chip-stale">⚠️ Desactualizado (&gt;24h)</span>' : '')
             + '</div>';
         }
@@ -4334,6 +4874,28 @@
       });
     });
 
+    // Internal view jump buttons (e.g. credits teaser CTA)
+    if (doc.documentElement.getAttribute('data-tm-jump-bound') !== '1') {
+      doc.documentElement.setAttribute('data-tm-jump-bound', '1');
+      doc.addEventListener('click', function (e) {
+        var jumpBtn = e.target && e.target.closest ? e.target.closest('[data-jump-view]') : null;
+        if (jumpBtn) {
+          var target = jumpBtn.getAttribute('data-jump-view');
+          if (target) activateView(target);
+        }
+      });
+      doc.addEventListener('keydown', function (e) {
+        if (e.key === 'Enter' || e.key === ' ') {
+          var jumpBtn = e.target && e.target.closest ? e.target.closest('[data-jump-view]') : null;
+          if (jumpBtn) {
+            e.preventDefault();
+            var target = jumpBtn.getAttribute('data-jump-view');
+            if (target) activateView(target);
+          }
+        }
+      });
+    }
+
     // Global search input
     var searchInput = doc.getElementById('global-search-input');
     if (searchInput && searchInput.getAttribute('data-search-bound') !== '1') {
@@ -4348,13 +4910,13 @@
       });
     }
 
-    // Keyboard shortcuts: 1-7 for tabs
+    // Keyboard shortcuts: 1-8 for tabs
     if (doc.documentElement.getAttribute('data-tm-keyboard-bound') !== '1') {
       doc.documentElement.setAttribute('data-tm-keyboard-bound', '1');
       doc.addEventListener('keydown', function (e) {
         if (isEditable(e.target)) return;
         var num = parseInt(e.key, 10);
-        if (num >= 1 && num <= 7) {
+        if (num >= 1 && num <= 8) {
           var btns = doc.querySelectorAll('.tab-btn[data-target-view]');
           var targetBtn = btns[num - 1];
           if (targetBtn) activateView(targetBtn.getAttribute('data-target-view'));
@@ -5603,8 +6165,26 @@
 
       var columns = Math.max(2, Math.min(4, Math.ceil(Math.sqrt(nodes.length))));
       var rows = Math.max(1, Math.ceil(nodes.length / columns));
-      var cellW = 220, cellH = 160, svgW = Math.max(560, columns * cellW), svgH = Math.max(360, rows * cellH + 60);
-      var positions = nodes.map(function (_, index) { var row = Math.floor(index / columns), col = index % columns, count = Math.min(columns, nodes.length - row * columns), offset = (svgW - count * cellW) / 2; return { x: offset + col * cellW + cellW / 2, y: 75 + row * cellH }; });
+      var cellW = 240, cellH = 180, svgW = Math.max(640, columns * cellW + 40), svgH = Math.max(380, rows * cellH + 80);
+      var positions;
+      if (nodes.length <= 6) {
+        // Radial distribution for clean visual balance on small-medium graphs
+        var centerX = svgW / 2, centerY = svgH / 2;
+        var radius = Math.min(centerX, centerY) * 0.65;
+        positions = nodes.map(function (_, index) {
+          var angle = (index / nodes.length) * 2 * Math.PI - Math.PI / 2;
+          return {
+            x: centerX + radius * Math.cos(angle),
+            y: centerY + radius * Math.sin(angle)
+          };
+        });
+      } else {
+        // Grid distribution for larger graphs with ample padding
+        positions = nodes.map(function (_, index) {
+          var row = Math.floor(index / columns), col = index % columns, count = Math.min(columns, nodes.length - row * columns), offset = (svgW - count * cellW) / 2;
+          return { x: offset + col * cellW + cellW / 2, y: 90 + row * cellH };
+        });
+      }
       var html = '<div class="codegraph-container"><div class="codegraph-summary"><div><strong>' + nodes.length + '</strong><span>módulos</span></div><div><strong>' + edges.length + '</strong><span>relaciones</span></div><p>Nodos interactivos dinámicos: arrastra los módulos con el mouse o haz clic para inspeccionar detalles.</p></div>';
       html += '<svg class="codegraph-svg" id="codegraph-svg-canvas" viewBox="0 0 ' + svgW + ' ' + svgH + '\" width=\"100%\" height=\"' + svgH + '\" role=\"img\" aria-label=\"Mapa de dependencias del proyecto\"><defs><marker id=\"graph-arrow\" markerWidth=\"8\" markerHeight=\"8\" refX=\"7\" refY=\"4\" orient=\"auto\"><path d=\"M0,0 L8,4 L0,8 z\" fill=\"var(--accent-blue)\"></path></marker></defs>';
 
@@ -5628,13 +6208,13 @@
         var cx = positions[i].x;
         var cy = positions[i].y;
         html += '<g class="graph-node" id="cg-node-' + esc(node.id) + '" data-codegraph-node="' + esc(node.id) + '" data-index="' + i + '" role="button" tabindex="0" aria-label="Abrir relaciones de ' + label + '" aria-expanded="false" transform="translate(' + cx + ',' + cy + ')" style="cursor:grab;">'
-          + '<circle class="node-pulse" cx="0" cy="0" r="48"></circle>'
-          + '<circle class="node-bg" cx="0" cy="0" r="48"></circle>'
-          + '<circle cx="0" cy="0" r="44" fill="var(--bg-surface-secondary)" fill-opacity="0.85"></circle>'
-          + '<circle cx="0" cy="-22" r="11" fill="var(--color-inprogress-bg)" stroke="var(--accent-blue)" stroke-width="1.2"></circle>'
-          + '<text x="0" y="-18" text-anchor="middle" font-family="var(--font-mono)" font-size="9.5" font-weight="700" fill="var(--accent-blue)">' + esc(String(i + 1).padStart(2, '0')) + '</text>'
-          + '<text x="0" y="3" text-anchor="middle" font-family="var(--font-sans)" font-size="12" font-weight="700" fill="#ffffff">' + label + '</text>'
-          + '<text x="0" y="19" text-anchor="middle" font-family="var(--font-mono)" font-size="9.5" fill="var(--text-tertiary)">' + node.files.length + ' arch · ' + node.taskIds.length + ' tar</text>'
+          + '<circle class="node-pulse" cx="0" cy="0" r="52"></circle>'
+          + '<circle class="node-bg" cx="0" cy="0" r="52"></circle>'
+          + '<circle cx="0" cy="0" r="48" fill="var(--bg-surface-secondary)" fill-opacity="0.9"></circle>'
+          + '<circle cx="0" cy="-24" r="12" fill="var(--color-inprogress-bg)" stroke="var(--accent-blue)" stroke-width="1.2"></circle>'
+          + '<text x="0" y="-20" text-anchor="middle" font-family="var(--font-mono)" font-size="9.5" font-weight="700" fill="var(--accent-blue)">' + esc(String(i + 1).padStart(2, '0')) + '</text>'
+          + '<text x="0" y="2" text-anchor="middle" font-family="var(--font-sans)" font-size="12" font-weight="700" fill="#ffffff">' + label + '</text>'
+          + '<text x="0" y="20" text-anchor="middle" font-family="var(--font-mono)" font-size="9.5" fill="var(--text-tertiary)">' + node.files.length + ' arch · ' + node.taskIds.length + ' tar</text>'
           + '</g>';
       }
       html += '</svg>';
@@ -6081,6 +6661,7 @@
     }
 
     var html = '';
+    var maxVisible = 5;
     for (var i = 0; i < todos.length; i++) {
       var td = todos[i] || {};
       var id = esc(td.id || ('td-' + (i+1)));
@@ -6089,8 +6670,10 @@
       var done = !!td.done;
       var badgeCls = priorityBadgeClass(priority);
       var pLabel = esc(priorityLabel(priority));
+      var isOverflow = i >= maxVisible;
+      var overflowAttr = isOverflow ? ' data-todo-overflow="1" style="display:none;"' : '';
 
-      html += '<div class=\"todo-item' + (done ? ' done' : '') + '\" role=\"button\" tabindex=\"0\" aria-haspopup=\"dialog\" data-id=\"' + id + '\" data-priority=\"' + priority + '\" data-done=\"' + (done ? '1' : '0') + '\" title=\"Clic para ver detalles y recomendaciones de esta señal\">'
+      html += '<div class=\"todo-item' + (done ? ' done' : '') + '\"' + overflowAttr + ' role=\"button\" tabindex=\"0\" aria-haspopup=\"dialog\" data-id=\"' + id + '\" data-priority=\"' + priority + '\" data-done=\"' + (done ? '1' : '0') + '\" title=\"Clic para ver detalles y recomendaciones de esta señal\">'
         + '<div class=\"todo-left\">'
         + '<span class=\"todo-text\">' + text + '</span>'
         + '</div>'
@@ -6100,7 +6683,31 @@
         + '</div>'
         + '</div>';
     }
+
+    if (todos.length > maxVisible) {
+      html += '<div class="todo-expand-bar" style="margin-top:8px;text-align:center;">'
+        + '<button type="button" class="btn btn-secondary btn-sm" id="btn-toggle-todos" data-expanded="0" style="width:100%;padding:8px 12px;font-weight:600;display:flex;align-items:center;justify-content:center;gap:6px;">'
+        + '<span>Mostrar todas las señales (' + todos.length + ')</span><span class="todo-toggle-arrow" aria-hidden="true">▾</span>'
+        + '</button>'
+        + '</div>';
+    }
+
     container.innerHTML = html;
+
+    var toggleBtn = container.querySelector('#btn-toggle-todos');
+    if (toggleBtn) {
+      toggleBtn.addEventListener('click', function () {
+        var isExp = this.getAttribute('data-expanded') === '1';
+        var overflowItems = container.querySelectorAll('[data-todo-overflow]');
+        overflowItems.forEach(function (el) {
+          el.style.display = isExp ? 'none' : 'flex';
+        });
+        this.setAttribute('data-expanded', isExp ? '0' : '1');
+        this.querySelector('span').textContent = isExp ? ('Mostrar todas las señales (' + todos.length + ')') : 'Contraer a las 5 principales';
+        var arrow = this.querySelector('.todo-toggle-arrow');
+        if (arrow) arrow.textContent = isExp ? '▾' : '▴';
+      });
+    }
 
     if (container.getAttribute('data-todo-bound') !== '1') {
       container.setAttribute('data-todo-bound', '1');
@@ -6139,7 +6746,7 @@
       + '6. Preserva IDs existentes, notas personalizadas del usuario, etiquetas y propietarios. Todas las actualizaciones deben ser aditivas y orientadas al estado.\\\\n'
       + '7. Compatibilidad pura offline sobre file://: sin fetch, XMLHttpRequest, importaciones ESM ni dependencias externas en runtime.\\\\n'
       + '8. No hardcodees métricas derivadas (como overallPct o conteos de estado), ya que se calculan dinámicamente en el renderizador.\\\\n'
-      + '9. La propiedad \\"tokenUsage\\" es telemetría gestionada por el host. PRESERVA el objeto tokenUsage intacto; NUNCA inventes, estimes ni sobrescribas tokenUsage.\\\\n\\\\n'
+      + '9. La propiedad \\"tokenUsage\\" es telemetría gestionada por el host. PRESERVA el objeto tokenUsage intacto; NUNCA inventes, estimes ni sobrescribas tokenUsage. El preview de la plantilla es sustituido automáticamente por telemetría del host al sincronizar el proyecto.\\\\n\\\\n'
       + 'Al finalizar, guarda el archivo con el JSON island actualizado de forma atómica y reporta un resumen conciso del estado de fases y tareas.';
   }
 
@@ -6255,9 +6862,36 @@
     })();
   }
 
+  function setupExternalLinks(doc) {
+    doc = doc || (typeof document !== 'undefined' ? document : null);
+    if (!doc || doc._externalLinksBound) return;
+    doc._externalLinksBound = true;
+
+    doc.addEventListener('click', function (event) {
+      var target = event.target && event.target.closest ? event.target.closest('[data-external-link]') : null;
+      if (!target) return;
+      var url = target.getAttribute('data-external-link');
+      if (url && typeof window !== 'undefined' && window.open) {
+        window.open(url, '_blank', 'noopener,noreferrer');
+      }
+    });
+
+    doc.addEventListener('keydown', function (event) {
+      if (event.key !== 'Enter' && event.key !== ' ') return;
+      var target = event.target && event.target.closest ? event.target.closest('[data-external-link]') : null;
+      if (!target) return;
+      event.preventDefault();
+      var url = target.getAttribute('data-external-link');
+      if (url && typeof window !== 'undefined' && window.open) {
+        window.open(url, '_blank', 'noopener,noreferrer');
+      }
+    });
+  }
+
   function renderAllTodoHelp(state, doc, validation) {
     renderTodo(state, doc);
     renderHelp(state, doc, validation);
+    setupExternalLinks(doc);
   }
 
   var TMTodoHelp = {
@@ -6324,6 +6958,7 @@ document.addEventListener('DOMContentLoaded', function() {
     // Expose for debugging
     window.__TM_STATE__ = state;
     window.__TM_METRICS__ = metrics;
+
   } catch (e) {
     console.error('Bootstrap failed', e);
     var b = document.getElementById('tm-error-banner');

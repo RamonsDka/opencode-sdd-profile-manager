@@ -158,7 +158,10 @@ export function withFileLock<T>(
 }
 
 const MANAGED_AGENT_PREFIXES = ["sdd-", "review-", "jd-"];
-const MANAGED_SDD_AGENT_EXCEPTIONS = new Set(["gentle-orchestrator", "model-audit"]);
+const MANAGED_SDD_AGENT_EXCEPTIONS = new Set([
+  "gentle-orchestrator", "model-audit",
+  "gentle-ai-worker", "gentle-ai-explore", "gentle-ai-verify",
+]);
 const FALLBACK_INELIGIBLE_AGENTS = new Set([
   "sdd-orchestrator",
   "gentle-orchestrator",
@@ -166,10 +169,9 @@ const FALLBACK_INELIGIBLE_AGENTS = new Set([
   "model-audit",
 ]);
 const PERSISTIBLE_CATALOG_AGENT_KEYS = new Set<PersistibleAgentKey>([
-  "sdd-ORCHETATOR", "sdd-propose", "sdd-design", "sdd-apply", "sdd-verify", "sdd-spec",
-  "sdd-onboard", "sdd-explore", "sdd-init", "sdd-tasks", "sdd-archive", "jd-judge-a",
+  "gentle-orchestrator", "gentle-ai-verify", "gentle-ai-worker", "gentle-ai-explore", "jd-judge-a",
   "jd-judge-b", "jd-fix-agent", "review-readability", "review-reliability", "review-resilience",
-  "review-validator", "review-refuter", "review-risk", "model-audit",
+  "review-validator", "review-refuter", "review-risk",
   "gentle-ai-windows-validator", "compaction", "summary", "title",
 ]);
 const RUNTIME_SYNC_EXCLUDED_CATALOG_KEYS = new Set([
@@ -236,7 +238,9 @@ export function truncateText(value: string, max = 120): string {
  * @returns True if the agent name uses a managed prefix
  */
 export function isManagedSddAgent(agentName: string): boolean {
-  return MANAGED_AGENT_PREFIXES.some((prefix) => agentName.startsWith(prefix)) || MANAGED_SDD_AGENT_EXCEPTIONS.has(agentName);
+  return MANAGED_AGENT_PREFIXES.some((prefix) => agentName.startsWith(prefix)) ||
+    MANAGED_SDD_AGENT_EXCEPTIONS.has(agentName) ||
+    (agentName.endsWith("-fallback") && MANAGED_SDD_AGENT_EXCEPTIONS.has(agentName.slice(0, -9)));
 }
 
 /**

@@ -219,7 +219,7 @@
               "cost": { "type": "number" },
               "sessions": { "type": "number" },
               "messages": { "type": "number" },
-              "evidence": { "type": "string", "enum": ["measured", "derived", "estimated", "unavailable"] },
+              "evidence": { "type": "string", "enum": ["measured", "derived", "estimated", "preview", "unavailable"] },
               "confidence": { "type": "number" }
             }
           }

@@ -372,12 +372,12 @@
 
       var modelsList = Array.isArray(item.models) ? item.models.map(String).filter(Boolean) : (item.model ? [String(item.model)] : []);
       var evidence = String(item.evidence || 'measured');
-      if (evidence !== 'measured' && evidence !== 'derived' && evidence !== 'estimated') {
+      if (evidence !== 'measured' && evidence !== 'derived' && evidence !== 'estimated' && evidence !== 'preview') {
         evidence = 'measured';
       }
       var confidence = (typeof item.confidence === 'number' && isFinite(item.confidence))
         ? Math.max(0, Math.min(1, item.confidence))
-        : (evidence === 'estimated' ? 0.35 : 1.0);
+        : (evidence === 'estimated' ? 0.35 : (evidence === 'preview' ? 0.2 : 1.0));
 
       var sessions = Math.max(0, Math.round(finiteNumber(item.sessions, 0)));
       var messages = Math.max(0, Math.round(finiteNumber(item.messages, 0)));
@@ -426,11 +426,14 @@
 
     var hasData = byAgent.length > 0 && totTotal > 0;
 
+    var isPreview = String(raw.source || '').toLowerCase() === 'preview' || byAgent.some(function (a) { return a.evidence === 'preview'; });
+
     return {
       hasData: hasData,
       schemaVersion: '1.0',
       updatedAt: updatedAt,
       isStale: isStale,
+      isPreview: isPreview,
       source: String(raw.source || 'opencode-sdk'),
       scope: String(raw.scope || ''),
       root: String(raw.root || ''),
@@ -575,7 +578,7 @@
 
   var UI_PREFERENCES_KEY = 'tm-ui-preferences';
   var UI_PREFERENCE_VERSION = 1;
-  var VIEW_IDS = ['overview', 'phases', 'kanban', 'codegraph', 'tree', 'git', 'help'];
+  var VIEW_IDS = ['overview', 'phases', 'kanban', 'codegraph', 'tree', 'git', 'help', 'acknowledgements'];
   var FILTER_STATUSES = ['all', 'active', 'completed', 'in-progress', 'pending', 'blocked'];
 
   function defaultUiPreferences() {

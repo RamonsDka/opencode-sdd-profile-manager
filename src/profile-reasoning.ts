@@ -31,10 +31,30 @@ function resolveModelDefinition(providers: readonly any[], modelId: string): any
   return (providers || []).find((provider: any) => provider?.id === providerId)?.models?.[modelKey] || null;
 }
 
+export type ReasoningVariantOption = { variantId: string; label: string; effort?: string };
+
+function hasNativeVariants(modelDef: any): boolean {
+  return Object.values(modelDef?.variants || {}).some((variant: any) =>
+    variant && ("settings" in variant || "id" in variant || "body" in variant || "headers" in variant));
+}
+
+/** Native IDs remain distinct even when multiple variants use the same effort. */
+export function getReasoningVariantOptions(providers: readonly any[], modelId?: string): ReasoningVariantOption[] {
+  const modelDef = resolveModelDefinition(providers, modelId || "");
+  if (!hasNativeVariants(modelDef)) return [];
+  return Object.entries(modelDef.variants).map(([variantId, variant]: [string, any]) => ({
+    variantId,
+    label: variantId,
+    ...(typeof variant?.settings?.reasoningEffort === "string" ? { effort: variant.settings.reasoningEffort } : {}),
+  }));
+}
+
 function listReasoningEffortsFromModel(modelDef: any): string[] {
-  if (!modelDef || modelDef?.capabilities?.reasoning !== true) return [];
+  if (!modelDef) return [];
   const variants = modelDef?.variants;
   if (!variants || typeof variants !== "object") return [];
+  if (hasNativeVariants(modelDef)) return Object.keys(variants);
+  if (modelDef?.capabilities?.reasoning !== true) return [];
   const values = Object.values(variants)
     .map((variant: any) => typeof variant?.reasoningEffort === "string" ? variant.reasoningEffort.trim() : "")
     .filter(Boolean);
@@ -65,13 +85,16 @@ function canonicalizeProfileConfigs(configs: ProfileConfigs, policy: Orchestrato
     next?.[policy.canonicalName]?.reasoningEffort ||
     next?.[LEGACY_ORCHESTRATOR]?.reasoningEffort ||
     next?.[UPDATED_ORCHESTRATOR]?.reasoningEffort;
+  const canonicalVariant = next?.[policy.canonicalName]?.nativeVariant ||
+    next?.[LEGACY_ORCHESTRATOR]?.nativeVariant || next?.[UPDATED_ORCHESTRATOR]?.nativeVariant;
 
   delete next[LEGACY_ORCHESTRATOR];
   delete next[UPDATED_ORCHESTRATOR];
-  if (canonicalEffort) {
+  if (canonicalEffort || canonicalVariant) {
     next[policy.canonicalName] = {
       ...next[policy.canonicalName],
-      reasoningEffort: canonicalEffort,
+      ...(canonicalEffort ? { reasoningEffort: canonicalEffort } : {}),
+      ...(canonicalVariant ? { nativeVariant: canonicalVariant } : {}),
     };
   }
   return next;
@@ -85,7 +108,7 @@ export function resolveReasoningEffortSelection(
   providers: readonly any[],
   modelId: string,
   selection: string,
-): { kind: "configured"; value: string; option: string; label: string } | {
+): { kind: "configured"; value: string; option: string; label: string; nativeVariant?: string } | {
   kind: "provider-default";
   value: undefined;
   option: typeof PROVIDER_DEFAULT_REASONING_EFFORT;
@@ -104,7 +127,9 @@ export function resolveReasoningEffortSelection(
   if (!options.includes(normalized)) {
     throw new Error(`Reasoning effort '${normalized}' is not available for ${modelId}`);
   }
-  return { kind: "configured", value: normalized, option: normalized, label: normalized };
+  return { kind: "configured", value: normalized, option: normalized, label: normalized,
+    ...(getReasoningVariantOptions(providers, modelId).some(option => option.variantId === normalized) ? { nativeVariant: normalized } : {}),
+  };
 }
 
 export function buildReasoningEditState(
@@ -129,6 +154,7 @@ export function buildReasoningEditState(
     kind: "selectable",
     agentName,
     modelId,
+    ...(getReasoningVariantOptions(providers, modelId).length ? { variantOptions: getReasoningVariantOptions(providers, modelId) } : {}),
     options: [PROVIDER_DEFAULT_REASONING_EFFORT, ...options.filter((opt) => opt !== PROVIDER_DEFAULT_REASONING_EFFORT)],
     ...(normalizeReasoningEffortValue(current) ? { current: normalizeReasoningEffortValue(current) } : {}),
   };
@@ -146,7 +172,11 @@ export function normalizeProfileConfigs(
       .filter(([agentName]) => isStoredReasoningOwner(agentName, policy, fallbackModels))
       .map(([agentName, config]) => {
         const effort = normalizeReasoningEffortValue(config?.reasoningEffort, preserveProviderDefault) || "";
-        return effort ? [agentName, { reasoningEffort: effort }] : null;
+        const nativeVariant = normalizeReasoningEffortValue(config?.nativeVariant);
+        return effort || nativeVariant ? [agentName, {
+          ...(effort ? { reasoningEffort: effort } : {}),
+          ...(nativeVariant ? { nativeVariant } : {}),
+        }] : null;
       })
       .filter(Boolean) as any,
   );
@@ -154,12 +184,14 @@ export function normalizeProfileConfigs(
   return Object.keys(normalized).length > 0 ? normalized : undefined;
 }
 
-export function updateProfileReasoningEffort(profile: ProfileData, agentName: string, value?: string): ProfileData {
+export function updateProfileReasoningEffort(profile: ProfileData, agentName: string, value?: string, providers?: readonly any[]): ProfileData {
   if (!isReasoningOwner(agentName)) return profile;
   const nextConfigs: Record<string, any> = { ...profile?.configs };
   const trimmed = normalizeReasoningEffortValue(value) || "";
   if (!trimmed) delete nextConfigs[agentName];
-  else nextConfigs[agentName] = { ...nextConfigs[agentName], reasoningEffort: trimmed };
+  else if (providers && getReasoningVariantOptions(providers, profile.models?.[agentName]).some(option => option.variantId === trimmed)) {
+    nextConfigs[agentName] = { nativeVariant: trimmed };
+  } else nextConfigs[agentName] = { reasoningEffort: trimmed };
   const normalized = normalizeProfileConfigs(nextConfigs);
   const nextProfile: any = { ...(profile || { models: {} }) };
   delete nextProfile.configs;
@@ -193,7 +225,7 @@ export function pruneProfileReasoningEffort(
     ? policy.aliasNames
     : [agentName];
   const current = storedNames
-    .map((name) => profile?.configs?.[name]?.reasoningEffort)
+    .map((name) => profile?.configs?.[name]?.nativeVariant || profile?.configs?.[name]?.reasoningEffort)
     .find((effort) => typeof effort === "string" && effort.trim());
   if (!current || getReasoningEffortOptions(providers, modelId).includes(current)) return profile;
   return clearProfileReasoningEffort(profile, agentName);
@@ -202,8 +234,11 @@ export function pruneProfileReasoningEffort(
 function clearAgentReasoningEffort(agentConfig: any): boolean {
   if (!agentConfig || typeof agentConfig !== "object") return false;
   const hadEffort = Object.hasOwn(agentConfig, "reasoningEffort")
+    || Object.hasOwn(agentConfig, "variant")
     || (agentConfig.options && typeof agentConfig.options === "object" && Object.hasOwn(agentConfig.options, "reasoningEffort"));
   delete agentConfig.reasoningEffort;
+  delete agentConfig.variant;
+  if (agentConfig.request?.body) delete agentConfig.request.body.reasoningEffort;
   if (agentConfig.options && typeof agentConfig.options === "object") delete agentConfig.options.reasoningEffort;
   return hadEffort;
 }
@@ -219,7 +254,7 @@ function applyAgentReasoningEffort(agentConfig: any, effort: string): any {
   };
 }
 
-export function applyProfileReasoningEffort(currentConfig: any, profile: ProfileData, providers: any[], policy?: OrchestratorPolicy): {
+export function applyProfileReasoningEffort(currentConfig: any, profile: ProfileData, providers: any[], policy?: OrchestratorPolicy, scopedActivation = false): {
   config: any;
   warnings: string[];
   appliedAgents: string[];
@@ -236,10 +271,11 @@ export function applyProfileReasoningEffort(currentConfig: any, profile: Profile
     [...Object.keys(nextConfig?.agent || {}), ...Object.keys(profile?.models || {}), ...Object.keys(profile?.configs || {})],
     nextConfig?.default_agent,
   );
-  const normalizedConfigs = normalizeProfileConfigs(profile?.configs, policy ? effectivePolicy : undefined);
+  const normalizedConfigs = normalizeProfileConfigs(profile?.configs, policy ? effectivePolicy : undefined, true);
   const reasoningOwner = (agentName: string) => isReasoningOwner(agentName, policy ? effectivePolicy : undefined);
 
   for (const [agentName, agentConfig] of Object.entries(nextConfig?.agent || {})) {
+    if (scopedActivation) continue;
     if (isFallbackOrReservedAgent(agentName) && agentName !== effectivePolicy.canonicalName && clearAgentReasoningEffort(agentConfig)) {
       clearedAgents.push(agentName);
     }
@@ -259,16 +295,39 @@ export function applyProfileReasoningEffort(currentConfig: any, profile: Profile
     if (!reasoningOwner(agentName)) continue;
     const runtimeAgent = nextConfig?.agent?.[agentName];
     const effort = cfg?.reasoningEffort;
-    if (!effort || !runtimeAgent || typeof runtimeAgent !== "object") continue;
-    const modelId = runtimeAgent.model;
-    const options = getReasoningEffortOptions(providers, modelId);
-    if (options.length === 0) {
+    if ((!effort && !cfg.nativeVariant) || !runtimeAgent || typeof runtimeAgent !== "object") continue;
+    if (effort === PROVIDER_DEFAULT_REASONING_EFFORT) {
       if (clearAgentReasoningEffort(runtimeAgent)) clearedAgents.push(agentName);
-      warnings.push(`Skipped reasoning effort for ${agentName}: missing runtime metadata for ${modelId}.`);
       continue;
     }
+    const modelId = runtimeAgent.model;
+    const modelDef = resolveModelDefinition(providers, modelId);
+    const nativeOptions = getReasoningVariantOptions(providers, modelId);
+    if (cfg.nativeVariant || nativeOptions.length) {
+      const matches = cfg.nativeVariant
+        ? nativeOptions.filter(option => option.variantId === cfg.nativeVariant)
+        : nativeOptions.filter(option => option.effort === effort);
+      if (matches.length !== 1) {
+        warnings.push(`Skipped native variant for ${agentName}: ${!modelDef ? "exact model not found" : matches.length > 1 ? "ambiguous legacy effort" : "incompatible saved value"} for ${modelId}.`);
+        continue;
+      }
+      clearAgentReasoningEffort(runtimeAgent);
+      runtimeAgent.variant = matches[0].variantId;
+      appliedAgents.push(agentName);
+      continue;
+    }
+    const options = getReasoningEffortOptions(providers, modelId);
+    if (options.length === 0) {
+      const diagnostic = !modelDef ? "exact model not found"
+        : modelDef?.capabilities?.reasoning === false ? "model reasoning unsupported"
+        : "no effort variant metadata";
+      warnings.push(`Skipped reasoning effort for ${agentName}: ${diagnostic} for ${modelId}.`);
+      continue;
+    }
+    if (!effort) continue;
     if (!options.includes(effort)) {
-      if (clearAgentReasoningEffort(runtimeAgent)) clearedAgents.push(agentName);
+      const previous = runtimeAgent.reasoningEffort || runtimeAgent.options?.reasoningEffort;
+      if (!options.includes(previous) && clearAgentReasoningEffort(runtimeAgent)) clearedAgents.push(agentName);
       warnings.push(`Skipped reasoning effort for ${agentName}: saved value '${effort}' is incompatible with ${modelId}.`);
       continue;
     }

@@ -5,6 +5,7 @@ import {
   DEFAULT_REASONING_EFFORT_LABEL,
   PROVIDER_DEFAULT_REASONING_EFFORT,
   getReasoningEffortOptions,
+  getReasoningVariantOptions,
   normalizeProfileConfigs,
   pruneProfileReasoningEffort,
   resolveReasoningEffortSelection,
@@ -13,6 +14,80 @@ import {
 import { getOrchestratorPolicy } from "./orchestrator";
 
 describe("profile reasoning helpers", () => {
+  describe("native variant contract", () => {
+    it("activates native identity without provider body injection and migrates only unique effort", () => {
+      const providers = [{ id: "p", models: { m: { variants: { fast: { settings: { reasoningEffort: "low" } }, high: { settings: { reasoningEffort: "high" } }, other: { settings: { reasoningEffort: "low" } } } } } }];
+      const current = { agent: { "gentle-ai-worker": { model: "p/m", variant: "fast", request: { body: { keep: true }, headers: { keep: "yes" } } } } };
+      const apply = (config: any) => applyProfileReasoningEffort(current, { models: { "gentle-ai-worker": "p/m" }, configs: { "gentle-ai-worker": config } }, providers);
+      expect(apply({ nativeVariant: "high" }).config.agent["gentle-ai-worker"]).toEqual({ ...current.agent["gentle-ai-worker"], variant: "high" });
+      expect(apply({ reasoningEffort: "high" }).config.agent["gentle-ai-worker"].variant).toBe("high");
+      expect(apply({ reasoningEffort: "low" }).warnings).toEqual([expect.stringContaining("ambiguous")]);
+      expect(apply({ reasoningEffort: "low" }).config).toEqual(current);
+      expect(apply({ nativeVariant: "stale" }).warnings).toEqual([expect.stringContaining("incompatible")]);
+      expect(pruneProfileReasoningEffort({ models: { "gentle-ai-worker": "p/m" }, configs: { "gentle-ai-worker": { nativeVariant: "fast" } } }, "gentle-ai-worker", "p/missing", providers).configs).toBeUndefined();
+      const cleared = apply({ reasoningEffort: "provider-default" }).config.agent["gentle-ai-worker"];
+      expect(cleared.variant).toBeUndefined();
+      expect(cleared.request).toEqual(current.agent["gentle-ai-worker"].request);
+    });
+    const providers = [{ id: "p", models: {
+      m: { capabilities: { temperature: true }, variants: {
+        low: { id: "low", settings: { reasoningEffort: "low" } },
+        medium: { id: "medium", settings: { reasoningEffort: "medium" } },
+        high: { id: "high", settings: { reasoningEffort: "high" } },
+        fast: { id: "fast", settings: { reasoningEffort: "low" }, body: { thinking: { budget: 64 } }, headers: { "x-mode": "fast" } },
+      } },
+      other: { variants: { high: { settings: { reasoningEffort: "high" } }, max: { settings: { reasoningEffort: "max" } } } },
+    } }];
+    it("offers settings-only native variants rather than provider default", () => {
+      expect(buildReasoningEditState(providers, "gentle-ai-worker", "p/m").options).toEqual([PROVIDER_DEFAULT_REASONING_EFFORT, "low", "medium", "high", "fast"]);
+      expect(getReasoningEffortOptions(providers, "p/other")).toEqual(["high", "max"]);
+      expect(buildReasoningEditState(providers, "gentle-ai-worker", "p/missing").options).toEqual([PROVIDER_DEFAULT_REASONING_EFFORT]);
+    });
+    it("retains arbitrary identity, duplicate effort and opaque overlays", () => {
+      expect(getReasoningVariantOptions(providers, "p/m")[3]).toEqual({ variantId: "fast", label: "fast", effort: "low" });
+      expect(resolveReasoningEffortSelection(providers, "p/m", "fast")).toMatchObject({ value: "fast", nativeVariant: "fast" });
+      expect(providers[0].models.m.variants.fast.body).toEqual({ thinking: { budget: 64 } });
+    });
+    it("stores native identity separately and preserves it through normalization", () => {
+      const next = updateProfileReasoningEffort({ models: { "gentle-ai-worker": "p/m" } }, "gentle-ai-worker", "fast", providers);
+      expect(next.configs).toEqual({ "gentle-ai-worker": { nativeVariant: "fast" } });
+      expect(normalizeProfileConfigs(next.configs)).toEqual(next.configs);
+      const policy = getOrchestratorPolicy(["gentle-orchestrator"], "gentle-orchestrator");
+      expect(normalizeProfileConfigs({ "sdd-orchestrator": { nativeVariant: "fast" } }, policy)).toEqual({ "gentle-orchestrator": { nativeVariant: "fast" } });
+    });
+  });
+  it.each([
+    [[], "exact model not found"],
+    [[{ id: "openai", models: { "gpt-5": { capabilities: { reasoning: false } } } }], "model reasoning unsupported"],
+    [[{ id: "openai", models: { "gpt-5": { capabilities: { reasoning: true }, variants: {} } } }], "no effort variant metadata"],
+  ])("preserves existing effort with specific unavailable metadata diagnostics: %s", (providers, diagnostic) => {
+    const current = { agent: { "gentle-ai-worker": { model: "openai/gpt-5", reasoningEffort: "low", options: { reasoningEffort: "low", other: true } } } };
+    const next = applyProfileReasoningEffort(current, {
+      models: { "gentle-ai-worker": "openai/gpt-5" },
+      configs: { "gentle-ai-worker": { reasoningEffort: "high" } },
+    }, providers as any[]);
+    expect(next.config).toEqual(current);
+    expect(next.clearedAgents).toEqual([]);
+    expect(next.warnings).toEqual([expect.stringContaining(diagnostic as string)]);
+  });
+
+  it("preserves previous valid effort when a saved level is invalid", () => {
+    const next = applyProfileReasoningEffort({ agent: { "gentle-ai-worker": { model: "p/m", reasoningEffort: "low" } } }, {
+      models: { "gentle-ai-worker": "p/m" }, configs: { "gentle-ai-worker": { reasoningEffort: "invalid" } },
+    }, [{ id: "p", models: { m: { capabilities: { reasoning: true }, variants: { low: { reasoningEffort: "low" } } } } }]);
+    expect(next.config.agent["gentle-ai-worker"].reasoningEffort).toBe("low");
+    expect(next.warnings).toEqual([expect.stringContaining("incompatible")]);
+  });
+
+  it("explicit provider default clears only its approved target without metadata", () => {
+    const next = applyProfileReasoningEffort({ agent: { "gentle-ai-worker": { model: "p/m", reasoningEffort: "high", options: { reasoningEffort: "high" } }, "gentle-ai-explore": { reasoningEffort: "low" } } }, {
+      models: { "gentle-ai-worker": "p/m" }, configs: { "gentle-ai-worker": { reasoningEffort: PROVIDER_DEFAULT_REASONING_EFFORT } },
+    }, []);
+    expect(next.config.agent["gentle-ai-worker"].reasoningEffort).toBeUndefined();
+    expect(next.config.agent["gentle-ai-worker"].options.reasoningEffort).toBeUndefined();
+    expect(next.config.agent["gentle-ai-explore"].reasoningEffort).toBe("low");
+    expect(next.clearedAgents).toEqual(["gentle-ai-worker"]);
+  });
   describe("buildReasoningEditState", () => {
     const providers = [
       {
@@ -372,9 +447,9 @@ describe("profile reasoning helpers", () => {
       } as any, providers as any);
 
       expect(stale.appliedAgents).toEqual([]);
-      expect(stale.clearedAgents).toEqual(["sdd-apply"]);
-      expect(stale.config.agent["sdd-apply"].reasoningEffort).toBeUndefined();
-      expect(stale.config.agent["sdd-apply"].options.reasoningEffort).toBeUndefined();
+      expect(stale.clearedAgents).toEqual([]);
+      expect(stale.config.agent["sdd-apply"].reasoningEffort).toBe("low");
+      expect(stale.config.agent["sdd-apply"].options.reasoningEffort).toBe("low");
       expect(stale.warnings[0]).toContain("incompatible");
 
       const missingMetadata = applyProfileReasoningEffort({
@@ -387,10 +462,10 @@ describe("profile reasoning helpers", () => {
       } as any, providers as any);
 
       expect(missingMetadata.appliedAgents).toEqual([]);
-      expect(missingMetadata.clearedAgents).toEqual(["sdd-apply"]);
-      expect(missingMetadata.config.agent["sdd-apply"].reasoningEffort).toBeUndefined();
-      expect(missingMetadata.config.agent["sdd-apply"].options.reasoningEffort).toBeUndefined();
-      expect(missingMetadata.warnings[0]).toContain("metadata");
+      expect(missingMetadata.clearedAgents).toEqual([]);
+      expect(missingMetadata.config.agent["sdd-apply"].reasoningEffort).toBe("high");
+      expect(missingMetadata.config.agent["sdd-apply"].options.reasoningEffort).toBe("high");
+      expect(missingMetadata.warnings[0]).toContain("exact model not found");
     });
 
     it("applies orchestrator reasoning effort using updated runtime canonical alias", () => {

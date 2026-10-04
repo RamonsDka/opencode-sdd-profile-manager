@@ -40,7 +40,7 @@ import {
    migrateProfilesForRuntimePolicy
 } from './profiles';
 import { getOrchestratorPolicy } from './orchestrator';
-import { collectConfigurableProfileTargets } from './catalog';
+import { collectConfigurableProfileTargets, PERSISTIBLE_AGENT_KEYS } from './catalog';
 
 const toPosix = (p: any) => (typeof p === 'string' ? p.replace(/\\/g, '/') : p);
 
@@ -2053,6 +2053,18 @@ describe('profiles logic', () => {
       });
     });
 
+    it('commits native sequential and bulk identities', () => {
+      const providers = [{ id: 'p', models: { m: { variants: { fast: { settings: { reasoningEffort: 'low' } } } } } }];
+      const context = { providers, effortPolicy: 'none' as const };
+      vi.mocked(fs.existsSync).mockReturnValue(false);
+      vi.mocked(fs.readdirSync).mockReturnValue([] as any);
+      vi.mocked(fs.readFileSync).mockReturnValue(JSON.stringify({ models: { 'gentle-ai-worker': 'p/m' } }));
+      const native = commitPendingModelSelection('/mock/profiles/native.json', { agentName: 'gentle-ai-worker', field: 'primary', modelId: 'p/m' }, 'fast', undefined, context);
+      expect(native.profile.configs).toEqual({ 'gentle-ai-worker': { nativeVariant: 'fast' } });
+      const bulk = buildBulkProfileOverwrite({ models: { 'gentle-ai-worker': 'p/m' } }, [{ field: 'model', profileKey: 'gentle-ai-worker' }], 'p/m', 'fast', context);
+      expect(bulk.profile.configs).toEqual(native.profile.configs);
+    });
+
     it('commits same-model effort changes as one model-and-effort transaction', () => {
       const writes: Array<{ filePath: string; content: string }> = [];
       vi.mocked(fs.existsSync).mockReturnValue(false);
@@ -2932,6 +2944,85 @@ describe('profiles logic', () => {
   });
 
   describe('activateProfileFile', () => {
+    it('activates only the current catalog using native definitions without changing history', async () => {
+      const names = [...PERSISTIBLE_AGENT_KEYS];
+      expect(names).toHaveLength(17);
+      const profile: ProfileData = { models: { ...Object.fromEntries(names.map(name => [name, 'new/model'])), 'sdd-ORCHETATOR': 'new/coordinator', 'sdd-init': 'history/init', custom: 'history/custom' }, fallback: { 'gentle-ai-worker': 'stored/fallback' } };
+      delete profile.models['gentle-orchestrator'];
+      const config = { agent: { 'sdd-init': { model: 'old/init' }, custom: { model: 'old/custom' } }, providers: { keep: {} } };
+      const history = JSON.stringify(profile);
+      vi.mocked(fs.existsSync).mockReturnValue(true);
+      vi.mocked(fs.readFileSync).mockImplementation((p: any) => toPosix(p).includes('/profiles/') ? history : JSON.stringify(config));
+      const nativeNames = ['gentle-ai-worker', 'gentle-ai-explore', 'gentle-ai-verify'];
+      const runtime = Object.fromEntries(names.filter(name => !nativeNames.includes(name) && name !== 'title').map(name => [name, { system: 'Keep ' + name }]));
+      const api = { ui: { toast: vi.fn() }, client: { global: { config: { get: vi.fn().mockResolvedValue({ data: { agent: runtime } }), update: vi.fn().mockResolvedValue({}) } } }, getInstalledAgentDefinitions: vi.fn().mockResolvedValue(Object.fromEntries(nativeNames.map(name => [name, { system: 'Native ' + name }]))) };
+      const result = await activateProfileFile(api, '/mock/profiles/current.json', 'current');
+      for (const name of nativeNames) expect(result.agent[name]).toEqual({ model: 'new/model', system: 'Native ' + name });
+      for (const name of names.filter(name => !nativeNames.includes(name) && name !== 'title')) expect(result.agent[name]).toEqual({ model: name === 'gentle-orchestrator' ? 'new/coordinator' : 'new/model', system: 'Keep ' + name });
+      expect(result.agent['sdd-init']).toEqual(config.agent['sdd-init']);
+      expect(result.agent.custom).toEqual(config.agent.custom);
+      expect(result.agent['gentle-ai-worker-fallback']).toBeUndefined();
+      expect(result.providers).toEqual(config.providers);
+      expect(api.ui.toast).not.toHaveBeenCalled();
+      expect(fs.writeFileSync).not.toHaveBeenCalled();
+      expect(JSON.stringify(profile)).toBe(history);
+    });
+    it('activates historical coordinator fallback intent with managed ODD assignments', async () => {
+      const profile = {
+        models: {
+          'sdd-ORCHETATOR': 'new/coordinator',
+          'gentle-ai-worker': 'new/worker',
+          'gentle-ai-explore': 'new/explore',
+          'gentle-ai-verify': 'new/verify',
+          'sdd-init': 'new/init',
+        },
+        fallback: {
+          'sdd-ORCHETATOR': 'stored/coordinator-fallback',
+          'gentle-ai-worker': 'new/worker-fallback',
+          'gentle-ai-explore': 'new/explore-fallback',
+          'gentle-ai-verify': 'new/verify-fallback',
+          'model-audit': 'new/audit-fallback',
+        },
+      };
+      const config = { agent: {
+        'gentle-orchestrator': { model: 'old/coordinator', description: 'Coordinator' },
+        'gentle-ai-worker': { model: 'old/worker', description: 'Worker' },
+        'gentle-ai-explore': { model: 'old/explore', description: 'Explore' },
+        'gentle-ai-verify': { model: 'old/verify', description: 'Verify' },
+        'sdd-init': { model: 'old/init', description: 'Historical phase' },
+        'model-audit': { model: 'old/audit', description: 'Historical audit' },
+        'external-agent': { model: 'unchanged/external', description: 'External' },
+      } };
+      vi.mocked(fs.existsSync).mockReturnValue(true);
+      vi.mocked(fs.readFileSync).mockImplementation((filePath: any) =>
+        JSON.stringify(toPosix(filePath) === '/mock/profiles/historical.json' ? profile : config));
+      const update = vi.fn().mockResolvedValue({ data: {} });
+      const toast = vi.fn();
+      const api = {
+        state: { provider: [] }, ui: { toast },
+        client: { global: { config: { get: vi.fn().mockResolvedValue({ data: config }), update } } },
+      };
+
+      const result = await activateProfileFile(api, '/mock/profiles/historical.json', 'historical');
+
+      expect(result).not.toBeNull();
+      expect(update).toHaveBeenCalledWith({ config: result });
+      expect(result.agent['gentle-orchestrator'].model).toBe('new/coordinator');
+      for (const name of ['worker', 'explore', 'verify']) {
+        expect(result.agent[`gentle-ai-${name}`].model).toBe(`new/${name}`);
+        expect(result.agent[`gentle-ai-${name}-fallback`]).toBeUndefined();
+      }
+      expect(result.agent['sdd-init'].model).toBe('old/init');
+      expect(result.agent['model-audit-fallback']).toBeUndefined();
+      expect(result.agent['external-agent']).toEqual(config.agent['external-agent']);
+      for (const name of ['sdd-ORCHETATOR', 'sdd-orchestrator', 'gentle-orchestrator']) {
+        expect(result.agent[`${name}-fallback`]).toBeUndefined();
+      }
+      expect(toast).not.toHaveBeenCalledWith(expect.objectContaining({ title: 'Activation Failed' }));
+      expect(fs.writeFileSync).not.toHaveBeenCalled();
+      expect(readProfileData('/mock/profiles/historical.json').fallback).toEqual(profile.fallback);
+    });
+
     it('discovers only complete installed definitions and reports unresolved profile agents', async () => {
       const discovery = discoverInstalledAgentDefinitions(
         { agent: { 'sdd-init': { model: 'old/init', file: './agents/init.md' } } },
@@ -2958,10 +3049,10 @@ describe('profiles logic', () => {
 
       const result = await activateProfileFile(api, '/mock/profiles/team.json', 'team');
 
-      expect(result?.agent['sdd-init']).toEqual({ model: 'new/init', file: './agents/init.md' });
+      expect(result?.agent['sdd-init']).toEqual({ model: 'old/init', file: './agents/init.md' });
       expect(result?.agent.summary).toEqual({ model: 'new/summary', description: 'Installed auxiliary' });
       expect(result?.agent.missing).toBeUndefined();
-      expect(toast).toHaveBeenCalledWith({ title: 'Activation Warning', message: 'Missing agent definitions: missing', variant: 'warning' });
+      expect(toast).not.toHaveBeenCalled();
     });
 
     it('eagerly migrates profile files on updated runtime policy at startup', () => {
@@ -3221,7 +3312,7 @@ describe('profiles logic', () => {
       await activateProfileFile(api, '/mock/profiles/team.json', 'team');
 
       const payload = update.mock.calls[0]?.[0]?.config;
-      expect(payload.agent['sdd-orchestrator']?.model).toBe('legacy/model');
+      expect(payload.agent['sdd-orchestrator']?.model).toBe('legacy/old');
       expect(payload.agent['gentle-orchestrator']).toBeUndefined();
     });
 
@@ -3351,11 +3442,11 @@ describe('profiles logic', () => {
 
       const result = await activateProfileFile(api, '/mock/profiles/team.json', 'team');
 
-      expect(result?.agent['sdd-init']?.model).toBe('gpt-4');
+      expect(result?.agent['sdd-init']?.model).toBe('old/model');
       expect(update).toHaveBeenCalledWith({
         config: expect.objectContaining({
           agent: expect.objectContaining({
-            'sdd-init': expect.objectContaining({ model: 'gpt-4' }),
+            'sdd-init': expect.objectContaining({ model: 'old/model' }),
           }),
         }),
       });
@@ -3388,11 +3479,11 @@ describe('profiles logic', () => {
 
       const result = await activateProfileFile(api, '/mock/profiles/team.json', 'team');
 
-      expect(result?.agent['sdd-init']?.model).toBe('gpt-4');
+      expect(result?.agent['sdd-init']?.model).toBe('old/model');
       expect(update).toHaveBeenCalledWith({
         config: expect.objectContaining({
           agent: expect.objectContaining({
-            'sdd-init': expect.objectContaining({ model: 'gpt-4' }),
+            'sdd-init': expect.objectContaining({ model: 'old/model' }),
           }),
         }),
       });
@@ -3497,10 +3588,10 @@ describe('profiles logic', () => {
       vi.mocked(fs.readFileSync).mockImplementation((filePath: any) => {
         if (String(filePath) === '/mock/profiles/team.json') {
           return JSON.stringify({
-            models: { 'sdd-init': 'openai/gpt-5', 'sdd-apply': 'openai/gpt-5' },
+            models: { 'gentle-ai-worker': 'openai/gpt-5', 'gentle-ai-explore': 'openai/gpt-5' },
             configs: {
-              'sdd-init': { reasoningEffort: 'high' },
-              'sdd-apply': { reasoningEffort: 'medium' },
+              'gentle-ai-worker': { reasoningEffort: 'high' },
+              'gentle-ai-explore': { reasoningEffort: 'medium' },
               'sdd-init-fallback': { reasoningEffort: 'low' }
             }
           });
@@ -3510,8 +3601,8 @@ describe('profiles logic', () => {
           default_agent: 'sdd-orchestrator',
           agent: {
             'sdd-orchestrator': { model: 'runtime/orch' },
-            'sdd-init': { model: 'openai/gpt-5' },
-            'sdd-apply': { model: 'openai/gpt-5' },
+            'gentle-ai-worker': { model: 'openai/gpt-5' },
+            'gentle-ai-explore': { model: 'openai/gpt-5' },
           },
         });
       });
@@ -3549,13 +3640,10 @@ describe('profiles logic', () => {
       await activateProfileFile(api, '/mock/profiles/team.json', 'team');
 
       const payload = update.mock.calls[0]?.[0]?.config;
-      expect(payload.agent['sdd-init']?.reasoningEffort).toBe('high');
-      expect(payload.agent['sdd-apply']?.reasoningEffort).toBeUndefined();
+      expect(payload.agent['gentle-ai-worker']?.reasoningEffort).toBe('high');
+      expect(payload.agent['gentle-ai-explore']?.reasoningEffort).toBeUndefined();
       expect(payload.agent['sdd-init-fallback']?.reasoningEffort).toBeUndefined();
-      expect(toast).toHaveBeenCalledWith(expect.objectContaining({
-        title: 'Activation Warning',
-        variant: 'warning',
-      }));
+      expect(toast).not.toHaveBeenCalled();
     });
 
     it('applies orchestrator reasoning effort for gentle-orchestrator in updated runtime', async () => {
@@ -3662,7 +3750,7 @@ describe('profiles logic', () => {
       await activateProfileFile(api, '/mock/profiles/team.json', 'team');
 
       const payload = update.mock.calls[0]?.[0]?.config;
-      expect(payload.agent['sdd-orchestrator']?.reasoningEffort).toBe('low');
+      expect(payload.agent['sdd-orchestrator']?.reasoningEffort).toBeUndefined();
       expect(payload.agent['gentle-orchestrator']).toBeUndefined();
     });
 
@@ -3671,15 +3759,15 @@ describe('profiles logic', () => {
       vi.mocked(fs.readFileSync).mockImplementation((filePath: any) => {
         if (String(filePath) === '/mock/profiles/team.json') {
           return JSON.stringify({
-            models: { 'sdd-init': 'openai/gpt-5' },
-            configs: { 'sdd-init': { reasoningEffort: 'high' } }
+            models: { 'gentle-ai-worker': 'openai/gpt-5' },
+            configs: { 'gentle-ai-worker': { reasoningEffort: 'high' } }
           });
         }
 
         return JSON.stringify({
           default_agent: 'sdd-init',
           agent: {
-            'sdd-init': { model: 'openai/gpt-5', reasoningEffort: 'low' },
+            'gentle-ai-worker': { model: 'openai/gpt-5', reasoningEffort: 'low' },
           },
         });
       });
@@ -3702,15 +3790,11 @@ describe('profiles logic', () => {
       await activateProfileFile(api, '/mock/profiles/team.json', 'team');
 
       const payload = update.mock.calls[0]?.[0]?.config;
-      expect(payload.agent['sdd-init']?.reasoningEffort).toBeUndefined();
-      expect(toast).toHaveBeenCalledWith(expect.objectContaining({
-        title: 'Activation Warning',
-        variant: 'warning',
-        message: expect.stringContaining('missing runtime metadata')
-      }));
+      expect(payload.agent['gentle-ai-worker']?.reasoningEffort).toBe('low');
+      expect(toast).not.toHaveBeenCalled();
     });
 
-    it('clears stale runtime reasoning effort when saved effort is incompatible with current model', async () => {
+    it('preserves historical reasoning intent outside the current catalog', async () => {
       vi.mocked(fs.existsSync).mockImplementation((filePath: any) => String(filePath) === '/mock/config/opencode.json');
       vi.mocked(fs.readFileSync).mockImplementation((filePath: any) => {
         if (String(filePath) === '/mock/profiles/team.json') {
@@ -3761,15 +3845,11 @@ describe('profiles logic', () => {
       await activateProfileFile(api, '/mock/profiles/team.json', 'team');
 
       const payload = update.mock.calls[0]?.[0]?.config;
-      expect(payload.agent['sdd-init']?.reasoningEffort).toBeUndefined();
-      expect(toast).toHaveBeenCalledWith(expect.objectContaining({
-        title: 'Activation Warning',
-        variant: 'warning',
-        message: expect.stringContaining('incompatible')
-      }));
+      expect(payload.agent['sdd-init']?.reasoningEffort).toBe('high');
+      expect(toast).not.toHaveBeenCalled();
     });
 
-    it('clears stale runtime reasoning effort when activated profile omits configs', async () => {
+    it('preserves historical reasoning when activated profile omits configs', async () => {
       vi.mocked(fs.existsSync).mockImplementation((filePath: any) => String(filePath) === '/mock/config/opencode.json');
       vi.mocked(fs.readFileSync).mockImplementation((filePath: any) => {
         if (String(filePath) === '/mock/profiles/team.json') {
@@ -3804,13 +3884,10 @@ describe('profiles logic', () => {
       await activateProfileFile(api, '/mock/profiles/team.json', 'team');
 
       const payload = update.mock.calls[0]?.[0]?.config;
-      expect(payload.agent['sdd-init']?.reasoningEffort).toBeUndefined();
-      expect(payload.agent['sdd-init']?.options?.reasoningEffort).toBeUndefined();
+      expect(payload.agent['sdd-init']?.reasoningEffort).toBe('high');
+      expect(payload.agent['sdd-init']?.options?.reasoningEffort).toBe('high');
       expect(payload.agent['sdd-apply']?.reasoningEffort).toBe('low');
-      expect(fs.writeFileSync).toHaveBeenCalledWith(
-        '/mock/config/opencode.json',
-        JSON.stringify(payload, null, 2)
-      );
+      expect(fs.writeFileSync).not.toHaveBeenCalled();
     });
 
     it('clears stale nested options reasoning effort when selected model is incompatible', async () => {
@@ -3870,15 +3947,8 @@ describe('profiles logic', () => {
       const payload = update.mock.calls[0]?.[0]?.config;
       expect(payload.agent['gentle-orchestrator']?.reasoningEffort).toBeUndefined();
       expect(payload.agent['gentle-orchestrator']?.options?.reasoningEffort).toBeUndefined();
-      expect(toast).toHaveBeenCalledWith(expect.objectContaining({
-        title: 'Activation Warning',
-        variant: 'warning',
-        message: expect.stringContaining('incompatible')
-      }));
-      expect(fs.writeFileSync).toHaveBeenCalledWith(
-        '/mock/config/opencode.json',
-        JSON.stringify(payload, null, 2)
-      );
+      expect(toast).not.toHaveBeenCalled();
+      expect(fs.writeFileSync).not.toHaveBeenCalled();
     });
 
     it('returns the cleaned nextConfig even if runtime update data is stale', async () => {

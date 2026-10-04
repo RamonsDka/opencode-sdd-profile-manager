@@ -1,0 +1,42 @@
+╭──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────╮
+│                                                                                                                      │
+│ SESSION VAULT                                                                                   [g] ⚙ Configuración  │
+│ BASE DE DATOS DE OPENCODE · Configuración                                                                            │
+│                                                                                                                      │
+│ ┌───────────────────────────┐ ┌───────────────────────────┐ ┌──────────────────────┐ ┌─────────────────────────────┐ │
+│ │ 15                        │ │ 2                         │ │ 5                    │ │ 0                           │ │
+│ │ Familias                  │ │ Candados                  │ │ Cupo                 │ │ Candidatas                  │ │
+│ └───────────────────────────┘ └───────────────────────────┘ └──────────────────────┘ └─────────────────────────────┘ │
+│                                                                                                                      │
+│  [a] Automático: PAUSADO                                                                                           █ │
+│                                                                                                                    █ │
+│  [s] Alcance de limpieza: Global (todos los proyectos)                                                             █ │
+│                                                                                                                    █ │
+│  [t] Conservar actividad de las últimas 24 horas                                                                   █ │
+│                                                                                                                    █ │
+│  [i] Revisar cada 30 minutos                                                                                       █ │
+│                                                                                                                    █ │
+│  [b] Máximo 10 familias por limpieza                                                                               █ │
+│                                                                                                                      │
+│  [h] Aplicar reglas a archivadas: No                                                                                 │
+│                                                                                                                      │
+│  [r] Recalcular cupo porcentual                                                                                      │
+│                                                                                                                      │
+│  [m] Mantenimiento y compactación fuera de línea                                                                     │
+│                                                                                                                      │
+│                                                                                                                      │
+│ ┌──────────────────────────────────────────────────────────────────────────────────────────────────────────────────┐ │
+│ │  [p] Mod · personalizado   [m] Mantenimiento                                               AUTO PAUSADO · v0.1.0 │ │
+│ │  [a][s][t][i][b][h][r]  Opciones   Esc  Volver                                                                   │ │
+│ │  ← Volver a sesiones                                                                                             │ │
+│ └──────────────────────────────────────────────────────────────────────────────────────────────────────────────────┘ │
+│ 0 familias candidatas · 15 sin verificar protegidas. El candado siempre tiene prioridad.                             │
+│                                                                                                                      │
+╰──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────╯
+                                                                                                                        
+                                                                                                                        
+                                                                                                                        
+                                                                                                                        
+                                                                                                                        
+                                                                                                                        
+                                                                                                                        

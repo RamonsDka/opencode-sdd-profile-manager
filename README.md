@@ -1,13 +1,21 @@
-# OpenCode SDD Profile Manager
+# OpenCode ODD Profile Manager
+
+<a href="https://github.com/Gentleman-Programming/gentle-ai">
+  <img width="220" src="https://raw.githubusercontent.com/Gentleman-Programming/gentle-ai/main/docs/assets/brand/built-with-gentle-ai.png" alt="Built with Gentle-AI" />
+</a>
 
 ![Node.js 24](https://img.shields.io/badge/Node.js-24-339933?logo=nodedotjs&logoColor=white)
 ![OpenCode](https://img.shields.io/badge/OpenCode-%3E%3D%201.17.11-111827)
 ![Tests](https://img.shields.io/badge/tests-519%20passing-22c55e)
 ![License](https://img.shields.io/badge/license-MIT-blue)
 
-A keyboard-first OpenCode TUI plugin pack for creating, editing, versioning, and activating AI model profiles across Spec-Driven Development (SDD) agents, orchestrating multi-agent suites, and maintaining offline project visibility.
+A keyboard-first OpenCode TUI plugin pack for creating, editing, versioning, and activating AI model profiles across Organic-Driven Development (ODD) agents, orchestrating multi-agent suites, and maintaining offline project visibility.
 
-It serves as the **principal plugin pack** for OpenCode, seamlessly integrating the **SDD Profile Manager**, **Agent Suite**, **Task Manager**, **Agent Task Manager**, **GitHub Integration**, and **Native Agents** into a cohesive terminal development environment.
+It serves as the **principal plugin pack** for OpenCode, seamlessly integrating the **ODD Profile Manager** (legacy package ID `opencode-sdd-profile-manager`), **Agent Suite**, **Task Manager**, **Session Vault**, **Agent Task Manager**, **GitHub Integration**, and **Native Agents** into a cohesive terminal development environment.
+
+> **About ODD**
+>
+> ODD (Organic-Driven Development) is this project's organic default: explore before code, keep understood changes lightweight, give each authorized substantial task one recoverable feature document, check results, and maintain progress. Proportional implementation and verification apply throughout. Upstream SDD remains optional and supported; `sdd-*` agent IDs, storage paths, and changelog/spec history below are legacy identifiers and are intentionally retained for compatibility.
 
 > **Project Lineage**
 >
@@ -17,16 +25,17 @@ It serves as the **principal plugin pack** for OpenCode, seamlessly integrating 
 
 ## Overview
 
-When developing complex systems with OpenCode, orchestrating multi-phase SDD workflows requires distinct AI models, varying reasoning effort levels, resilient fallback policies, and continuous visibility over project progress. Managing these configurations across disparate JSON files is error-prone, fragile, and difficult to audit.
+When developing complex systems with OpenCode, orchestrating multi-phase ODD workflows requires distinct AI models, varying reasoning effort levels, resilient fallback policies, and continuous visibility over project progress. Managing these configurations across disparate JSON files is error-prone, fragile, and difficult to audit.
 
-The **OpenCode SDD Profile Manager** unifies these capabilities into an integrated, keyboard-driven terminal user interface (OpenTUI) and offline dashboard ecosystem:
+The **OpenCode ODD Profile Manager** unifies these capabilities into an integrated, keyboard-driven terminal user interface (OpenTUI) and offline dashboard ecosystem:
 
-- **SDD Profile Manager (Host Plugin)**: Centralized profile creation, model assignment, reasoning effort configuration, fallback routing, version snapshots, and Engram memory inspection.
+- **ODD Profile Manager (Host Plugin)** (legacy package ID `opencode-sdd-profile-manager`): Centralized profile creation, model assignment, reasoning effort configuration, fallback routing, version snapshots, and Engram memory inspection.
 - **Suite de Agentes (Agent Suite)**: Dynamic agent catalog, custom agent authoring, per-agent provider selection, and turn-scoped security consent boundaries.
-- **Task Manager Portable**: Offline single-file HTML project cockpit with Kanban boards, SDD phase trackers, Git commit lineage, and CodeGraph architectural mapping.
+- **Task Manager Portable**: Offline single-file HTML project cockpit with Kanban boards, ODD phase trackers, Git commit lineage, and CodeGraph architectural mapping.
+- **Session Vault**: Retention management with pin locks, configurable quota profiles, local gzip backups, and direct Alt+V TUI for managing OpenCode conversation databases.
 - **Agent Task Manager**: Automated project task synchronization via structured JSON island state without runtime dependencies.
 - **GitHub Integration**: Issue triage, PR readiness checks, CI/CD diagnosis, and automated semantic release workflows.
-- **Native Agents**: Direct management of standard OpenCode built-in agents alongside SDD Core, Judgment Day, and Reviewer agents.
+- **Native Agents**: Direct management of standard OpenCode built-in agents alongside ODD Core, Judgment Day, and Reviewer agents.
 
 ---
 
@@ -34,9 +43,10 @@ The **OpenCode SDD Profile Manager** unifies these capabilities into an integrat
 
 | Component | Identifier / Package | Version | Distribution Location | Role & Purpose |
 |---|---|---|---|---|
-| **SDD Profile Manager** | `opencode-sdd-profile-manager` | `2.0.1` | Root / `dist/tui.js` | Principal plugin pack, OpenTUI host, profile versioning, Engram browser |
+| **ODD Profile Manager** | `opencode-sdd-profile-manager` (legacy package ID, unchanged) | `2.0.1` | Root / `dist/tui.js` | Principal plugin pack, OpenTUI host, profile versioning, Engram browser |
 | **Suite de Agentes** | `opencode-agent-suite` | `1.1.0` | `plugins/suite-de-agentes` | Agent catalog, custom agent authoring, per-turn consent enforcement |
 | **Task Manager Portable** | `task-manager-portable` | `1.1.0` | `plugins/task-manager` | Single-file offline project cockpit, Kanban, Git history, CodeGraph maps |
+| **Session Vault** | `opencode-session-vault` | `0.1.0` | `plugins/opencode-session-vault` | Retention management with pin locks, quota profiles, local backups, and Alt+V shortcut |
 | **Agent Task Manager** | `task-tracker-manager` | `1.1.0` | Embedded Skill / Adapter | Automated task synchronization and JSON island state updates for AI agents |
 | **GitHub Integration** | `gh-actions-workflows` | `2.0.1` | `.github/workflows` | Semantic release automation, CI/CD verification, issue/PR management |
 | **Native Agents Manager** | `built-in-agents` | `2.0.1` | `src/catalog.ts` | Unified management of OpenCode built-ins (`build`, `plan`, `general`, etc.) |
@@ -47,43 +57,39 @@ The **OpenCode SDD Profile Manager** unifies these capabilities into an integrat
 
 The following sections provide a complete visual walkthrough of all components included in the plugin pack.
 
-### 1. SDD Profile Manager
+### 1. ODD Profile Manager
+
+> Legacy screenshots below still show SDD branding in the captured UI; asset paths are retained for compatibility. Replacement captures are pending where marked.
 
 The core OpenTUI interface provides fast, keyboard-first navigation for profile lifecycle management, model mapping, and fallback synchronization.
 
 #### Active Profile Selector & Status
-Quickly switch the active SDD profile from anywhere within OpenCode. The active configuration is persisted across restarts with a distinct `✓ Active` marker.
+Quickly switch the active ODD profile from anywhere within OpenCode. The active configuration is persisted across restarts with a distinct `✓ Active` marker.
 
 <p align="center">
-  <img src="docs/images/sdd-profile-manager/select%20SDD%20profile.png" alt="OpenCode SDD active profile selector dialog showing profile list and active indicator" width="720" />
+  <img src="docs/images/sdd-profile-manager/select%20SDD%20profile.png" alt="OpenCode ODD active profile selector dialog showing profile list and active indicator (legacy asset path retained)" width="720" />
 </p>
 
 #### Profile Management Hub
 Create new profiles, clone existing templates, edit agent assignments, inspect version history, or delete deprecated profiles.
 
-<p align="center">
-  <img src="docs/images/sdd-profile-manager/gestion%20de%20perfiles%20SDD.png" alt="SDD profile management menu with create, edit, clone, version history, and delete options" width="720" />
-</p>
+*Screenshot pending: replacement capture not yet available (previous asset removed by authorization).*
 
 #### Model Navigation & Roster Inspection
-View all 25 ordered agents categorized into Orchestrator, SDD Core, Judgment Day, Reviewers, and Auxiliaries with their active model assignments.
+View all 25 ordered agents categorized into Orchestrator, ODD Core (legacy `sdd-*` IDs), Judgment Day, Reviewers, and Auxiliaries with their active model assignments.
 
-<p align="center">
-  <img src="docs/images/sdd-profile-manager/Perfil%201.png" alt="SDD Profile Manager view 1 showing agent roster and primary model assignments" width="720" />
-</p>
+*Screenshot pending: replacement capture not yet available (previous asset removed by authorization).*
 
 #### Agent Configuration & Details
 Inspect per-agent fallback models, reasoning effort levels, and runtime eligibility status.
 
-<p align="center">
-  <img src="docs/images/sdd-profile-manager/Perfil%202.png" alt="SDD Profile Manager view 2 showing agent configuration details and fallback assignments" width="720" />
-</p>
+*Screenshot pending: replacement capture not yet available (previous asset removed by authorization).*
 
 #### Profile Actions & Version History
 Review automatic snapshot histories before applying bulk changes or restoring a prior stable configuration.
 
 <p align="center">
-  <img src="docs/images/sdd-profile-manager/Perfil%203.png" alt="SDD Profile Manager view 3 showing profile actions, snapshot preview, and version restore" width="720" />
+  <img src="docs/images/sdd-profile-manager/Perfil%203.png" alt="ODD Profile Manager view 3 showing profile actions, snapshot preview, and version restore (legacy asset path retained)" width="720" />
 </p>
 
 #### Bulk Model & Phase Assignment
@@ -97,11 +103,11 @@ Assign models across entire agent categories simultaneously in either *Complete 
 Configure model reasoning effort (`low`, `medium`, `high`, `xhigh`, `max`) per agent according to provider metadata.
 
 <p align="center">
-  <img src="docs/images/sdd-profile-manager/Nivel%20de%20esfuerzo.png" alt="Reasoning effort selection dialog displaying effort levels for primary SDD models" width="720" />
+  <img src="docs/images/sdd-profile-manager/Nivel%20de%20esfuerzo.png" alt="Reasoning effort selection dialog displaying effort levels for primary ODD models (legacy asset path retained)" width="720" />
 </p>
 
 #### Model Fallback Policy
-Configure explicit fallback models for resilient sub-agent failure recovery during long-running SDD executions.
+Configure explicit fallback models for resilient sub-agent failure recovery during long-running ODD executions.
 
 <p align="center">
   <img src="docs/images/sdd-profile-manager/Fallback.png" alt="Model fallback selection screen for configuring backup models for primary agents" width="720" />
@@ -168,11 +174,11 @@ Filter tasks by phase, owner, tag, or status with real-time token telemetry and 
   <img src="docs/images/task-manager/home%202.png" alt="Task Manager detailed task view showing task list filters and status metrics" width="720" />
 </p>
 
-#### Project Phases & SDD Milestone Tracker
-Track SDD lifecycle progression across proposal, specification, design, task planning, implementation, and verification phases.
+#### Project Phases & ODD Milestone Tracker
+Track ODD lifecycle progression across proposal, specification, design, task planning, implementation, and verification phases.
 
 <p align="center">
-  <img src="docs/images/task-manager/fases%20del%20proyecto.png" alt="Project phases view showing SDD lifecycle stages and phase task completion" width="720" />
+  <img src="docs/images/task-manager/fases%20del%20proyecto.png" alt="Project phases view showing ODD lifecycle stages and phase task completion" width="720" />
 </p>
 
 #### CodeGraph Architectural Map
@@ -207,7 +213,9 @@ Access offline documentation, keyboard shortcuts, legend descriptions, and state
 
 ## Installation & Deployment
 
-The SDD Profile Manager plugin pack can be deployed via release archives, npm packages, or built directly from source.
+The ODD Profile Manager plugin pack (legacy package ID `opencode-sdd-profile-manager`, unchanged) can be deployed via release archives, npm packages, or built directly from source.
+
+> **Release availability**: npm/release claims refer only to published artifacts on GitHub Releases or npm. The V2 local source in this working tree is uncommitted and is not implied to be published.
 
 ### Option A — Versioned Release Archive (Recommended)
 
@@ -270,6 +278,8 @@ The build compiles the main TUI bundle into `dist/tui.js` and synchronizes vendo
 
 Add the absolute path to `dist/tui.js` in your `tui.json` and restart OpenCode.
 
+> **V2 local source install (current working-tree path only)**: `scripts/install-v2-local.mjs` runs a dry-run by default and prints the planned `tui.json`/`opencode.json(c)` entry for the current checkout path. Pass `--apply` explicitly to write the change (verified against repo evidence; it preserves unrelated entries). This describes the local checkout only, not a published release.
+
 For detailed deployment guidance, see [`docs/installation.md`](docs/installation.md).
 
 ---
@@ -277,12 +287,12 @@ For detailed deployment guidance, see [`docs/installation.md`](docs/installation
 ## Quick Start
 
 1. Open OpenCode and press **`Alt+K`** (or run **`/sdd-model`** in chat).
-2. Select **Manage SDD profiles**.
-3. Choose **Create new SDD profile** and enter a name (e.g. `team-production`).
+2. Select **Manage ODD profiles**.
+3. Choose **Create new ODD profile** and enter a name (e.g. `team-production`).
 4. Select individual agents or use **Bulk actions** to assign models, reasoning effort, and fallbacks.
 5. Choose **Activate profile** to apply the configuration to OpenCode.
 6. Reopen the profile list to confirm the `✓ Active` marker.
-7. To access companion plugins, choose **Plugins...** to launch Suite de Agentes or Task Manager.
+7. To access companion plugins, choose **Plugins...** to launch Suite de Agentes, Task Manager, or Session Vault (direct **`Alt+V`**).
 
 Profiles and version snapshots are stored cleanly outside the repository:
 
@@ -295,7 +305,7 @@ Profiles and version snapshots are stored cleanly outside the repository:
 
 ## Architecture & System Boundaries
 
-The SDD Profile Manager operates as a modular TUI plugin and orchestrator. It does not overwrite global OpenCode configuration arbitrarily; it applies changes safely through validated host APIs while preserving declarative `{file:...}` prompt references.
+The ODD Profile Manager operates as a modular TUI plugin and orchestrator. It does not overwrite global OpenCode configuration arbitrarily; it applies changes safely through validated host APIs while preserving declarative `{file:...}` prompt references.
 
 ```text
 OpenCode Host (TUI & Server Runtime)
@@ -323,7 +333,7 @@ OpenCode Host (TUI & Server Runtime)
 
 1. **Host API Isolation**: Profile activation reads on-disk configuration, applies verified model overrides, configures reasoning effort, and updates OpenCode state without modifying unrelated agent configurations.
 2. **Offline Dashboard Independence**: Task Manager Portable (`Task-Manager-Portable.html`) runs entirely client-side via `file://`. It contains zero runtime network dependencies, does not execute shell scripts, and reads only its embedded `#tm-state` JSON island.
-3. **Agent Consent Enforcement**: Suite de Agentes enforces an internal allowlist for SDD agents and requires per-turn user authorization for external sub-agents, preventing untrusted task executions.
+3. **Agent Consent Enforcement**: Suite de Agentes enforces an internal allowlist for ODD agents (legacy `sdd-*` IDs) and requires per-turn user authorization for external sub-agents, preventing untrusted task executions.
 
 See [`docs/architecture.md`](docs/architecture.md) for data flows and subsystem responsibilities.
 
@@ -434,6 +444,8 @@ This codebase is an independently maintained derivative of:
 - **License**: MIT
 
 The original MIT copyright and license notices are fully preserved in [`LICENSE`](LICENSE) and [`NOTICE.md`](NOTICE.md).
+
+> **Credit**: ODD methodology inspiration by **Alan Buscaglia** ([Gentleman Programming](https://github.com/Gentleman-Programming)) and [Gentle-AI](https://github.com/Gentleman-Programming/gentle-ai). This is an independent project with no official endorsement.
 
 ---
 

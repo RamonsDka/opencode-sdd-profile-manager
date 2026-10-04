@@ -555,6 +555,13 @@
       color: var(--accent-blue);
     }
 
+    .tab-icon svg {
+      width: 14px;
+      height: 14px;
+      vertical-align: -2px;
+      display: inline-block;
+    }
+
     .tab-badge {
       font-size: 10px;
       font-family: var(--font-mono);
@@ -768,6 +775,20 @@
       border-color: rgba(245, 158, 11, 0.4);
     }
 
+    .token-chip-preview {
+      color: #bc8cff;
+      background: rgba(137, 87, 229, 0.15);
+      border-color: rgba(137, 87, 229, 0.45);
+      font-weight: 600;
+    }
+
+    .token-chip-measured {
+      color: var(--accent-green);
+      background: rgba(16, 185, 129, 0.15);
+      border-color: rgba(16, 185, 129, 0.45);
+      font-weight: 600;
+    }
+
     /* Token Chart Bars */
     .token-chart-container {
       display: flex;
@@ -843,6 +864,12 @@
       background: rgba(245, 158, 11, 0.15);
       color: var(--accent-amber);
       border: 1px solid rgba(245, 158, 11, 0.3);
+    }
+
+    .token-evidence-preview {
+      background: rgba(137, 87, 229, 0.15);
+      color: #bc8cff;
+      border: 1px solid rgba(137, 87, 229, 0.4);
     }
 
     .token-agent-total {
@@ -971,20 +998,82 @@
       color: var(--text-tertiary);
     }
 
-    /* Owners & Tags Horizontal Strip */
+    /* Owners & Tags Horizontal Strip — Auto-fit compact band */
     .insight-meta-strip.insight-side-rail,
     .insight-meta-strip,
     .insight-side-rail {
       display: flex;
+      flex-direction: row;
       align-items: flex-start;
       flex-wrap: wrap;
-      gap: 10px 24px;
+      gap: 12px 24px;
       background: var(--bg-surface-primary);
       border: 1px solid var(--border-subtle);
       border-radius: var(--radius-sm);
-      padding: 10px 14px;
+      padding: 12px 16px;
       width: 100%;
       min-width: 0;
+      min-height: 0;
+      height: auto;
+      align-self: flex-start;
+      box-sizing: border-box;
+    }
+
+    .insight-subregion {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      flex: 1 1 280px;
+      min-width: 0;
+      min-height: 0;
+      height: auto;
+      align-self: flex-start;
+    }
+
+    .insight-dimension-list {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px 8px;
+      align-items: center;
+      max-height: 140px;
+      overflow-y: auto;
+      padding-right: 4px;
+      min-width: 0;
+      min-height: 0;
+    }
+
+    .insight-dimension-list::-webkit-scrollbar {
+      width: 4px;
+    }
+    .insight-dimension-list::-webkit-scrollbar-thumb {
+      background: var(--border-medium);
+      border-radius: 4px;
+    }
+
+    .insight-dimension-line {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 11px;
+      color: var(--text-secondary);
+      background: var(--bg-surface-secondary);
+      border: 1px solid var(--border-subtle);
+      border-radius: var(--radius-full);
+      padding: 3px 10px;
+      font-variant-numeric: tabular-nums;
+      white-space: nowrap;
+      transition: all 0.15s ease;
+    }
+
+    .insight-dimension-line:hover {
+      border-color: var(--accent-blue);
+      color: var(--text-primary);
+      transform: translateY(-1px);
+    }
+
+    .insight-dimension-line strong {
+      color: var(--text-primary);
+      font-weight: 600;
     }
 
     @media (max-width: 640px) {
@@ -993,20 +1082,12 @@
       .insight-side-rail {
         display: flex;
         flex-direction: column;
-        gap: 10px;
+        gap: 12px;
       }
     }
 
-    .insight-subregion {
-      display: flex;
-      flex-direction: column;
-      gap: 6px;
-      flex: 0 1 auto;
-      min-width: 0;
-    }
-
     .insight-subregion .insight-dimension-list {
-      flex-wrap: nowrap;
+      flex-wrap: wrap;
     }
 
     @media (max-width: 1100px) {
@@ -1943,26 +2024,27 @@
     .help-portability-note p { color:var(--text-tertiary); font-size:11.5px; margin:3px 0 8px; overflow-wrap:anywhere; }
     .help-portability-tags { display:flex; flex-wrap:wrap; gap:6px; }
     .help-portability-tags span { background:var(--bg-surface-tertiary); border:1px solid var(--border-subtle); border-radius:var(--radius-full); padding:3px 8px; color:var(--text-secondary); font-size:10.5px; }
-    #overview-detail-dialog { color:var(--text-primary); background:var(--bg-surface-primary); border:1px solid var(--border-focus); border-radius:var(--radius-lg); width:min(1080px,calc(100% - 32px)); max-width:none; max-height:min(820px,calc(100dvh - 32px)); margin:auto; padding:24px; box-shadow:var(--shadow-lg),0 0 50px rgba(88,166,255,.14); overflow:auto; }
-    #overview-detail-dialog::backdrop { background:rgba(3,6,10,.82); }
-    .overview-detail-heading { display:flex; align-items:flex-start; justify-content:space-between; gap:16px; margin-bottom:18px; }
-    #overview-detail-title { font-size:24px; color:var(--text-primary); }
-    #overview-detail-value { color:var(--accent-blue); font:700 22px var(--font-mono); }
-    #overview-detail-summary { color:var(--text-secondary); max-width:68ch; margin-top:5px; }
-    #overview-detail-content { display:flex; flex-direction:column; gap:16px; width:100%; }
+    #overview-detail-dialog { color:var(--text-primary); background:var(--bg-surface-primary); border:1px solid var(--border-focus); border-radius:var(--radius-lg); width:min(1080px,calc(100% - 32px)); max-width:none; max-height:min(850px,calc(100dvh - 32px)); margin:auto; padding:28px; box-shadow:var(--shadow-lg),0 0 60px rgba(88,166,255,.18); overflow:auto; }
+    #overview-detail-dialog::backdrop { background:rgba(3,6,10,.86); backdrop-filter:blur(6px); }
+    .overview-detail-heading { display:flex; align-items:flex-start; justify-content:space-between; gap:20px; margin-bottom:22px; padding-bottom:18px; border-bottom:1px solid var(--border-subtle); }
+    #overview-detail-title { font-size:26px; font-weight:700; color:var(--text-primary); letter-spacing:-0.02em; line-height:1.2; }
+    #overview-detail-value { color:var(--accent-blue); font:700 28px var(--font-mono); margin-top:4px; letter-spacing:-0.01em; display:inline-block; text-shadow:0 0 16px rgba(88,166,255,.3); }
+    #overview-detail-summary { color:var(--text-secondary); max-width:72ch; margin-top:8px; font-size:13.5px; line-height:1.5; }
+    #overview-detail-content { display:flex; flex-direction:column; gap:20px; width:100%; }
     .overview-detail-main-custom { width:100%; min-width:0; }
-    .overview-detail-meta-strip { display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); gap:12px; width:100%; }
-    @media (max-width:900px) { .overview-detail-meta-strip { grid-template-columns:repeat(2,minmax(0,1fr)); } }
-    @media (max-width:480px) { .overview-detail-meta-strip { grid-template-columns:1fr; } }
-    .overview-detail-section { background:var(--bg-surface-secondary); border:1px solid var(--border-subtle); border-radius:var(--radius-sm); padding:12px 14px; min-width:0; }
-    .overview-detail-section h3 { color:var(--text-tertiary); font:600 11px var(--font-mono); text-transform:uppercase; letter-spacing:0.04em; margin-bottom:8px; }
-    .overview-meta-list { display:flex; flex-direction:column; gap:4px; padding:0; margin:0; list-style:none; }
-    .overview-meta-list li { font-size:12px; color:var(--text-secondary); line-height:1.4; word-break:break-word; }
-    .overview-detail-missing { background:var(--bg-surface-secondary); border:1px solid rgba(210,153,34,.48); border-radius:var(--radius-sm); padding:12px 14px; }
-    .overview-detail-missing h3 { color:var(--text-primary); font-size:13px; margin-bottom:8px; }
-    .overview-detail-missing p { color:var(--accent-amber); margin-bottom:8px; font-size:12px; }
-    .overview-detail-missing ul { display:flex; flex-direction:column; gap:4px; padding-left:18px; color:var(--text-secondary); font-size:12px; }
-    .overview-detail-actions { display:flex; justify-content:flex-end; gap:8px; flex-wrap:wrap; margin-top:18px; }
+    .overview-detail-meta-strip { display:grid; grid-template-columns:repeat(auto-fit, minmax(220px, 1fr)); gap:14px; width:100%; }
+    .overview-detail-section { background:linear-gradient(180deg, var(--bg-surface-secondary) 0%, rgba(22,27,34,0.6) 100%); border:1px solid var(--border-subtle); border-radius:var(--radius-md); padding:16px 18px; min-width:0; box-shadow:0 4px 12px rgba(0,0,0,0.25); display:flex; flex-direction:column; gap:10px; transition:border-color 0.2s ease, transform 0.2s ease; }
+    .overview-detail-section:hover { border-color:var(--border-focus); transform:translateY(-1px); }
+    .overview-detail-section h3 { color:var(--accent-blue); font:700 11.5px var(--font-mono); text-transform:uppercase; letter-spacing:0.06em; margin-bottom:2px; display:flex; align-items:center; gap:6px; }
+    .overview-detail-section h3::before { content:''; display:inline-block; width:6px; height:6px; border-radius:50%; background:var(--accent-blue); box-shadow:0 0 6px var(--accent-blue); }
+    .overview-meta-list { display:flex; flex-direction:column; gap:8px; padding:0; margin:0; list-style:none; }
+    .overview-meta-list li { font-size:13px; color:var(--text-primary); line-height:1.5; word-break:break-word; padding:8px 12px; background:var(--bg-surface-primary); border:1px solid var(--border-subtle); border-radius:var(--radius-sm); display:flex; align-items:center; gap:8px; }
+    .overview-meta-list li::before { content:'▸'; color:var(--accent-blue); font-size:12px; opacity:0.8; }
+    .overview-detail-missing { background:rgba(210,153,34,0.08); border:1px solid rgba(210,153,34,.4); border-radius:var(--radius-md); padding:16px 18px; }
+    .overview-detail-missing h3 { color:var(--accent-amber); font-size:13.5px; font-weight:600; margin-bottom:6px; display:flex; align-items:center; gap:6px; }
+    .overview-detail-missing p { color:var(--text-secondary); margin-bottom:10px; font-size:12.5px; }
+    .overview-detail-missing ul { display:flex; flex-direction:column; gap:6px; padding-left:18px; color:var(--text-secondary); font-size:12.5px; }
+    .overview-detail-actions { display:flex; justify-content:flex-end; gap:10px; flex-wrap:wrap; margin-top:20px; padding-top:16px; border-top:1px solid var(--border-subtle); }
     .state-tools { margin-top:14px; }
     .state-health-card { display:grid; grid-template-columns:auto minmax(0,1fr) auto; gap:12px; align-items:center; background:var(--bg-surface-secondary); border:1px solid var(--border-medium); border-radius:var(--radius-md); padding:14px; }
     .state-health-icon { width:34px; height:34px; border-radius:50%; display:grid; place-items:center; font:700 14px var(--font-mono); }
@@ -1980,6 +2062,207 @@
     #tm-diagnostics ul { padding-left:18px; }
     #tm-state-json { max-height:360px; overflow:auto; white-space:pre; background:var(--bg-canvas); border:1px solid var(--border-subtle); border-radius:var(--radius-sm); padding:12px; color:var(--text-secondary); font:12px/1.55 var(--font-mono); }
     .state-tools-actions { display:flex; align-items:center; gap:8px; flex-wrap:wrap; margin-top:10px; }
+
+    /* Acknowledgements View & Teaser */
+    .ack-hero-panel {
+      background: linear-gradient(135deg, rgba(22,27,34,0.95) 0%, rgba(13,17,23,0.98) 100%);
+      border: 1px solid var(--border-subtle);
+      border-radius: var(--radius-lg);
+      padding: 24px 28px;
+      position: relative;
+      overflow: hidden;
+      box-shadow: var(--shadow-md);
+    }
+    .ack-hero-accent-line {
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      height: 3px;
+      background: linear-gradient(90deg, #ef4444 0%, #388bfd 30%, #8957e5 60%, #238636 100%);
+    }
+    .ack-hero-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      gap: 20px;
+      flex-wrap: wrap;
+    }
+    .ack-hero-title {
+      font-size: 24px;
+      font-weight: 700;
+      color: #fff;
+      letter-spacing: -0.02em;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+    .ack-hero-copy {
+      color: var(--text-secondary);
+      font-size: 13.5px;
+      line-height: 1.55;
+      max-width: 80ch;
+      margin-top: 8px;
+    }
+    .ack-cards-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+      gap: 16px;
+      width: 100%;
+    }
+    .ack-card {
+      background: var(--bg-surface-primary);
+      border: 1px solid var(--border-subtle);
+      border-radius: var(--radius-md);
+      padding: 20px 22px;
+      display: flex;
+      flex-direction: column;
+      gap: 14px;
+      position: relative;
+      overflow: hidden;
+      box-shadow: var(--shadow-sm);
+      transition: transform 0.15s ease, border-color 0.15s ease;
+    }
+    .ack-card:hover {
+      border-color: var(--border-medium);
+      transform: translateY(-2px);
+    }
+    .ack-card-header {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+    .ack-avatar {
+      width: 42px;
+      height: 42px;
+      border-radius: 50%;
+      display: grid;
+      place-items: center;
+      font-weight: 700;
+      font-size: 18px;
+      color: #fff;
+      flex-shrink: 0;
+    }
+    .ack-avatar.avatar-author {
+      background: linear-gradient(135deg, #388bfd 0%, #8957e5 100%);
+      box-shadow: 0 0 16px rgba(56, 139, 253, 0.4);
+    }
+    .ack-avatar.avatar-gentle {
+      background: linear-gradient(135deg, #238636 0%, #2ea043 100%);
+      box-shadow: 0 0 16px rgba(46, 160, 67, 0.4);
+    }
+    .ack-avatar.avatar-media {
+      background: linear-gradient(135deg, #ef4444 0%, #f97316 100%);
+      box-shadow: 0 0 16px rgba(239, 68, 68, 0.4);
+    }
+    .ack-avatar.avatar-future {
+      background: linear-gradient(135deg, #06b6d4 0%, #3b82f6 100%);
+      box-shadow: 0 0 16px rgba(6, 182, 212, 0.4);
+    }
+    .ack-card-meta {
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+      min-width: 0;
+    }
+    .ack-card-title {
+      font-size: 15px;
+      font-weight: 700;
+      color: var(--text-primary);
+      line-height: 1.3;
+    }
+    .ack-card-role {
+      font-size: 11px;
+      font-family: var(--font-mono);
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+    }
+    .ack-role-blue { color: var(--accent-blue); }
+    .ack-role-green { color: var(--accent-green); }
+    .ack-role-red { color: #ff6b6b; }
+    .ack-role-cyan { color: #22d3ee; }
+    .ack-card-body {
+      font-size: 12.5px;
+      color: var(--text-secondary);
+      line-height: 1.5;
+      margin: 0;
+      flex-grow: 1;
+    }
+    .ack-card-links {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      align-items: center;
+      margin-top: auto;
+      padding-top: 4px;
+    }
+    .ack-link-btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 7px;
+      padding: 6px 12px;
+      font-size: 11.5px;
+      font-weight: 600;
+      border-radius: var(--radius-sm);
+      cursor: pointer;
+      text-decoration: none;
+      transition: all 0.15s ease;
+      background: var(--bg-surface-secondary);
+      border: 1px solid var(--border-subtle);
+      color: var(--text-primary);
+    }
+    .ack-link-btn:hover {
+      transform: translateY(-1px);
+    }
+    .ack-link-btn.btn-yt {
+      color: #ff6b6b;
+      border-color: rgba(239, 68, 68, 0.35);
+      background: rgba(239, 68, 68, 0.08);
+    }
+    .ack-link-btn.btn-yt:hover {
+      background: rgba(239, 68, 68, 0.18);
+      border-color: rgba(239, 68, 68, 0.6);
+      box-shadow: 0 0 12px rgba(239, 68, 68, 0.25);
+    }
+    .ack-link-btn.btn-gh {
+      color: #79c0ff;
+      border-color: rgba(56, 139, 253, 0.35);
+      background: rgba(56, 139, 253, 0.08);
+    }
+    .ack-link-btn.btn-gh:hover {
+      background: rgba(56, 139, 253, 0.18);
+      border-color: rgba(56, 139, 253, 0.6);
+      box-shadow: 0 0 12px rgba(56, 139, 253, 0.25);
+    }
+    .ack-link-btn.btn-gentle {
+      color: #7ee787;
+      border-color: rgba(35, 134, 54, 0.35);
+      background: rgba(35, 134, 54, 0.08);
+    }
+    .ack-link-btn.btn-gentle:hover {
+      background: rgba(35, 134, 54, 0.18);
+      border-color: rgba(35, 134, 54, 0.6);
+      box-shadow: 0 0 12px rgba(35, 134, 54, 0.25);
+    }
+    .ack-link-btn.btn-tiktok-pending {
+      color: #22d3ee;
+      border: 1px dashed rgba(6, 182, 212, 0.45);
+      background: rgba(6, 182, 212, 0.06);
+      cursor: default;
+      opacity: 0.85;
+    }
+    .ack-future-slot {
+      border: 1px dashed var(--border-medium);
+      background: rgba(255, 255, 255, 0.02);
+      border-radius: var(--radius-md);
+      padding: 14px 18px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      flex-wrap: wrap;
+    }
 
     /* Modal Close Button for Detail Dialogs */
     .welcome-close-btn {
@@ -2368,6 +2651,9 @@
         <button class="tab-btn" id="tab-btn-help" data-target-view="view-help" role="tab" aria-selected="false">
           <span class="tab-icon">⚡</span> Consola IA
         </button>
+        <button class="tab-btn" id="tab-btn-acknowledgements" data-target-view="view-acknowledgements" role="tab" aria-selected="false">
+          <span class="tab-icon"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"></path></svg></span> Agradecimientos
+        </button>
       </div>
       <div class="nav-controls">
         <div class="search-box">
@@ -2566,11 +2852,70 @@
             <div class="panel-body"><div class="todo-list" id="todo-items-container"><div class="informational-empty">Sin señales de atención registradas</div></div></div>
           </section>
         </div>
-        <aside class="dashboard-side-col"><section class="panel-card"><div class="panel-header"><div class="panel-title">Lectura del HUB</div></div><div class="panel-body">El resumen consolida señales, Kanban y fases sin ejecutar acciones. Las pestañas mantienen sus vistas especializadas.</div></section></aside>
+        <aside class="dashboard-side-col">
+          <section class="panel-card" id="hub-health-panel">
+            <div class="panel-header">
+              <div class="panel-title"><span>Salud & Vitalidad del HUB</span></div>
+              <span class="badge badge-tag" id="hub-health-badge">Activo</span>
+            </div>
+            <div class="panel-body" id="hub-health-body" style="display:flex;flex-direction:column;gap:12px;">
+              <div class="health-vital-item" style="background:var(--bg-surface-secondary);padding:10px 12px;border-radius:var(--radius-sm);border:1px solid var(--border-subtle);display:flex;flex-direction:column;gap:4px;">
+                <div style="display:flex;justify-content:space-between;align-items:center;">
+                  <span style="font-size:11px;font-family:var(--font-mono);color:var(--text-tertiary);text-transform:uppercase;">Invariantes del Sistema</span>
+                  <span style="font-size:11px;color:var(--accent-green);font-weight:600;">✓ Blindado</span>
+                </div>
+                <div style="font-size:12px;color:var(--text-secondary);line-height:1.4;">
+                  Zero runtime dependencies · 100% offline file:// · Mutaciones exclusivas en isla JSON.
+                </div>
+              </div>
+              <div class="health-vital-item" style="background:var(--bg-surface-secondary);padding:10px 12px;border-radius:var(--radius-sm);border:1px solid var(--border-subtle);display:flex;flex-direction:column;gap:4px;">
+                <div style="display:flex;justify-content:space-between;align-items:center;">
+                  <span style="font-size:11px;font-family:var(--font-mono);color:var(--text-tertiary);text-transform:uppercase;">Lectura del HUB</span>
+                  <span style="font-size:11px;color:var(--accent-blue);font-weight:600;">Telemetría</span>
+                </div>
+                <div style="font-size:12px;color:var(--text-secondary);line-height:1.4;">
+                  El resumen consolida señales, Kanban y fases sin ejecutar acciones. Las pestañas superiores ofrecen vistas dedicadas.
+                </div>
+              </div>
+            </div>
+          </section>
+        </aside>
       </main>
       <div class="overview-detail-stack">
         <section class="panel-card" id="overview-kanban-section"><div class="panel-header"><div><div class="panel-title"><span>Tablero Kanban por Estado</span></div><p class="overview-section-copy">Vista informativa completa; la pestaña Kanban conserva su vista dedicada.</p></div></div><div class="panel-body"><div class="kanban-grid" id="overview-kanban-mount"></div></div></section>
         <section class="panel-card" id="overview-phases-section"><div class="panel-header"><div><div class="panel-title"><span>Fases del Proyecto</span></div><p class="overview-section-copy">Desglose de fases y tareas para lectura rápida; los filtros permanecen en la pestaña Fases.</p></div></div><div class="panel-body"><div class="overview-phase-list" id="overview-phases-mount"></div></div></section>
+        <!-- Acknowledgements / Credits & Community Teaser -->
+        <section class="panel-card credits-teaser-strip" id="overview-credits-section" style="background:linear-gradient(135deg, rgba(22,27,34,0.92) 0%, rgba(13,17,23,0.98) 100%);border:1px solid var(--border-subtle);overflow:hidden;position:relative;padding:12px 18px;">
+          <div style="position:absolute;top:0;left:0;right:0;height:2px;background:linear-gradient(90deg, #ef4444 0%, #388bfd 35%, #8957e5 65%, #238636 100%);"></div>
+          <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px;">
+            <div style="display:flex;align-items:center;gap:14px;flex-wrap:wrap;min-width:0;">
+              <div style="display:flex;align-items:center;gap:8px;">
+                <span style="display:inline-flex;color:var(--accent-amber);"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3l2.2 4.6 5 .7-3.6 3.5.9 5-4.5-2.4-4.5 2.4.9-5-3.6-3.5 5-.7L12 3z"></path></svg></span>
+                <strong style="font-size:13px;color:var(--text-primary);letter-spacing:-0.01em;">Reconocimientos & Ecosistema</strong>
+              </div>
+              <div class="credits-teaser-chips" style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
+                <span class="teaser-chip teaser-youtube external-link-btn" role="link" tabindex="0" aria-label="Abrir YouTube de Ramón Dka en nueva pestaña" data-external-link="https://www.youtube.com/@RamonsDk-Dev" style="display:inline-flex;align-items:center;gap:6px;padding:3px 9px;border-radius:var(--radius-full);background:rgba(239,68,68,0.12);border:1px solid rgba(239,68,68,0.35);color:#ff6b6b;font-size:11px;font-weight:600;cursor:pointer;">
+                  <svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M23.498 6.186a3.016 3.016 0 0 0-2.122-2.136C19.505 3.545 12 3.545 12 3.545s-7.505 0-9.377.505A3.017 3.017 0 0 0 .502 6.186C0 8.07 0 12 0 12s0 3.93.502 5.814a3.016 3.016 0 0 0 2.122 2.136c1.871.505 9.376.505 9.376.505s7.505 0 9.377-.505a3.015 3.015 0 0 0 2.122-2.136C24 15.93 24 12 24 12s0-3.93-.502-5.814zM9.545 15.568V8.432L15.818 12l-6.273 3.568z"/></svg>
+                  YouTube @RamonsDk-Dev
+                </span>
+                <span class="teaser-chip teaser-github external-link-btn" role="link" tabindex="0" aria-label="Abrir GitHub de Ramón Dka en nueva pestaña" data-external-link="https://github.com/RamonsDka" style="display:inline-flex;align-items:center;gap:6px;padding:3px 9px;border-radius:var(--radius-full);background:rgba(56,139,253,0.12);border:1px solid rgba(56,139,253,0.35);color:#79c0ff;font-size:11px;font-weight:600;cursor:pointer;">
+                  <svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path fill-rule="evenodd" clip-rule="evenodd" d="M12 2C6.477 2 2 6.484 2 12.017c0 4.425 2.865 8.18 6.839 9.504.5.092.682-.217.682-.483 0-.237-.008-.868-.013-1.703-2.782.605-3.369-1.343-3.369-1.343-.454-1.158-1.11-1.466-1.11-1.466-.908-.62.069-.608.069-.608 1.003.07 1.53 1.032 1.53 1.032.892 1.53 2.341 1.088 2.91.832.092-.647.35-1.088.636-1.338-2.22-.253-4.555-1.113-4.555-4.951 0-1.093.39-1.988 1.029-2.688-.103-.253-.446-1.272.098-2.65 0 0 .84-.27 2.75 1.026A9.564 9.564 0 0112 6.844c.85.004 1.705.115 2.504.337 1.909-1.296 2.747-1.027 2.747-1.027.546 1.379.202 2.398.1 2.651.64.7 1.028 1.595 1.028 2.688 0 3.848-2.339 4.695-4.566 4.943.359.309.678.92.678 1.855 0 1.338-.012 2.419-.012 2.747 0 .268.18.58.688.482A10.019 10.019 0 0022 12.017C22 6.484 17.522 2 12 2z"/></svg>
+                  GitHub
+                </span>
+                <span class="teaser-chip teaser-gentle external-link-btn" role="link" tabindex="0" aria-label="Abrir repositorio de Gentle AI en GitHub en nueva pestaña" data-external-link="https://github.com/Gentleman-Programming/gentle-ai" style="display:inline-flex;align-items:center;gap:6px;padding:3px 9px;border-radius:var(--radius-full);background:rgba(35,134,54,0.12);border:1px solid rgba(35,134,54,0.35);color:#7ee787;font-size:11px;font-weight:600;cursor:pointer;">
+                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"></polygon></svg>
+                  Gentle AI
+                </span>
+              </div>
+            </div>
+            <div>
+              <button type="button" class="btn btn-primary btn-sm credits-cta-btn" id="btn-open-acknowledgements" data-jump-view="view-acknowledgements" style="display:inline-flex;align-items:center;gap:6px;font-weight:600;cursor:pointer;">
+                <span>Ver Agradecimientos completos</span>
+                <span aria-hidden="true">→</span>
+              </button>
+            </div>
+          </div>
+        </section>
       </div>
     </div>
 
@@ -2607,6 +2952,141 @@
 
     <div id="view-help" class="view-container" hidden>
       <div id="full-help-mount"><section id="help-panel" class="help-panel" data-help></section></div>
+    </div>
+
+    <div id="view-acknowledgements" class="view-container" hidden>
+      <div id="full-acknowledgements-mount" style="width:100%;display:flex;flex-direction:column;gap:18px;">
+        <!-- Hero Header -->
+        <section class="panel-card ack-hero-panel">
+          <div class="ack-hero-accent-line"></div>
+          <div class="ack-hero-header">
+            <div>
+              <div class="ack-hero-title">
+                <span style="display:inline-flex;align-items:center;color:var(--accent-blue);"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"></path></svg></span>
+                <span>Agradecimientos & Ecosistema</span>
+              </div>
+              <p class="ack-hero-copy">
+                Reconocimiento a los creadores, mentores e iniciativas que hacen posible este panel de control técnico autónomo, portable y de alta fidelidad para el desarrollo asistido por IA.
+              </p>
+            </div>
+            <div style="display:flex;gap:8px;align-items:center;">
+              <span class="badge badge-tag">v1.4.0 Drop-in</span>
+              <span class="badge badge-completed">100% Offline</span>
+            </div>
+          </div>
+        </section>
+
+        <!-- Detailed Cards Grid -->
+        <div class="ack-cards-grid">
+          <!-- Card 1: Ramón Dka (Autor & Creador) -->
+          <article class="ack-card">
+            <div class="ack-card-header">
+              <div class="ack-avatar avatar-author">R</div>
+              <div class="ack-card-meta">
+                <h3 class="ack-card-title">Ramón Dka / RamonsDk-Dev</h3>
+                <span class="ack-card-role ack-role-blue">Autor & Creador del Proyecto</span>
+              </div>
+            </div>
+            <p class="ack-card-body">
+              Diseño integral, desarrollo arquitectónico y concepción del Task Manager Portable como herramienta drop-in de un solo archivo. Creado para orquestar flujos de trabajo con agentes IA mediante la persistencia desacoplada de la isla JSON y el ciclo de vida SDD con cero dependencias en tiempo de ejecución.
+            </p>
+            <div class="ack-card-links">
+              <span class="ack-link-btn btn-gh external-link-btn" role="link" tabindex="0" aria-label="Abrir perfil de GitHub de Ramón Dka en nueva pestaña" data-external-link="https://github.com/RamonsDka">
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path fill-rule="evenodd" clip-rule="evenodd" d="M12 2C6.477 2 2 6.484 2 12.017c0 4.425 2.865 8.18 6.839 9.504.5.092.682-.217.682-.483 0-.237-.008-.868-.013-1.703-2.782.605-3.369-1.343-3.369-1.343-.454-1.158-1.11-1.466-1.11-1.466-.908-.62.069-.608.069-.608 1.003.07 1.53 1.032 1.53 1.032.892 1.53 2.341 1.088 2.91.832.092-.647.35-1.088.636-1.338-2.22-.253-4.555-1.113-4.555-4.951 0-1.093.39-1.988 1.029-2.688-.103-.253-.446-1.272.098-2.65 0 0 .84-.27 2.75 1.026A9.564 9.564 0 0112 6.844c.85.004 1.705.115 2.504.337 1.909-1.296 2.747-1.027 2.747-1.027.546 1.379.202 2.398.1 2.651.64.7 1.028 1.595 1.028 2.688 0 3.848-2.339 4.695-4.566 4.943.359.309.678.92.678 1.855 0 1.338-.012 2.419-.012 2.747 0 .268.18.58.688.482A10.019 10.019 0 0022 12.017C22 6.484 17.522 2 12 2z"/></svg>
+                <span>GitHub Personal</span>
+              </span>
+              <span class="ack-link-btn btn-gh external-link-btn" role="link" tabindex="0" aria-label="Abrir repositorio de Task Manager Portable en nueva pestaña" data-external-link="https://github.com/RamonsDka/task-manager-portable">
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"></path><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"></path></svg>
+                <span>Repositorio del Proyecto</span>
+              </span>
+            </div>
+          </article>
+
+          <!-- Card 2: Gentleman Programming & Gentle AI -->
+          <article class="ack-card">
+            <div class="ack-card-header">
+              <div class="ack-avatar avatar-gentle">G</div>
+              <div class="ack-card-meta">
+                <h3 class="ack-card-title">Gentleman Programming & Gentle AI</h3>
+                <span class="ack-card-role ack-role-green">Inspiración & Estándares de Ingeniería</span>
+              </div>
+            </div>
+            <p class="ack-card-body">
+              Agradecimiento especial por la continua divulgación de estándares inquebrantables de ingeniería de software, la filosofía de Receipt-Driven Development (RDD), el diseño de arquitecturas robustas y la convicción de no conformarse con lo inmediato sino elevar las capacidades de los desarrolladores al tope de su potencial.
+            </p>
+            <div class="ack-card-links">
+              <span class="ack-link-btn btn-gentle external-link-btn" role="link" tabindex="0" aria-label="Abrir sitio web de Gentleman Programming en nueva pestaña" data-external-link="https://gentlemanprogramming.com/#consulting">
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"></circle><line x1="2" y1="12" x2="22" y2="12"></line><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"></path></svg>
+                <span>Gentleman Programming</span>
+              </span>
+              <span class="ack-link-btn btn-gentle external-link-btn" role="link" tabindex="0" aria-label="Abrir repositorio de Gentle AI en GitHub en nueva pestaña" data-external-link="https://github.com/Gentleman-Programming/gentle-ai">
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"></polygon></svg>
+                <span>Gentle AI Repo</span>
+              </span>
+            </div>
+          </article>
+
+          <!-- Card 3: Canales y Redes (YouTube & TikTok) -->
+          <article class="ack-card">
+            <div class="ack-card-header">
+              <div class="ack-avatar avatar-media">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M23.498 6.186a3.016 3.016 0 0 0-2.122-2.136C19.505 3.545 12 3.545 12 3.545s-7.505 0-9.377.505A3.017 3.017 0 0 0 .502 6.186C0 8.07 0 12 0 12s0 3.93.502 5.814a3.016 3.016 0 0 0 2.122 2.136c1.871.505 9.376.505 9.376.505s7.505 0 9.377-.505a3.015 3.015 0 0 0 2.122-2.136C24 15.93 24 12 24 12s0-3.93-.502-5.814zM9.545 15.568V8.432L15.818 12l-6.273 3.568z"/></svg>
+              </div>
+              <div class="ack-card-meta">
+                <h3 class="ack-card-title">Canales & Divulgación Multimedia</h3>
+                <span class="ack-card-role ack-role-red">Contenido Técnico & Video</span>
+              </div>
+            </div>
+            <p class="ack-card-body">
+              Canal oficial compartido por el autor para publicar contenido técnico y ampliar la documentación audiovisual del proyecto. La ficha queda preparada para incorporar nuevas plataformas sin alterar la arquitectura offline.
+            </p>
+            <div class="ack-card-links">
+              <span class="ack-link-btn btn-yt external-link-btn" role="link" tabindex="0" aria-label="Abrir canal de YouTube de Ramón Dka en nueva pestaña" data-external-link="https://www.youtube.com/@RamonsDk-Dev">
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M23.498 6.186a3.016 3.016 0 0 0-2.122-2.136C19.505 3.545 12 3.545 12 3.545s-7.505 0-9.377.505A3.017 3.017 0 0 0 .502 6.186C0 8.07 0 12 0 12s0 3.93.502 5.814a3.016 3.016 0 0 0 2.122 2.136c1.871.505 9.376.505 9.376.505s7.505 0 9.377-.505a3.015 3.015 0 0 0 2.122-2.136C24 15.93 24 12 24 12s0-3.93-.502-5.814zM9.545 15.568V8.432L15.818 12l-6.273 3.568z"/></svg>
+                <span>YouTube @RamonsDk-Dev</span>
+              </span>
+              <span class="ack-link-btn btn-tiktok-pending" role="note" aria-disabled="true" title="Enlace pendiente de configuración">
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M19.59 6.69a4.83 4.83 0 0 1-3.77-4.25V2h-3.45v13.67a2.89 2.89 0 0 1-5.2 1.74 2.89 2.89 0 0 1 2.31-4.64c.298-.002.595.042.88.13V9.4a6.33 6.33 0 0 0-1-.08A6.34 6.34 0 0 0 3 15.66a6.34 6.34 0 0 0 10.82 4.49 6.27 6.27 0 0 0 1.87-4.49V8.69a8.18 8.18 0 0 0 4.77 1.52v-3.4a4.85 4.85 0 0 1-.87-.12z"/></svg>
+                <span>TikTok (Pendiente)</span>
+              </span>
+            </div>
+          </article>
+
+          <!-- Card 4: Espacio para Futuras Redes / Enlaces -->
+          <article class="ack-card" style="border-style:dashed;">
+            <div class="ack-card-header">
+              <div class="ack-avatar avatar-future">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 5v14M5 12h14"></path></svg>
+              </div>
+              <div class="ack-card-meta">
+                <h3 class="ack-card-title">Comunidad & Futuras Conexiones</h3>
+                <span class="ack-card-role ack-role-cyan">Espacio en Expansión</span>
+              </div>
+            </div>
+            <p class="ack-card-body">
+              Espacio reservado para futuras plataformas, comunidades y recursos oficiales. Los destinos se habilitarán únicamente cuando sus enlaces sean proporcionados y verificados.
+            </p>
+            <div class="ack-future-slot">
+              <span style="font-size:11.5px;color:var(--text-tertiary);font-family:var(--font-mono);">[ Próximamente: Discord · X · Blog Técnico ]</span>
+              <span class="badge" style="background:rgba(6,182,212,0.12);border-color:rgba(6,182,212,0.3);color:#22d3ee;font-size:10px;">Reservado</span>
+            </div>
+          </article>
+        </div>
+
+        <!-- Invariants Card -->
+        <section class="panel-card" style="background:var(--bg-surface-secondary);border:1px solid var(--border-subtle);padding:18px 22px;">
+          <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:12px;">
+            <div style="display:flex;align-items:center;gap:10px;">
+              <span style="display:inline-flex;color:var(--accent-green);"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path><path d="M9 12l2 2 4-4"></path></svg></span>
+              <strong style="font-size:13px;color:var(--text-primary);">Compromiso de Portabilidad & Privacidad</strong>
+            </div>
+            <span style="font-size:11px;color:var(--accent-green);font-family:var(--font-mono);font-weight:600;">✓ Sin telemetría remota ni cookies</span>
+          </div>
+          <p style="font-size:12px;color:var(--text-secondary);line-height:1.5;margin-top:8px;">
+            Todos los enlaces externos son estrictamente informativos y se abren bajo consentimiento explícito del usuario mediante listeners seguros (<code>noopener,noreferrer</code>). El dashboard no realiza peticiones HTTP de fondo, no utiliza librerías externas de terceros y es 100% operativo sin conexión a internet.
+          </p>
+        </section>
+      </div>
     </div>
   </div>
 </body>

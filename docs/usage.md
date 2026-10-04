@@ -1,12 +1,12 @@
 # Usage & Workflow Guide
 
-This guide provides an end-to-step operational walkthrough for the **OpenCode SDD Profile Manager** principal plugin pack and its integrated companion plugins.
+This guide provides an end-to-step operational walkthrough for the **OpenCode ODD Profile Manager** principal plugin pack (legacy package ID `opencode-sdd-profile-manager`, unchanged) and its integrated companion plugins.
 
 ---
 
 ## 1. Opening the Interface
 
-Launch the SDD Profile Manager using any of the following methods:
+Launch the ODD Profile Manager using any of the following methods (command and menu labels below are the literal on-screen strings):
 - **Keyboard Shortcut**: Press **`Alt+K`** or **`Super+K`**
 - **Chat Command**: Type **`/sdd-model`** or **`:sdd-model`** in the OpenCode prompt
 
@@ -40,7 +40,7 @@ After activation, the profile list displays a persistent indicator:
 The profile detail screen groups the 25 supported agents into five intuitive categories:
 
 1. **Orchestrator**: `sdd-ORCHETATOR`
-2. **SDD Core**: `sdd-propose`, `sdd-design`, `sdd-apply`, `sdd-verify`, `sdd-spec`, `sdd-onboard`, `sdd-explore`, `sdd-init`, `sdd-tasks`, `sdd-archive`
+2. **ODD Core** (legacy `sdd-*` IDs): `sdd-propose`, `sdd-design`, `sdd-apply`, `sdd-verify`, `sdd-spec`, `sdd-onboard`, `sdd-explore`, `sdd-init`, `sdd-tasks`, `sdd-archive`
 3. **Judgment Day**: `jd-judge-a`, `jd-judge-b`, `jd-fix-agent`
 4. **Reviewers**: `review-readability`, `review-reliability`, `review-resilience`, `review-validator`, `review-refuter`, `review-risk`, `model-audit`
 5. **Auxiliaries**: `gentle-ai-windows-validator`, `compaction`, `summary`, `title`
@@ -66,7 +66,7 @@ Select **Configure fallbacks** to assign backup models for primary agents:
 To configure multiple agents quickly without repetitive manual selection, open **Bulk actions**:
 
 - **Complete missing**: Assigns a selected model/effort only to unassigned agents, preserving existing choices.
-- **Overwrite**: Replaces assignments across an entire phase group (e.g. all SDD Core agents or all Reviewers). Requires explicit confirmation.
+- **Overwrite**: Replaces assignments across an entire phase group (e.g. all ODD Core agents or all Reviewers). Requires explicit confirmation.
 
 Automatic snapshots are created before every bulk operation so any change can be rolled back immediately.
 
