@@ -3,8 +3,8 @@ import { mkdtempSync, writeFileSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { createComponent, createContext, createRoot, useContext } from "solid-js";
-// @ts-expect-error The bridge's nested Solid dev runtime has no adjacent declaration file.
-import { createComponent as nativeComponent, createContext as nativeContext, createRoot as nativeRoot, useContext as nativeUseContext } from "../plugins/suite-de-agentes/node_modules/solid-js/dist/dev.js";
+// Same Solid runtime as the suite native host via the portable bare specifier.
+import { createComponent as nativeComponent, createContext as nativeContext, createRoot as nativeRoot, useContext as nativeUseContext } from "solid-js";
 import { describe, expect, it, vi } from "vitest";
 import { createV2Host } from "./host-compat";
 
