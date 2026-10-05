@@ -1,17 +1,27 @@
-# OpenCode ODD Profile Manager
+<h1 align="center">OpenCode ODD Profile Manager</h1>
 
-<a href="https://github.com/Gentleman-Programming/gentle-ai">
-  <img width="220" src="https://raw.githubusercontent.com/Gentleman-Programming/gentle-ai/main/docs/assets/brand/built-with-gentle-ai.png" alt="Built with Gentle-AI" />
-</a>
+<p align="center">Keyboard-first ODD profiles for OpenCode: create, version, and activate model profiles across the V2 agent suite.</p>
 
-![Node.js 24](https://img.shields.io/badge/Node.js-24-339933?logo=nodedotjs&logoColor=white)
-![OpenCode](https://img.shields.io/badge/OpenCode-%3E%3D%201.17.11-111827)
-[![CI](https://github.com/RamonsDka/opencode-sdd-profile-manager/actions/workflows/ci.yml/badge.svg)](https://github.com/RamonsDka/opencode-sdd-profile-manager/actions/workflows/ci.yml)
-![License](https://img.shields.io/badge/license-MIT-blue)
+<p align="center">
+  <a href="https://github.com/Gentleman-Programming/gentle-ai">
+    <img width="220" src="https://raw.githubusercontent.com/Gentleman-Programming/gentle-ai/main/docs/assets/brand/built-with-gentle-ai.png" alt="Built with Gentle-AI" />
+  </a>
+</p>
 
-A keyboard-first OpenCode TUI plugin pack for creating, editing, versioning, and activating AI model profiles across Organic-Driven Development (ODD) agents, orchestrating multi-agent suites, and maintaining offline project visibility.
+<p align="center">
+  <img src="https://img.shields.io/badge/Node.js-24-339933?logo=nodedotjs&logoColor=white&style=flat-square" alt="Node.js 24" />
+  <img src="https://img.shields.io/badge/OpenCode-%3E%3D2.0.21_%3C3-111827?style=flat-square" alt="OpenCode >=2.0.21 <3" />
+  <a href="https://github.com/RamonsDka/opencode-sdd-profile-manager/actions/workflows/ci.yml"><img src="https://github.com/RamonsDka/opencode-sdd-profile-manager/actions/workflows/ci.yml/badge.svg" alt="CI" /></a>
+  <img src="https://img.shields.io/badge/license-MIT-blue?style=flat-square" alt="License: MIT" />
+</p>
 
-It serves as the **principal plugin pack** for OpenCode, seamlessly integrating the **ODD Profile Manager** (legacy package ID `opencode-sdd-profile-manager`), **Agent Suite**, **Task Manager**, **Session Vault**, **Agent Task Manager**, **GitHub Integration**, and **Native Agents** into a cohesive terminal development environment.
+<p align="center">
+  <a href="#quick-start">Quick Start</a> ·
+  <a href="#installation--deployment">Installation</a> ·
+  <a href="docs/usage.md">Usage</a> ·
+  <a href="#detailed-documentation-map">Documentation</a> ·
+  <a href="#origin-and-attribution">Credits</a>
+</p>
 
 > **About ODD**
 >
